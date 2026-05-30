@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Domain Taxonomy - GRC Engineering</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1a365d 0%, #2d3748 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+
+        h1 {
+            color: #2d3748;
+            margin-bottom: 10px;
+            font-size: 2.5em;
+        }
+
+        .subtitle {
+            color: #718096;
+            margin-bottom: 40px;
+            font-size: 1.1em;
+        }
+
+        .taxonomy-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 25px;
+            margin-bottom: 30px;
+        }
+
+        .domain {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 15px;
+            padding: 25px;
+            color: white;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .domain:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        }
+
+        .domain h2 {
+            font-size: 1.5em;
+            margin-bottom: 15px;
+        }
+
+        .domain p {
+            font-size: 0.9em;
+            opacity: 0.9;
+            margin-bottom: 15px;
+        }
+
+        .subdomains {
+            display: none;
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .subdomains.show {
+            display: block;
+            animation: slideDown 0.3s ease;
+        }
+
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                max-height: 0;
+            }
+            to {
+                opacity: 1;
+                max-height: 500px;
+            }
+        }
+
+        .subdomain {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 10px;
+            font-size: 0.85em;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .subdomain:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .hierarchy {
+            background: #f7fafc;
+            border-radius: 15px;
+            padding: 30px;
+            margin-top: 30px;
+        }
+
+        .hierarchy h2 {
+            color: #2d3748;
+            margin-bottom: 20px;
+            font-size: 1.8em;
+        }
+
+        .tree {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .tree-node {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            padding: 15px;
+            background: white;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border-left: 4px solid #667eea;
+        }
+
+        .tree-node:hover {
+            transform: translateX(10px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        .tree-node.level-1 {
+            border-left-color: #667eea;
+            font-weight: bold;
+            font-size: 1.1em;
+        }
+
+        .tree-node.level-2 {
+            border-left-color: #10b981;
+            margin-left: 30px;
+        }
+
+        .tree-node.level-3 {
+            border-left-color: #f59e0b;
+            margin-left: 60px;
+        }
+
+        .tree-node .icon {
+            font-size: 1.2em;
+        }
+
+        .filter-section {
+            background: #edf2f7;
+            border-radius: 15px;
+            padding: 25px;
+            margin-top: 30px;
+        }
+
+        .filter-section h3 {
+            color: #2d3748;
+            margin-bottom: 15px;
+        }
+
+        .filter-buttons {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .filter-btn {
+            background: white;
+            border: 2px solid #cbd5e0;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 0.9em;
+        }
+
+        .filter-btn:hover {
+            border-color: #667eea;
+            color: #667eea;
+        }
+
+        .filter-btn.active {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+
+        .stats-bar {
+            display: flex;
+            gap: 30px;
+            margin-top: 30px;
+            flex-wrap: wrap;
+        }
+
+        .stat-item {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px 30px;
+            border-radius: 10px;
+            text-align: center;
+            min-width: 150px;
+        }
+
+        .stat-item .number {
+            font-size: 2em;
+            font-weight: bold;
+        }
+
+        .stat-item .label {
+            font-size: 0.9em;
+            opacity: 0.9;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Domain Taxonomy</h1>
+        <p class="subtitle">Hierarchical structure of GRC domains, categories, and controls</p>
+
+        <div class="taxonomy-grid">
+            <div class="domain" onclick="toggleSubdomains(this)">
+                <h2>Risk Management</h2>
+                <p>Identification, assessment, and mitigation of organizational risks</p>
+                <div class="subdomains">
+                    <div class="subdomain">Operational Risk</div>
+                    <div class="subdomain">Financial Risk</div>
+                    <div class="subdomain">Strategic Risk</div>
+                    <div class="subdomain">Compliance Risk</div>
+                    <div class="subdomain">Reputational Risk</div>
+                </div>
+            </div>
+
+            <div class="domain" onclick="toggleSubdomains(this)">
+                <h2>Compliance</h2>
+                <p>Regulatory and standards adherence management</p>
+                <div class="subdomains">
+                    <div class="subdomain">SOC 2</div>
+                    <div class="subdomain">ISO 27001</div>
+                    <div class="subdomain">GDPR</div>
+                    <div class="subdomain">HIPAA</div>
+                    <div class="subdomain">PCI DSS</div>
+                </div>
+            </div>
+
+            <div class="domain" onclick="toggleSubdomains(this)">
+                <h2>Security</h2>
+                <p>Information security controls and practices</p>
+                <div class="subdomains">
+                    <div class="subdomain">Access Control</div>
+                    <div class="subdomain">Data Protection</div>
+                    <div class="subdomain">Network Security</div>
+                    <div class="subdomain">Application Security</div>
+                    <div class="subdomain">Physical Security</div>
+                </div>
+            </div>
+
+            <div class="domain" onclick="toggleSubdomains(this)">
+                <h2>Governance</h2>
+                <p>Organizational policies and decision-making frameworks</p>
+                <div class="subdomains">
+                    <div class="subdomain">Policy Management</div>
+                    <div class="subdomain">Board Oversight</div>
+                    <div class="subdomain">Risk Appetite</div>
+                    <div class="subdomain">Ethics & Compliance</div>
+                    <div class="subdomain">Audit Committee</div>
+                </div>
+            </div>
+
+            <div class="domain" onclick="toggleSubdomains(this)">
+                <h2>Operations</h2>
+                <p>Day-to-day GRC operational processes</p>
+                <div class="subdomains">
+                    <div class="subdomain">Incident Response</div>
+                    <div class="subdomain">Change Management</div>
+                    <div class="subdomain">Vendor Management</div>
+                    <div class="subdomain">Training & Awareness</div>
+                    <div class="subdomain">Business Continuity</div>
+                </div>
+            </div>
+
+            <div class="domain" onclick="toggleSubdomains(this)">
+                <h2>Technology</h2>
+                <p>Technical controls and infrastructure</p>
+                <div class="subdomains">
+                    <div class="subdomain">Identity Management</div>
+                    <div class="subdomain">Encryption</div>
+                    <div class="subdomain">Monitoring & Logging</div>
+                    <div class="subdomain">Vulnerability Management</div>
+                    <div class="subdomain">Cloud Security</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="hierarchy">
+            <h2>Complete Hierarchy View</h2>
+            <div class="tree">
+                <div class="tree-node level-1">
+                    <span class="icon">🏢</span>
+                    <span>GRC Framework</span>
+                </div>
+                <div class="tree-node level-2">
+                    <span class="icon">⚠️</span>
+                    <span>Risk Management</span>
+                </div>
+                <div class="tree-node level-3">
+                    <span class="icon">📊</span>
+                    <span>Risk Assessment</span>
+                </div>
+                <div class="tree-node level-3">
+                    <span class="icon">🛡️</span>
+                    <span>Risk Mitigation</span>
+                </div>
+                <div class="tree-node level-2">
+                    <span class="icon">✅</span>
+                    <span>Compliance</span>
+                </div>
+                <div class="tree-node level-3">
+                    <span class="icon">📋</span>
+                    <span>Control Framework</span>
+                </div>
+                <div class="tree-node level-3">
+                    <span class="icon">🔍</span>
+                    <span>Audit Management</span>
+                </div>
+                <div class="tree-node level-2">
+                    <span class="icon">🔒</span>
+                    <span>Security</span>
+                </div>
+                <div class="tree-node level-3">
+                    <span class="icon">👤</span>
+                    <span>Identity & Access</span>
+                </div>
+                <div class="tree-node level-3">
+                    <span class="icon">💾</span>
+                    <span>Data Protection</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="filter-section">
+            <h3>Filter by Category</h3>
+            <div class="filter-buttons">
+                <button class="filter-btn active" onclick="filterDomain('all')">All</button>
+                <button class="filter-btn" onclick="filterDomain('risk')">Risk</button>
+                <button class="filter-btn" onclick="filterDomain('compliance')">Compliance</button>
+                <button class="filter-btn" onclick="filterDomain('security')">Security</button>
+                <button class="filter-btn" onclick="filterDomain('governance')">Governance</button>
+            </div>
+        </div>
+
+        <div class="stats-bar">
+            <div class="stat-item">
+                <div class="number">6</div>
+                <div class="label">Primary Domains</div>
+            </div>
+            <div class="stat-item">
+                <div class="number">30</div>
+                <div class="label">Subdomains</div>
+            </div>
+            <div class="stat-item">
+                <div class="number">150</div>
+                <div class="label">Controls</div>
+            </div>
+            <div class="stat-item">
+                <div class="number">5</div>
+                <div class="label">Standards</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function toggleSubdomains(element) {
+            const subdomains = element.querySelector('.subdomains');
+            subdomains.classList.toggle('show');
+        }
+
+        function filterDomain(category) {
+            const buttons = document.querySelectorAll('.filter-btn');
+            buttons.forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+
+            const domains = document.querySelectorAll('.domain');
+            domains.forEach(domain => {
+                if (category === 'all') {
+                    domain.style.display = 'block';
+                } else {
+                    const title = domain.querySelector('h2').textContent.toLowerCase();
+                    if (title.includes(category)) {
+                        domain.style.display = 'block';
+                    } else {
+                        domain.style.display = 'none';
+                    }
+                }
+            });
+        }
+    </script>
+</body>
+</html>
