@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Health Score Algorithm - GRC Engineering</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+
+        h1 {
+            color: #2d3748;
+            margin-bottom: 10px;
+            font-size: 2.5em;
+        }
+
+        .subtitle {
+            color: #718096;
+            margin-bottom: 40px;
+            font-size: 1.1em;
+        }
+
+        .score-display {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .main-score {
+            font-size: 6em;
+            font-weight: bold;
+            color: #10b981;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .score-label {
+            font-size: 1.5em;
+            color: #718096;
+            margin-top: 10px;
+        }
+
+        .components-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 25px;
+            margin-bottom: 40px;
+        }
+
+        .component {
+            background: #f7fafc;
+            border-radius: 15px;
+            padding: 25px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 3px solid transparent;
+        }
+
+        .component:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        }
+
+        .component.active {
+            border-color: #10b981;
+            background: #ecfdf5;
+        }
+
+        .component-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .component-name {
+            font-size: 1.3em;
+            font-weight: bold;
+            color: #2d3748;
+        }
+
+        .component-weight {
+            background: #10b981;
+            color: white;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 0.9em;
+        }
+
+        .component-score {
+            font-size: 3em;
+            font-weight: bold;
+            color: #10b981;
+            margin-bottom: 10px;
+        }
+
+        .component-bar {
+            background: #e2e8f0;
+            border-radius: 10px;
+            height: 10px;
+            overflow: hidden;
+        }
+
+        .component-bar-fill {
+            background: linear-gradient(90deg, #10b981, #059669);
+            height: 100%;
+            border-radius: 10px;
+            transition: width 0.5s ease;
+        }
+
+        .formula-section {
+            background: #edf2f7;
+            border-radius: 15px;
+            padding: 30px;
+            margin-bottom: 40px;
+        }
+
+        .formula-section h2 {
+            color: #2d3748;
+            margin-bottom: 20px;
+            font-size: 1.8em;
+        }
+
+        .formula {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            font-family: 'Courier New', monospace;
+            font-size: 1.2em;
+            color: #2d3748;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .formula-explanation {
+            color: #4a5568;
+            line-height: 1.6;
+        }
+
+        .details-panel {
+            background: #ecfdf5;
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 40px;
+            display: none;
+        }
+
+        .details-panel.show {
+            display: block;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .details-panel h3 {
+            color: #2d3748;
+            margin-bottom: 15px;
+        }
+
+        .factor-list {
+            list-style: none;
+        }
+
+        .factor-list li {
+            padding: 10px 0;
+            border-bottom: 1px solid #d1fae5;
+            color: #4a5568;
+        }
+
+        .factor-list li:last-child {
+            border-bottom: none;
+        }
+
+        .interactive-calculator {
+            background: #f7fafc;
+            border-radius: 15px;
+            padding: 30px;
+        }
+
+        .interactive-calculator h2 {
+            color: #2d3748;
+            margin-bottom: 20px;
+            font-size: 1.8em;
+        }
+
+        .slider-container {
+            margin-bottom: 20px;
+        }
+
+        .slider-label {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            color: #4a5568;
+        }
+
+        .slider {
+            width: 100%;
+            height: 10px;
+            border-radius: 5px;
+            background: #e2e8f0;
+            outline: none;
+            -webkit-appearance: none;
+        }
+
+        .slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 25px;
+            height: 25px;
+            border-radius: 50%;
+            background: #10b981;
+            cursor: pointer;
+        }
+
+        .slider::-moz-range-thumb {
+            width: 25px;
+            height: 25px;
+            border-radius: 50%;
+            background: #10b981;
+            cursor: pointer;
+        }
+
+        .calculate-btn {
+            background: #10b981;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 10px;
+            font-size: 1.1em;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-top: 20px;
+        }
+
+        .calculate-btn:hover {
+            background: #059669;
+            transform: translateY(-2px);
+        }
+
+        .score-ranges {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 30px;
+        }
+
+        .range-item {
+            padding: 15px;
+            border-radius: 10px;
+            text-align: center;
+            color: white;
+        }
+
+        .range-item.excellent {
+            background: #10b981;
+        }
+
+        .range-item.good {
+            background: #3b82f6;
+        }
+
+        .range-item.fair {
+            background: #f59e0b;
+        }
+
+        .range-item.poor {
+            background: #ef4444;
+        }
+
+        .range-item h4 {
+            margin-bottom: 5px;
+            font-size: 1.1em;
+        }
+
+        .range-item p {
+            font-size: 0.9em;
+            opacity: 0.9;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Health Score Algorithm</h1>
+        <p class="subtitle">Interactive breakdown of the GRC health score calculation methodology</p>
+
+        <div class="score-display">
+            <div class="main-score" id="mainScore">87</div>
+            <div class="score-label">Overall Health Score</div>
+        </div>
+
+        <div class="components-grid">
+            <div class="component" onclick="showComponentDetails('risk')">
+                <div class="component-header">
+                    <div class="component-name">Risk Posture</div>
+                    <div class="component-weight">40%</div>
+                </div>
+                <div class="component-score" id="riskScore">91</div>
+                <div class="component-bar">
+                    <div class="component-bar-fill" id="riskBar" style="width: 91%"></div>
+                </div>
+            </div>
+
+            <div class="component" onclick="showComponentDetails('compliance')">
+                <div class="component-header">
+                    <div class="component-name">Compliance</div>
+                    <div class="component-weight">30%</div>
+                </div>
+                <div class="component-score" id="complianceScore">94</div>
+                <div class="component-bar">
+                    <div class="component-bar-fill" id="complianceBar" style="width: 94%"></div>
+                </div>
+            </div>
+
+            <div class="component" onclick="showComponentDetails('maturity')">
+                <div class="component-header">
+                    <div class="component-name">Maturity</div>
+                    <div class="component-weight">20%</div>
+                </div>
+                <div class="component-score" id="maturityScore">78</div>
+                <div class="component-bar">
+                    <div class="component-bar-fill" id="maturityBar" style="width: 78%"></div>
+                </div>
+            </div>
+
+            <div class="component" onclick="showComponentDetails('security')">
+                <div class="component-header">
+                    <div class="component-name">Security</div>
+                    <div class="component-weight">10%</div>
+                </div>
+                <div class="component-score" id="securityScore">88</div>
+                <div class="component-bar">
+                    <div class="component-bar-fill" id="securityBar" style="width: 88%"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="formula-section">
+            <h2>Calculation Formula</h2>
+            <div class="formula">
+                Health Score = (Risk × 0.40) + (Compliance × 0.30) + (Maturity × 0.20) + (Security × 0.10)
+            </div>
+            <div class="formula-explanation">
+                <p>The overall health score is a weighted average of four key components. Each component is scored on a scale of 0-100, with higher scores indicating better performance. The weights reflect the relative importance of each component to overall GRC health.</p>
+            </div>
+        </div>
+
+        <div class="details-panel" id="detailsPanel">
+            <h3 id="detailsTitle">Component Details</h3>
+            <ul class="factor-list" id="factorList"></ul>
+        </div>
+
+        <div class="interactive-calculator">
+            <h2>Interactive Calculator</h2>
+            
+            <div class="slider-container">
+                <div class="slider-label">
+                    <span>Risk Posture Score</span>
+                    <span id="riskValue">91</span>
+                </div>
+                <input type="range" class="slider" id="riskSlider" min="0" max="100" value="91" oninput="updateScore()">
+            </div>
+
+            <div class="slider-container">
+                <div class="slider-label">
+                    <span>Compliance Score</span>
+                    <span id="complianceValue">94</span>
+                </div>
+                <input type="range" class="slider" id="complianceSlider" min="0" max="100" value="94" oninput="updateScore()">
+            </div>
+
+            <div class="slider-container">
+                <div class="slider-label">
+                    <span>Maturity Score</span>
+                    <span id="maturityValue">78</span>
+                </div>
+                <input type="range" class="slider" id="maturitySlider" min="0" max="100" value="78" oninput="updateScore()">
+            </div>
+
+            <div class="slider-container">
+                <div class="slider-label">
+                    <span>Security Score</span>
+                    <span id="securityValue">88</span>
+                </div>
+                <input type="range" class="slider" id="securitySlider" min="0" max="100" value="88" oninput="updateScore()">
+            </div>
+
+            <button class="calculate-btn" onclick="calculateScore()">Calculate Health Score</button>
+        </div>
+
+        <div class="score-ranges">
+            <div class="range-item excellent">
+                <h4>90-100</h4>
+                <p>Excellent</p>
+            </div>
+            <div class="range-item good">
+                <h4>80-89</h4>
+                <p>Good</p>
+            </div>
+            <div class="range-item fair">
+                <h4>70-79</h4>
+                <p>Fair</p>
+            </div>
+            <div class="range-item poor">
+                <h4>Below 70</h4>
+                <p>Poor</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const componentDetails = {
+            risk: {
+                title: "Risk Posture Factors",
+                factors: [
+                    "Unmitigated critical risks count",
+                    "Risk trend over time (decreasing = better)",
+                    "Vulnerability exposure level",
+                    "Third-party risk assessment",
+                    "Risk response time",
+                    "Risk appetite alignment"
+                ]
+            },
+            compliance: {
+                title: "Compliance Factors",
+                factors: [
+                    "Control effectiveness rate",
+                    "Policy compliance percentage",
+                    "Audit findings count",
+                    "Evidence collection completeness",
+                    "Regulatory requirement coverage",
+                    "Certification status"
+                ]
+            },
+            maturity: {
+                title: "Maturity Factors",
+                factors: [
+                    "Process automation level",
+                    "Tool coverage percentage",
+                    "Staff training completion",
+                    "Documentation completeness",
+                    "Standardization degree",
+                    "Continuous improvement practices"
+                ]
+            },
+            security: {
+                title: "Security Factors",
+                factors: [
+                    "Security configuration compliance",
+                    "Incident response capability",
+                    "Security awareness training",
+                    "Access control effectiveness",
+                    "Encryption implementation",
+                    "Security monitoring coverage"
+                ]
+            }
+        };
+
+        function showComponentDetails(component) {
+            const panel = document.getElementById('detailsPanel');
+            const title = document.getElementById('detailsTitle');
+            const list = document.getElementById('factorList');
+            
+            // Remove active class from all components
+            document.querySelectorAll('.component').forEach(comp => comp.classList.remove('active'));
+            
+            // Add active class to clicked component
+            event.currentTarget.classList.add('active');
+            
+            // Update details panel
+            title.textContent = componentDetails[component].title;
+            list.innerHTML = componentDetails[component].factors.map(factor => `<li>${factor}</li>`).join('');
+            
+            // Show panel
+            panel.classList.add('show');
+        }
+
+        function updateScore() {
+            const risk = document.getElementById('riskSlider').value;
+            const compliance = document.getElementById('complianceSlider').value;
+            const maturity = document.getElementById('maturitySlider').value;
+            const security = document.getElementById('securitySlider').value;
+
+            document.getElementById('riskValue').textContent = risk;
+            document.getElementById('complianceValue').textContent = compliance;
+            document.getElementById('maturityValue').textContent = maturity;
+            document.getElementById('securityValue').textContent = security;
+
+            document.getElementById('riskScore').textContent = risk;
+            document.getElementById('complianceScore').textContent = compliance;
+            document.getElementById('maturityScore').textContent = maturity;
+            document.getElementById('securityScore').textContent = security;
+
+            document.getElementById('riskBar').style.width = risk + '%';
+            document.getElementById('complianceBar').style.width = compliance + '%';
+            document.getElementById('maturityBar').style.width = maturity + '%';
+            document.getElementById('securityBar').style.width = security + '%';
+        }
+
+        function calculateScore() {
+            const risk = parseFloat(document.getElementById('riskSlider').value);
+            const compliance = parseFloat(document.getElementById('complianceSlider').value);
+            const maturity = parseFloat(document.getElementById('maturitySlider').value);
+            const security = parseFloat(document.getElementById('securitySlider').value);
+
+            const healthScore = (risk * 0.40) + (compliance * 0.30) + (maturity * 0.20) + (security * 0.10);
+            
+            document.getElementById('mainScore').textContent = Math.round(healthScore);
+        }
+    </script>
+</body>
+</html>
