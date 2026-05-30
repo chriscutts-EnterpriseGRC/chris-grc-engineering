@@ -6,6 +6,15 @@ A comprehensive Governance, Risk, and Compliance (GRC) engineering framework des
 
 This portfolio demonstrates a modern approach to GRC engineering, combining strong governance principles, automation, and data-driven insights to transform compliance from a cost center into a strategic advantage. The system provides real-time visibility into organizational risk posture, compliance status, and operational maturity through interactive dashboards and comprehensive documentation.
 
+## 🎯 Interactive Diagrams
+
+Open these interactive HTML visualizations directly in your browser:
+
+- [📊 Risk Architecture Diagram](diagrams/risk-architecture-diagram.html) - Interactive risk management workflow
+- [🏗️ Domain Taxonomy](diagrams/domain-taxonomy.html) - Hierarchical GRC domain structure  
+- [📈 Health Score Algorithm](diagrams/health-score-algorithm.html) - Interactive score calculation
+- [📱 Dashboard Views](diagrams/dashboard-views.html) - Preview of dashboard interfaces
+
 ## Key Features
 
 - **Risk Management**: Systematic risk identification, assessment, and mitigation with quantitative scoring
