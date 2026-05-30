@@ -10,10 +10,10 @@ This portfolio demonstrates a modern approach to GRC engineering, combining stro
 
 Open these interactive HTML visualizations directly in your browser:
 
-- [📊 Risk Architecture Diagram](diagrams/risk-architecture-diagram.html) - Interactive risk management workflow
-- [🏗️ Domain Taxonomy](diagrams/domain-taxonomy.html) - Hierarchical GRC domain structure  
-- [📈 Health Score Algorithm](diagrams/health-score-algorithm.html) - Interactive score calculation
-- [📱 Dashboard Views](diagrams/dashboard-views.html) - Preview of dashboard interfaces
+- [📊 Risk Architecture Diagram](https://9snxz8htcw-netizen.github.io/chris-grc-engineering/diagrams/risk-architecture-diagram.html) - Interactive risk management workflow
+- [🏗️ Domain Taxonomy](https://9snxz8htcw-netizen.github.io/chris-grc-engineering/diagrams/domain-taxonomy.html) - Hierarchical GRC domain structure  
+- [📈 Health Score Algorithm](https://9snxz8htcw-netizen.github.io/chris-grc-engineering/diagrams/health-score-algorithm.html) - Interactive score calculation
+- [📱 Dashboard Views](https://9snxz8htcw-netizen.github.io/chris-grc-engineering/diagrams/dashboard-views.html) - Preview of dashboard interfaces
 
 ## Key Features
 
@@ -64,10 +64,10 @@ chris-grc-engineering/
 
 ### Interactive Diagrams
 Open any HTML file in the `diagrams/` directory in your browser:
-- **[Risk Architecture Diagram](diagrams/risk-architecture-diagram.html)** - Interactive risk management workflow
-- **[Domain Taxonomy](diagrams/domain-taxonomy.html)** - Hierarchical GRC domain structure
-- **[Health Score Algorithm](diagrams/health-score-algorithm.html)** - Interactive score calculation
-- **[Dashboard Views](diagrams/dashboard-views.html)** - Preview of dashboard interfaces
+- **[Risk Architecture Diagram](https://9snxz8htcw-netizen.github.io/chris-grc-engineering/diagrams/risk-architecture-diagram.html)** - Interactive risk management workflow
+- **[Domain Taxonomy](https://9snxz8htcw-netizen.github.io/chris-grc-engineering/diagrams/domain-taxonomy.html)** - Hierarchical GRC domain structure
+- **[Health Score Algorithm](https://9snxz8htcw-netizen.github.io/chris-grc-engineering/diagrams/health-score-algorithm.html)** - Interactive score calculation
+- **[Dashboard Views](https://9snxz8htcw-netizen.github.io/chris-grc-engineering/diagrams/dashboard-views.html)** - Preview of dashboard interfaces
 
 ## Case Study
 
