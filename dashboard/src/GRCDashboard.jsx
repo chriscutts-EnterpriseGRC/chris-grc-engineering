@@ -1,15 +1,29 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext, createContext } from 'react';
+import { BarChart, Bar, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import {
-  BarChart, Bar, Cell,
-  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
-} from 'recharts';
-import {
-  Shield, AlertTriangle,
-  Grid, Search, Bell, Settings, User, Menu, Activity,
+  Shield, AlertTriangle, Grid, Search, Bell, Settings, User, Menu, Activity,
   ArrowUpRight, ArrowDownRight, ChevronRight, Zap, Database,
   Lock, Globe, Eye, RefreshCw, Play, FileText,
   CheckSquare, Bug, Flame, BookOpen, Building2, Cpu
 } from 'lucide-react';
+import { api } from './lib/api';
+import { isLive } from './lib/supabase';
+
+// ─── Data Context ─────────────────────────────────────────────────────────────
+const DataContext = createContext(null);
+
+function useGRCData() {
+  const ctx = useContext(DataContext);
+  return {
+    controls:   ctx?.controls   ?? controls,
+    vulns:      ctx?.vulns      ?? vulns,
+    incidents:  ctx?.incidents  ?? incidents,
+    policies:   ctx?.policies   ?? policies,
+    vendors:    ctx?.vendors    ?? vendors,
+    frameworks: ctx?.frameworks ?? frameworks,
+    isLive:     Boolean(ctx?.isLive),
+  };
+}
 
 // ─── UCF Controls Library ─────────────────────────────────────────────────────
 // Each control carries a UCF ID, cross-framework mappings, and effectiveness data.
@@ -242,6 +256,7 @@ function ModuleHeader({ title, subtitle, search, setSearch, filters, extra }) {
 // ─── Overview ─────────────────────────────────────────────────────────────────
 
 function Overview({ navigate }) {
+  const { controls, vulns, incidents, policies, vendors } = useGRCData();
   const [score, setScore] = useState(0);
   useEffect(() => { const t = setTimeout(() => setScore(71), 300); return () => clearTimeout(t); }, []);
 
@@ -368,6 +383,8 @@ function Overview({ navigate }) {
 // ─── Vulnerabilities ──────────────────────────────────────────────────────────
 
 function Vulnerabilities() {
+  const { vulns, controls } = useGRCData();
+  const ctrlMap = Object.fromEntries(controls.map(c => [c.id, c]));
   const [search, setSearch] = useState('');
   const [sevFilter, setSevFilter] = useState('All');
   const [showAI, setShowAI] = useState(false);
@@ -438,6 +455,8 @@ function Vulnerabilities() {
 // ─── Incidents ────────────────────────────────────────────────────────────────
 
 function Incidents() {
+  const { incidents, controls } = useGRCData();
+  const ctrlMap = Object.fromEntries(controls.map(c => [c.id, c]));
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
   const [showAI, setShowAI] = useState(false);
@@ -507,6 +526,8 @@ function Incidents() {
 // ─── Policy ───────────────────────────────────────────────────────────────────
 
 function PolicyModule() {
+  const { policies, controls } = useGRCData();
+  const ctrlMap = Object.fromEntries(controls.map(c => [c.id, c]));
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
   const [showAI, setShowAI] = useState(false);
@@ -576,6 +597,8 @@ function PolicyModule() {
 // ─── Third Party ──────────────────────────────────────────────────────────────
 
 function ThirdParty() {
+  const { vendors, controls } = useGRCData();
+  const ctrlMap = Object.fromEntries(controls.map(c => [c.id, c]));
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
   const [showAI, setShowAI] = useState(false);
@@ -653,6 +676,7 @@ function ThirdParty() {
 // ─── Compliance ───────────────────────────────────────────────────────────────
 
 function Compliance() {
+  const { frameworks } = useGRCData();
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
@@ -706,6 +730,7 @@ function Compliance() {
 // ─── UCF Controls Library View ────────────────────────────────────────────────
 
 function ControlsLibrary() {
+  const { controls } = useGRCData();
   const [search, setSearch] = useState('');
   const [effFilter, setEffFilter] = useState('All');
   const [showAI, setShowAI] = useState(false);
@@ -931,6 +956,15 @@ function Architecture() {
 export default function GRCDashboard() {
   const [page, setPage] = useState('overview');
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [liveData, setLiveData] = useState(null);
+  const [dataLoading, setDataLoading] = useState(isLive);
+
+  useEffect(() => {
+    if (!isLive) return;
+    api.loadAll().then(data => {
+      if (data) setLiveData({ ...data, isLive: true });
+    }).finally(() => setDataLoading(false));
+  }, []);
 
   const allNavItems = navGroups.flatMap(g => g.items);
   const currentNav = allNavItems.find(n => n.id === page);
@@ -947,6 +981,7 @@ export default function GRCDashboard() {
   };
 
   return (
+    <DataContext.Provider value={liveData}>
     <div className="flex h-screen bg-gray-50 font-sans overflow-hidden">
       <aside className={`${sidebarOpen?'w-56':'w-16'} flex-shrink-0 bg-slate-900 flex flex-col transition-all duration-200`}>
         <div className="flex items-center gap-3 px-4 py-5 border-b border-slate-800">
@@ -982,6 +1017,10 @@ export default function GRCDashboard() {
             <p className="text-xs text-gray-400">Last updated: {new Date().toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}</p>
           </div>
           <div className="flex items-center gap-3">
+            {dataLoading
+              ? <span className="text-xs text-gray-400 animate-pulse">Connecting…</span>
+              : <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${liveData ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>{liveData ? '● Live' : '○ Demo'}</span>
+            }
             <button className="relative p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-50 rounded-lg transition-colors"><Bell size={18} /><span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full" /></button>
             <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center"><User size={14} className="text-white" /></div>
           </div>
@@ -989,5 +1028,6 @@ export default function GRCDashboard() {
         <main className="flex-1 overflow-y-auto p-6">{pageMap[page]}</main>
       </div>
     </div>
+    </DataContext.Provider>
   );
 }
