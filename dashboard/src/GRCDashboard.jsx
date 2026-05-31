@@ -6,7 +6,9 @@ import {
 import {
   Shield, AlertTriangle, CheckCircle, TrendingDown,
   Grid, Search, Bell, Settings, User, Menu,
-  Activity, ArrowUpRight, ArrowDownRight
+  Activity, ArrowUpRight, ArrowDownRight,
+  ChevronRight, Zap, Database, Lock, Globe, Eye,
+  RefreshCw, ExternalLink, Play, FileText, CheckSquare
 } from 'lucide-react';
 
 // ─── Mock Data ────────────────────────────────────────────────────────────────
@@ -427,27 +429,271 @@ function Compliance() {
   );
 }
 
-function Diagrams() {
-  const [active, setActive] = useState('risk-architecture-diagram');
-  const items = [
-    { id: 'risk-architecture-diagram', label: 'Risk Architecture' },
-    { id: 'domain-taxonomy', label: 'Domain Taxonomy' },
-    { id: 'health-score-algorithm', label: 'Health Score' },
-    { id: 'dashboard-views', label: 'Dashboard Views' },
-  ];
+// ─── Architecture Data ────────────────────────────────────────────────────────
+
+const flowSteps = [
+  {
+    id: 'ingest', label: 'Signal Ingestion', icon: Database, color: '#2563EB',
+    status: 'healthy', description: 'SIEM, scanners, and cloud APIs feed risk signals into the pipeline',
+    stats: [{ label: 'Sources', value: '14' }, { label: 'Events/day', value: '2.4K' }],
+    actions: [{ label: 'View Sources', icon: ExternalLink }, { label: 'Add Source', icon: Play }],
+  },
+  {
+    id: 'orchestrate', label: 'Orchestrator', icon: Zap, color: '#7C3AED',
+    status: 'healthy', description: 'AI-powered orchestrator routes signals to the correct domain reviewer',
+    stats: [{ label: 'Routed today', value: '187' }, { label: 'Avg latency', value: '1.2s' }],
+    actions: [{ label: 'View Queue', icon: FileText }, { label: 'Run Now', icon: Play }],
+  },
+  {
+    id: 'review', label: 'Domain Reviewers', icon: Shield, color: '#0891B2',
+    status: 'warning', description: '12 parallel domain reviewers assess risks against their specialist criteria',
+    stats: [{ label: 'Domains', value: '12' }, { label: 'Pending', value: '23' }],
+    actions: [{ label: 'View Domains', icon: Eye }, { label: 'Run Review', icon: Play }],
+  },
+  {
+    id: 'score', label: 'Health Scoring', icon: Activity, color: '#059669',
+    status: 'healthy', description: 'Composite health score calculated from risk posture, compliance, maturity, and security',
+    stats: [{ label: 'Current score', value: '84' }, { label: 'Last run', value: '2h ago' }],
+    actions: [{ label: 'Score Breakdown', icon: ChevronRight }, { label: 'Recalculate', icon: RefreshCw }],
+  },
+  {
+    id: 'report', label: 'Dashboard & Reports', icon: Eye, color: '#D97706',
+    status: 'healthy', description: 'Real-time dashboards and scheduled reports for 4 personas',
+    stats: [{ label: 'Active views', value: '7' }, { label: 'Reports/wk', value: '12' }],
+    actions: [{ label: 'View Reports', icon: FileText }, { label: 'Schedule', icon: Play }],
+  },
+];
+
+const domains = [
+  { name: 'Access Control', icon: Lock, risks: 42, critical: 3, health: 72, trend: 'down' },
+  { name: 'Data Privacy', icon: Shield, risks: 38, critical: 5, health: 65, trend: 'down' },
+  { name: 'Third Party', icon: Globe, risks: 31, critical: 2, health: 78, trend: 'up' },
+  { name: 'Cloud Security', icon: Database, risks: 27, critical: 4, health: 69, trend: 'down' },
+  { name: 'Identity', icon: User, risks: 21, critical: 2, health: 81, trend: 'up' },
+  { name: 'Endpoint', icon: Activity, risks: 24, critical: 1, health: 84, trend: 'up' },
+  { name: 'Network', icon: Globe, risks: 18, critical: 1, health: 88, trend: 'up' },
+  { name: 'Incident Resp.', icon: AlertTriangle, risks: 15, critical: 0, health: 91, trend: 'up' },
+  { name: 'Compliance', icon: CheckSquare, risks: 12, critical: 0, health: 93, trend: 'up' },
+  { name: 'Vulnerability', icon: Eye, risks: 29, critical: 3, health: 74, trend: 'down' },
+  { name: 'Governance', icon: FileText, risks: 9, critical: 0, health: 95, trend: 'up' },
+  { name: 'Physical Sec.', icon: Lock, risks: 6, critical: 0, health: 97, trend: 'up' },
+];
+
+const integrations = [
+  { name: 'Splunk SIEM', status: 'connected', lastSync: '4 min ago', events: '1,204' },
+  { name: 'AWS Security Hub', status: 'connected', lastSync: '12 min ago', events: '389' },
+  { name: 'Jira', status: 'connected', lastSync: '1 min ago', events: '47' },
+  { name: 'Okta', status: 'connected', lastSync: '2 min ago', events: '91' },
+  { name: 'Qualys', status: 'warning', lastSync: '3h ago', events: '0' },
+  { name: 'Azure Sentinel', status: 'disconnected', lastSync: 'Never', events: '—' },
+];
+
+function Architecture() {
+  const [selectedStep, setSelectedStep] = useState(null);
+  const [archView, setArchView] = useState('flow'); // 'flow' | 'domains' | 'integrations'
+
+  const statusDot = (s) => ({
+    healthy: 'bg-emerald-500',
+    warning: 'bg-amber-400',
+    disconnected: 'bg-red-500',
+  }[s] || 'bg-gray-300');
+
   return (
-    <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
-      <div className="flex border-b border-gray-100">
-        {items.map(item => (
-          <button key={item.id} onClick={() => setActive(item.id)}
-            className={`px-5 py-3.5 text-sm font-medium transition-colors ${active === item.id
-              ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50/40'
-              : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'}`}>
-            {item.label}
+    <div className="space-y-5">
+      {/* View switcher */}
+      <div className="flex gap-2">
+        {[['flow', 'Signal Flow'], ['domains', 'Domain Reviewers'], ['integrations', 'Integrations']].map(([id, label]) => (
+          <button key={id} onClick={() => setArchView(id)}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+              archView === id ? 'bg-blue-600 text-white' : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'
+            }`}>
+            {label}
           </button>
         ))}
       </div>
-      <iframe src={`/diagrams/${active}.html`} title={active} className="w-full border-none" style={{ height: '640px' }} />
+
+      {/* ── Signal Flow View ── */}
+      {archView === 'flow' && (
+        <div className="space-y-4">
+          <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6">
+            <h3 className="font-semibold text-gray-900 mb-1">Risk Signal Pipeline</h3>
+            <p className="text-xs text-gray-400 mb-6">Click any stage to inspect and act</p>
+
+            {/* Flow diagram */}
+            <div className="flex items-start gap-2 overflow-x-auto pb-2">
+              {flowSteps.map((step, i) => {
+                const Icon = step.icon;
+                const isSelected = selectedStep?.id === step.id;
+                return (
+                  <React.Fragment key={step.id}>
+                    <div
+                      onClick={() => setSelectedStep(isSelected ? null : step)}
+                      className={`flex-shrink-0 w-44 rounded-xl border-2 p-4 cursor-pointer transition-all ${
+                        isSelected ? 'shadow-lg scale-105' : 'hover:shadow-md hover:-translate-y-0.5'
+                      }`}
+                      style={{ borderColor: isSelected ? step.color : '#E5E7EB', background: isSelected ? step.color + '08' : 'white' }}
+                    >
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="p-1.5 rounded-lg" style={{ background: step.color + '18' }}>
+                          <Icon size={16} style={{ color: step.color }} />
+                        </div>
+                        <span className={`w-2 h-2 rounded-full ${statusDot(step.status)}`} />
+                      </div>
+                      <p className="text-xs font-semibold text-gray-800 leading-tight mb-2">{step.label}</p>
+                      <div className="flex gap-2">
+                        {step.stats.map(s => (
+                          <div key={s.label} className="flex-1 text-center">
+                            <p className="text-sm font-bold text-gray-900">{s.value}</p>
+                            <p className="text-xs text-gray-400 leading-tight">{s.label}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                    {i < flowSteps.length - 1 && (
+                      <div className="flex-shrink-0 flex items-center pt-8">
+                        <ChevronRight size={18} className="text-gray-300" />
+                      </div>
+                    )}
+                  </React.Fragment>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Detail panel */}
+          {selectedStep && (
+            <div className="bg-white rounded-xl border shadow-sm p-5" style={{ borderColor: selectedStep.color + '40' }}>
+              <div className="flex items-start justify-between mb-3">
+                <div>
+                  <h4 className="font-semibold text-gray-900">{selectedStep.label}</h4>
+                  <p className="text-sm text-gray-500 mt-0.5">{selectedStep.description}</p>
+                </div>
+                <span className={`flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full ${
+                  selectedStep.status === 'healthy' ? 'bg-emerald-50 text-emerald-700' :
+                  selectedStep.status === 'warning' ? 'bg-amber-50 text-amber-700' : 'bg-red-50 text-red-600'
+                }`}>
+                  <span className={`w-1.5 h-1.5 rounded-full ${statusDot(selectedStep.status)}`} />
+                  {selectedStep.status === 'healthy' ? 'Healthy' : selectedStep.status === 'warning' ? 'Needs attention' : 'Offline'}
+                </span>
+              </div>
+              <div className="flex gap-2 mt-4">
+                {selectedStep.actions.map(({ label, icon: Icon }) => (
+                  <button key={label}
+                    className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium border border-gray-200 bg-gray-50 hover:bg-gray-100 text-gray-700 transition-colors">
+                    <Icon size={14} />
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Pipeline health summary */}
+          <div className="grid grid-cols-3 gap-4">
+            <div className="bg-white rounded-xl border border-gray-100 p-4 shadow-sm text-center">
+              <p className="text-2xl font-bold text-emerald-600">4/5</p>
+              <p className="text-xs text-gray-500 mt-0.5">Stages healthy</p>
+            </div>
+            <div className="bg-white rounded-xl border border-gray-100 p-4 shadow-sm text-center">
+              <p className="text-2xl font-bold text-gray-900">187</p>
+              <p className="text-xs text-gray-500 mt-0.5">Signals processed today</p>
+            </div>
+            <div className="bg-white rounded-xl border border-gray-100 p-4 shadow-sm text-center">
+              <p className="text-2xl font-bold text-amber-500">23</p>
+              <p className="text-xs text-gray-500 mt-0.5">Pending review</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Domain Reviewers View ── */}
+      {archView === 'domains' && (
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3">
+            {domains.map(d => {
+              const Icon = d.icon;
+              const healthColor = d.health >= 85 ? '#22C55E' : d.health >= 70 ? '#EAB308' : '#EF4444';
+              return (
+                <div key={d.name} className="bg-white rounded-xl border border-gray-100 p-4 shadow-sm hover:shadow-md transition-shadow">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="p-1.5 bg-slate-100 rounded-lg">
+                      <Icon size={14} className="text-slate-600" />
+                    </div>
+                    <span className={`text-xs font-medium flex items-center gap-1 ${d.trend === 'up' ? 'text-emerald-500' : 'text-red-400'}`}>
+                      {d.trend === 'up' ? '↑' : '↓'} {d.health}
+                    </span>
+                  </div>
+                  <p className="text-xs font-semibold text-gray-800 mb-2">{d.name}</p>
+                  <div className="w-full bg-gray-100 rounded-full h-1.5 mb-2">
+                    <div className="h-1.5 rounded-full transition-all" style={{ width: `${d.health}%`, background: healthColor }} />
+                  </div>
+                  <div className="flex justify-between text-xs text-gray-400">
+                    <span>{d.risks} risks</span>
+                    {d.critical > 0 && <span className="text-red-500 font-medium">{d.critical} critical</span>}
+                  </div>
+                  <div className="flex gap-1.5 mt-3">
+                    <button className="flex-1 py-1.5 text-xs font-medium bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors">
+                      View Risks
+                    </button>
+                    <button className="flex-1 py-1.5 text-xs font-medium bg-gray-50 text-gray-600 rounded-lg hover:bg-gray-100 transition-colors">
+                      Run Review
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* ── Integrations View ── */}
+      {archView === 'integrations' && (
+        <div className="bg-white rounded-xl border border-gray-100 shadow-sm">
+          <div className="p-5 border-b border-gray-100 flex items-center justify-between">
+            <div>
+              <h3 className="font-semibold text-gray-900">System Integrations</h3>
+              <p className="text-xs text-gray-400 mt-0.5">Connected data sources and platforms</p>
+            </div>
+            <button className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+              <Play size={13} /> Add Integration
+            </button>
+          </div>
+          <div className="divide-y divide-gray-50">
+            {integrations.map(intg => (
+              <div key={intg.name} className="flex items-center justify-between px-5 py-4 hover:bg-gray-50 transition-colors">
+                <div className="flex items-center gap-3">
+                  <span className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${statusDot(intg.status)}`} />
+                  <div>
+                    <p className="text-sm font-medium text-gray-800">{intg.name}</p>
+                    <p className="text-xs text-gray-400">Last sync: {intg.lastSync}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-6">
+                  <div className="text-right">
+                    <p className="text-sm font-semibold text-gray-700">{intg.events}</p>
+                    <p className="text-xs text-gray-400">events today</p>
+                  </div>
+                  <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${
+                    intg.status === 'connected' ? 'bg-emerald-50 text-emerald-700' :
+                    intg.status === 'warning' ? 'bg-amber-50 text-amber-700' : 'bg-red-50 text-red-600'
+                  }`}>
+                    {intg.status === 'connected' ? 'Connected' : intg.status === 'warning' ? 'Degraded' : 'Disconnected'}
+                  </span>
+                  <button className="text-blue-500 hover:text-blue-700 text-xs font-medium">
+                    {intg.status === 'disconnected' ? 'Connect →' : 'Configure →'}
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="p-5 bg-gray-50 rounded-b-xl flex items-center justify-between">
+            <p className="text-xs text-gray-400">4 of 6 integrations active</p>
+            <button className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-700 font-medium">
+              <RefreshCw size={12} /> Sync all
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -534,7 +780,7 @@ export default function GRCDashboard() {
           {page === 'overview' && <Overview />}
           {page === 'risks' && <RiskRegister />}
           {page === 'compliance' && <Compliance />}
-          {page === 'diagrams' && <Diagrams />}
+          {page === 'diagrams' && <Architecture />}
         </main>
       </div>
     </div>
