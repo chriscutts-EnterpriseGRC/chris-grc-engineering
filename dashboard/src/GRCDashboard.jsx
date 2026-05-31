@@ -475,24 +475,24 @@ function Overview({ navigate }) {
             <h3 className="font-semibold text-gray-900">Open Risk Register</h3>
             <p className="text-xs text-gray-400 mt-0.5">Top risks by inherent score — click Risks tab for full register</p>
           </div>
-          <span className="px-2.5 py-1 bg-red-50 text-red-600 text-xs font-semibold rounded-full">{openRisks.filter(r=>r.status!=='closed').length} open</span>
+          <span className="px-2.5 py-1 bg-red-50 text-red-600 text-xs font-semibold rounded-full">{risks.filter(r=>r.status!=='closed').length} open</span>
         </div>
         <div className="divide-y divide-gray-50">
-          {openRisks.map(r => (
-            <div key={r.risk_id} className="flex items-center justify-between px-5 py-3.5 hover:bg-gray-50 transition-colors">
+          {risks.map(r => (
+            <div key={r.id} className="flex items-center justify-between px-5 py-3.5 hover:bg-gray-50 transition-colors">
               <div className="flex items-center gap-3 min-w-0">
-                <span className={`text-lg font-bold flex-shrink-0 ${riskScoreColor(r.inherent.score)}`}>{r.inherent.score}</span>
+                <span className={`text-lg font-bold flex-shrink-0 ${riskScoreColor(r.inherentScore)}`}>{r.inherentScore}</span>
                 <div className="min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="font-mono text-xs text-gray-400">{r.risk_id}</span>
-                    <span className={`px-1.5 py-0.5 text-xs font-semibold rounded ${riskBandBg(r.inherent.score)}`}>{riskBand(r.inherent.score)}</span>
+                    <span className="font-mono text-xs text-gray-400">{r.id}</span>
+                    <span className={`px-1.5 py-0.5 text-xs font-semibold rounded ${riskBandBg(r.inherentScore)}`}>{riskBand(r.inherentScore)}</span>
                   </div>
                   <p className="text-sm text-gray-800 truncate">{r.title}</p>
                   <p className="text-xs text-gray-400">{r.owner.team} · {r.treatment}</p>
                 </div>
               </div>
               <div className="flex items-center gap-3 flex-shrink-0 ml-4">
-                {r.residual && <span className="text-xs text-gray-400">residual <strong className="text-gray-700">{r.residual.score}</strong></span>}
+                {r.residualScore ? <span className="text-xs text-gray-400">residual <strong className="text-gray-700">{r.residualScore}</strong></span> : null}
                 <StatusBadge status={r.status} />
               </div>
             </div>
@@ -941,74 +941,208 @@ const frameworkDefs = [
 
 const typeColors = { cybersecurity:'bg-blue-50 text-blue-700', ai:'bg-purple-50 text-purple-700', audit:'bg-cyan-50 text-cyan-700', standard:'bg-green-50 text-green-700', regulation:'bg-amber-50 text-amber-700', meta:'bg-slate-50 text-slate-600' };
 
+// ─── Monthly History + Gamification ──────────────────────────────────────────
+
+const monthlyHistory = {
+  identity: [
+    { month:'Mar 2026', health:52, gaps:2, vulns:3, incidents:2 },
+    { month:'Apr 2026', health:58, gaps:2, vulns:2, incidents:2 },
+    { month:'May 2026', health:67, gaps:1, vulns:2, incidents:1 },
+  ],
+  data: [
+    { month:'Mar 2026', health:20, gaps:7, vulns:2, incidents:1 },
+    { month:'Apr 2026', health:24, gaps:6, vulns:2, incidents:1 },
+    { month:'May 2026', health:29, gaps:5, vulns:2, incidents:2 },
+  ],
+  infra: [
+    { month:'Mar 2026', health:40, gaps:4, vulns:5, incidents:0 },
+    { month:'Apr 2026', health:40, gaps:4, vulns:4, incidents:1 },
+    { month:'May 2026', health:50, gaps:3, vulns:3, incidents:1 },
+  ],
+  secops: [
+    { month:'Mar 2026', health:58, gaps:3, vulns:0, incidents:4 },
+    { month:'Apr 2026', health:62, gaps:2, vulns:0, incidents:3 },
+    { month:'May 2026', health:65, gaps:2, vulns:0, incidents:3 },
+  ],
+  grc: [
+    { month:'Mar 2026', health:38, gaps:3, vulns:1, incidents:1 },
+    { month:'Apr 2026', health:44, gaps:3, vulns:1, incidents:1 },
+    { month:'May 2026', health:50, gaps:2, vulns:1, incidents:1 },
+  ],
+  rd: [
+    { month:'Mar 2026', health:30, gaps:4, vulns:3, incidents:0 },
+    { month:'Apr 2026', health:35, gaps:4, vulns:3, incidents:0 },
+    { month:'May 2026', health:40, gaps:3, vulns:3, incidents:0 },
+  ],
+};
+
+const LEVELS = [
+  { name:'Bronze',   min:0,  max:49,  color:'#B45309', bg:'bg-amber-100',  text:'text-amber-900',  bar:'bg-amber-500',  next:50,  icon:'🥉' },
+  { name:'Silver',   min:50, max:69,  color:'#6B7280', bg:'bg-gray-100',   text:'text-gray-700',   bar:'bg-gray-400',   next:70,  icon:'🥈' },
+  { name:'Gold',     min:70, max:84,  color:'#CA8A04', bg:'bg-yellow-100', text:'text-yellow-900', bar:'bg-yellow-400', next:85,  icon:'🥇' },
+  { name:'Platinum', min:85, max:100, color:'#6366F1', bg:'bg-indigo-100', text:'text-indigo-800', bar:'bg-indigo-500', next:100, icon:'💎' },
+];
+const getLevel = (h) => LEVELS.find(l => h >= l.min && h <= l.max) ?? LEVELS[0];
+
+const computeBadges = (teamId, stats, hist) => {
+  const badges = [];
+  const prev = hist[hist.length - 2];
+  const curr = hist[hist.length - 1];
+  if (curr && prev && curr.health - prev.health >= 5) badges.push({ icon:'🚀', label:'Most Improved', desc:`+${curr.health - prev.health}% MoM` });
+  if (stats.gaps === 0) badges.push({ icon:'⭐', label:'Zero Gaps', desc:'All controls effective/partial' });
+  if (stats.openInc === 0) badges.push({ icon:'🛡️', label:'Clean Sheet', desc:'No open incidents' });
+  const allImproving = hist.length >= 3 && hist[0].health < hist[1].health && hist[1].health < hist[2].health;
+  if (allImproving) badges.push({ icon:'🔥', label:'On A Roll', desc:'3 months of improvement' });
+  const multiFramework = stats.owned.filter(c => c.frameworks.length >= 3).length;
+  if (multiFramework >= 2) badges.push({ icon:'🌐', label:'Framework Leader', desc:`${multiFramework} controls cover 3+ frameworks` });
+  return badges;
+};
+
 // ─── Leadership Scorecard ─────────────────────────────────────────────────────
 
-function Scorecard() {
+function Scorecard({ onViewReport }) {
   const { controls, vulns, incidents } = useGRCData();
   const ctrlMap = Object.fromEntries(controls.map(c => [c.id, c]));
   const [expanded, setExpanded] = useState(null);
 
   const teamStats = teams.map(team => {
-    const owned = team.controls.map(id => ctrlMap[id]).filter(Boolean);
-    const effective   = owned.filter(c => c.effectiveness === 'effective').length;
-    const partial     = owned.filter(c => c.effectiveness === 'partial').length;
-    const gaps        = owned.filter(c => c.effectiveness === 'ineffective' || c.effectiveness === 'not_tested').length;
-    const health      = owned.length ? Math.round(((effective + partial * 0.5) / owned.length) * 100) : 0;
-    const openVulns   = vulns.filter(v => owned.some(c => c.id === v.controlId) && v.status !== 'Patched').length;
-    const openInc     = incidents.filter(i => owned.some(c => c.id === i.controlId) && i.status !== 'Resolved').length;
-    const worstCtrl   = owned.filter(c => c.effectiveness === 'ineffective' || c.effectiveness === 'not_tested').sort((a,b) => a.score - b.score)[0];
-    const riskScore   = openRisks.filter(r => r.owner.team === team.name || owned.some(c => c.owner === team.lead)).reduce((s, r) => Math.max(s, r.inherent.score), 0);
-    return { ...team, owned, effective, partial, gaps, health, openVulns, openInc, worstCtrl, riskScore };
+    const owned     = team.controls.map(id => ctrlMap[id]).filter(Boolean);
+    const effective = owned.filter(c => c.effectiveness === 'effective').length;
+    const partial   = owned.filter(c => c.effectiveness === 'partial').length;
+    const gaps      = owned.filter(c => c.effectiveness === 'ineffective' || c.effectiveness === 'not_tested').length;
+    const health    = owned.length ? Math.round(((effective + partial * 0.5) / owned.length) * 100) : 0;
+    const openVulns = vulns.filter(v => owned.some(c => c.id === v.controlId) && v.status !== 'Patched').length;
+    const openInc   = incidents.filter(i => owned.some(c => c.id === i.controlId) && i.status !== 'Resolved').length;
+    const worstCtrl = owned.filter(c => c.effectiveness === 'ineffective' || c.effectiveness === 'not_tested').sort((a,b) => a.score - b.score)[0];
+    const hist      = monthlyHistory[team.id] ?? [];
+    const prevHealth= hist[hist.length - 2]?.health ?? health;
+    const delta     = health - prevHealth;
+    const level     = getLevel(health);
+    const badges    = computeBadges(team.id, { gaps, openInc, owned }, hist);
+    return { ...team, owned, effective, partial, gaps, health, openVulns, openInc, worstCtrl, hist, delta, level, badges };
   });
 
+  const sorted        = [...teamStats].sort((a, b) => b.health - a.health);
   const criticalTeams = teamStats.filter(t => t.health < 50).length;
   const totalGaps     = teamStats.reduce((s, t) => s + t.gaps, 0);
   const avgHealth     = Math.round(teamStats.reduce((s, t) => s + t.health, 0) / teamStats.length);
-
-  const healthColor = (h) => h >= 80 ? 'text-emerald-600' : h >= 60 ? 'text-amber-500' : 'text-red-500';
-  const healthBg    = (h) => h >= 80 ? 'bg-emerald-500' : h >= 60 ? 'bg-amber-400' : 'bg-red-500';
-  const healthBorder= (h) => h >= 80 ? 'border-emerald-200' : h >= 60 ? 'border-amber-200' : 'border-red-200';
+  const healthColor   = (h) => h >= 80 ? 'text-emerald-600' : h >= 60 ? 'text-amber-500' : 'text-red-500';
+  const healthBorder  = (h) => h >= 80 ? 'border-emerald-200' : h >= 60 ? 'border-amber-200' : 'border-red-200';
 
   return (
     <div className="space-y-5">
       {/* Program KPIs */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <KPICard title="Program Health"     value={`${avgHealth}%`}    icon={Award}    color="#2563EB" subtitle="avg across all teams" />
-        <KPICard title="Teams At Risk"      value={criticalTeams}       icon={AlertTriangle} color="#EF4444" subtitle="health below 50%" />
-        <KPICard title="Total Control Gaps" value={totalGaps}           icon={CheckSquare}   color="#D97706" subtitle="ineffective + untested" />
-        <KPICard title="Open Risk Exposure" value={openRisks.filter(r=>r.inherent.score>=15).length} icon={BarChart2} color="#7C3AED" subtitle="critical + high risks" />
+        <KPICard title="Program Health"     value={`${avgHealth}%`}  icon={Award}         color="#2563EB" subtitle="avg across all teams" />
+        <KPICard title="Teams At Risk"      value={criticalTeams}    icon={AlertTriangle} color="#EF4444" subtitle="health below 50%" />
+        <KPICard title="Total Control Gaps" value={totalGaps}        icon={CheckSquare}   color="#D97706" subtitle="ineffective + untested" />
+        <KPICard title="High Risk Exposure" value={risks.filter(r=>r.inherentScore>=15).length} icon={BarChart2} color="#7C3AED" subtitle="critical + high risks" />
       </div>
 
-      {/* Team scorecard grid */}
+      {/* Leaderboard */}
+      <div className="bg-white rounded-xl border border-gray-100 shadow-sm">
+        <div className="p-5 border-b border-gray-100">
+          <h3 className="font-semibold text-gray-900">Team Leaderboard — May 2026</h3>
+          <p className="text-xs text-gray-400 mt-0.5">Ranked by health score. Reach Platinum (85%+) to lead the program.</p>
+        </div>
+        <div className="divide-y divide-gray-50">
+          {sorted.map((team, rank) => {
+            const Icon = team.icon;
+            const lvl  = team.level;
+            const nextLvl = LEVELS[Math.min(LEVELS.indexOf(lvl) + 1, LEVELS.length - 1)];
+            return (
+              <div key={team.id} className="flex items-center gap-4 px-5 py-3 hover:bg-gray-50">
+                <span className="text-base font-bold text-gray-300 w-6 flex-shrink-0">#{rank + 1}</span>
+                <div className="p-1.5 rounded-lg flex-shrink-0" style={{ background: team.color + '18' }}><Icon size={13} style={{ color: team.color }} /></div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-1.5 mb-0.5 flex-wrap">
+                    <span className="text-sm font-semibold text-gray-800">{team.name}</span>
+                    <span className={`text-xs px-1.5 py-0.5 rounded font-bold ${lvl.bg} ${lvl.text}`}>{lvl.icon} {lvl.name}</span>
+                    {team.badges.map(b => <span key={b.label} title={`${b.label}: ${b.desc}`} className="text-sm cursor-help">{b.icon}</span>)}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1 bg-gray-100 rounded-full h-1.5 max-w-xs">
+                      <div className={`h-1.5 rounded-full ${lvl.bar}`} style={{ width:`${team.health}%` }} />
+                    </div>
+                    <span className="text-xs text-gray-400 whitespace-nowrap">{team.health}% · next: {nextLvl.name} at {lvl.next}%</span>
+                  </div>
+                </div>
+                <div className="flex-shrink-0">
+                  {team.delta > 0
+                    ? <span className="flex items-center gap-0.5 text-xs font-semibold text-emerald-600"><TrendingUp size={12}/>+{team.delta}%</span>
+                    : team.delta < 0
+                    ? <span className="flex items-center gap-0.5 text-xs font-semibold text-red-500"><TrendingDown size={12}/>{team.delta}%</span>
+                    : <span className="text-xs text-gray-300">—</span>
+                  }
+                </div>
+                {onViewReport && (
+                  <button onClick={() => onViewReport(team.id)}
+                    className="flex-shrink-0 text-xs text-blue-600 hover:text-blue-800 font-semibold flex items-center gap-0.5 border border-blue-200 rounded-lg px-2.5 py-1.5 hover:bg-blue-50 transition-colors">
+                    Report <ChevronRight size={11} />
+                  </button>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Team cards with sparklines + badges */}
       <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
         {teamStats.map(team => {
-          const Icon = team.icon;
+          const Icon   = team.icon;
           const isOpen = expanded === team.id;
+          const lvl    = team.level;
           return (
-            <div key={team.id} className={`bg-white rounded-xl border shadow-sm transition-all ${healthBorder(team.health)}`}>
+            <div key={team.id} className={`bg-white rounded-xl border shadow-sm ${healthBorder(team.health)}`}>
               <button className="w-full p-5 text-left" onClick={() => setExpanded(isOpen ? null : team.id)}>
-                <div className="flex items-start justify-between mb-3">
+                <div className="flex items-start justify-between mb-2">
                   <div className="flex items-center gap-2.5">
-                    <div className="p-2 rounded-lg flex-shrink-0" style={{ background: team.color + '18' }}>
-                      <Icon size={15} style={{ color: team.color }} />
-                    </div>
+                    <div className="p-2 rounded-lg flex-shrink-0" style={{ background: team.color + '18' }}><Icon size={15} style={{ color: team.color }} /></div>
                     <div>
-                      <p className="font-semibold text-gray-900 text-sm leading-tight">{team.name}</p>
+                      <p className="font-semibold text-gray-900 text-sm">{team.name}</p>
                       <p className="text-xs text-gray-400">{team.dept} · {team.lead}</p>
                     </div>
                   </div>
-                  <div className="text-right flex-shrink-0">
+                  <div className="text-right">
                     <p className={`text-2xl font-bold ${healthColor(team.health)}`}>{team.health}%</p>
-                    <p className="text-xs text-gray-400">health</p>
+                    <span className={`text-xs px-1.5 py-0.5 rounded font-bold ${lvl.bg} ${lvl.text}`}>{lvl.icon} {lvl.name}</span>
                   </div>
                 </div>
 
-                {/* Health bar */}
-                <div className="w-full bg-gray-100 rounded-full h-1.5 mb-3">
-                  <div className={`h-1.5 rounded-full ${healthBg(team.health)} transition-all`} style={{ width: `${team.health}%` }} />
+                {/* Level progress */}
+                <div className="mb-2">
+                  <div className="flex justify-between text-xs text-gray-400 mb-0.5">
+                    <span>{lvl.name} ({lvl.min}%)</span><span>{lvl.next}% → {LEVELS[Math.min(LEVELS.indexOf(lvl)+1,LEVELS.length-1)].name}</span>
+                  </div>
+                  <div className="w-full bg-gray-100 rounded-full h-2">
+                    <div className={`h-2 rounded-full ${lvl.bar} transition-all`}
+                      style={{ width:`${Math.min(100,((team.health - lvl.min) / Math.max(1, lvl.next - lvl.min))*100)}%` }} />
+                  </div>
                 </div>
 
-                {/* Stats row */}
+                {/* 3-month sparkline */}
+                <div className="flex items-end gap-1 mb-2" style={{ height: 36 }}>
+                  {team.hist.map((h, i) => (
+                    <div key={i} className="flex-1 flex flex-col items-center justify-end gap-0.5">
+                      <div className={`w-full rounded-t-sm ${h.health >= 70 ? 'bg-emerald-400' : h.health >= 50 ? 'bg-amber-400' : 'bg-red-400'}`}
+                        style={{ height: `${(h.health / 100) * 28}px` }} />
+                      <span className="text-xs text-gray-300 leading-none">{h.month.slice(0, 3)}</span>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Badges */}
+                {team.badges.length > 0 && (
+                  <div className="flex flex-wrap gap-1 mb-2">
+                    {team.badges.map(b => (
+                      <span key={b.label} title={b.desc} className="text-xs bg-slate-50 border border-slate-200 px-1.5 py-0.5 rounded-full text-slate-600 flex items-center gap-1 cursor-help">
+                        {b.icon} {b.label}
+                      </span>
+                    ))}
+                  </div>
+                )}
+
                 <div className="grid grid-cols-4 gap-2 text-center">
                   <div><p className="text-sm font-bold text-emerald-600">{team.effective}</p><p className="text-xs text-gray-400">Effective</p></div>
                   <div><p className="text-sm font-bold text-amber-500">{team.partial}</p><p className="text-xs text-gray-400">Partial</p></div>
@@ -1017,33 +1151,31 @@ function Scorecard() {
                 </div>
               </button>
 
-              {/* Expanded detail */}
               {isOpen && (
                 <div className="px-5 pb-5 border-t border-gray-50 pt-4 space-y-3">
                   {team.worstCtrl && (
                     <div className="p-3 bg-red-50 rounded-lg border border-red-100">
-                      <p className="text-xs font-semibold text-red-700 mb-1">Critical Gap</p>
+                      <p className="text-xs font-semibold text-red-700 mb-0.5">Critical Gap</p>
                       <p className="font-mono text-xs text-red-400">{team.worstCtrl.id}</p>
                       <p className="text-xs text-red-800 font-medium">{team.worstCtrl.name}</p>
-                      <p className="text-xs text-red-500 mt-1">{team.worstCtrl.frameworks.slice(0,2).join(' · ')}</p>
                     </div>
                   )}
                   <div className="space-y-1.5">
                     {team.owned.map(c => (
                       <div key={c.id} className="flex items-center justify-between gap-2">
                         <div className="min-w-0">
-                          <span className="font-mono text-xs text-gray-400 mr-1.5">{c.id}</span>
-                          <span className="text-xs text-gray-700 truncate">{c.name}</span>
+                          <span className="font-mono text-xs text-gray-400 mr-1">{c.id}</span>
+                          <span className="text-xs text-gray-700">{c.name}</span>
                         </div>
                         <EffectivenessBadge effectiveness={c.effectiveness} score={c.score} />
                       </div>
                     ))}
                   </div>
-                  {team.riskScore > 0 && (
-                    <div className="flex items-center gap-2 pt-1">
-                      <AlertTriangle size={12} className="text-amber-500 flex-shrink-0" />
-                      <p className="text-xs text-gray-500">Max risk exposure: <strong className={healthColor(100 - team.riskScore * 4)}>{team.riskScore}/25</strong></p>
-                    </div>
+                  {onViewReport && (
+                    <button onClick={() => onViewReport(team.id)}
+                      className="w-full mt-1 py-2 text-xs font-semibold text-blue-600 border border-blue-200 rounded-lg hover:bg-blue-50 transition-colors flex items-center justify-center gap-1">
+                      <FileText size={12} /> View Monthly Report
+                    </button>
                   )}
                 </div>
               )}
@@ -1705,6 +1837,391 @@ function _AIGovernanceLegacy() {
 }
 
 // ─── Sidebar Nav ──────────────────────────────────────────────────────────────
+
+// ─── Workflow Panel ───────────────────────────────────────────────────────────
+function WorkflowPanel({ item, itemType, onClose }) {
+  const [comment, setComment] = useState('');
+  const [status, setStatus] = useState(item?.status || '');
+  const [assignee, setAssignee] = useState(item?.owner || '');
+  const owners = ['J. Martinez','A. Patel','T. Williams','K. Thompson','S. Chen'];
+  if (!item) return null;
+  return (
+    <div className="fixed inset-y-0 right-0 w-96 bg-white shadow-2xl border-l border-gray-100 z-50 flex flex-col">
+      <div className="flex items-center justify-between p-5 border-b border-gray-100">
+        <div>
+          <p className="text-xs text-gray-400 font-medium uppercase tracking-wider">{itemType} Actions</p>
+          <p className="font-semibold text-gray-900 mt-0.5 text-sm truncate">{item.title||item.name||item.id}</p>
+        </div>
+        <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-lg transition-colors text-gray-400 hover:text-gray-600 text-lg leading-none">✕</button>
+      </div>
+      <div className="flex-1 overflow-y-auto p-5 space-y-4">
+        <div>
+          <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1.5">Assign To</label>
+          <select value={assignee} onChange={e=>setAssignee(e.target.value)} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none bg-white">
+            {owners.map(o=><option key={o}>{o}</option>)}
+          </select>
+        </div>
+        <div>
+          <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1.5">Status</label>
+          <select value={status} onChange={e=>setStatus(e.target.value)} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none bg-white">
+            {['Open','In Treatment','In Review','Accepted','Resolved','Closed'].map(s=><option key={s}>{s}</option>)}
+          </select>
+        </div>
+        <div>
+          <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1.5">Add Comment</label>
+          <textarea value={comment} onChange={e=>setComment(e.target.value)} rows={3} placeholder="Add a note or update…" className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none resize-none" />
+        </div>
+        <div className="border-t border-gray-100 pt-4">
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Quick Actions</p>
+          <div className="grid grid-cols-2 gap-2">
+            {[['Escalate','bg-red-50 text-red-600 hover:bg-red-100'],['Create Task','bg-blue-50 text-blue-600 hover:bg-blue-100'],['Mark Resolved','bg-green-50 text-green-600 hover:bg-green-100'],['Attach Evidence','bg-purple-50 text-purple-600 hover:bg-purple-100']].map(([label,cls])=>(
+              <button key={label} className={`px-3 py-2 rounded-lg text-xs font-semibold transition-colors text-left ${cls}`}>{label}</button>
+            ))}
+          </div>
+        </div>
+      </div>
+      <div className="p-5 border-t border-gray-100 flex gap-2">
+        <button className="flex-1 py-2.5 bg-blue-600 text-white text-sm font-semibold rounded-lg hover:bg-blue-700 transition-colors">Save Changes</button>
+        <button onClick={onClose} className="px-4 py-2.5 border border-gray-200 text-gray-600 text-sm font-medium rounded-lg hover:bg-gray-50 transition-colors">Cancel</button>
+      </div>
+    </div>
+  );
+}
+
+// ─── Risk Register ────────────────────────────────────────────────────────────
+function RiskRegister() {
+  const { controls } = useGRCData();
+  const ctrlMap = Object.fromEntries(controls.map(c=>[c.id,c]));
+  const [search, setSearch] = useState('');
+  const [catFilter, setCatFilter] = useState('All');
+  const [showAI, setShowAI] = useState(false);
+  const [sortKey] = useState('inherentScore');
+  const [sortDir] = useState('desc');
+  const [workflow, setWorkflow] = useState(null);
+  const [activeView, setActiveView] = useState('register');
+
+  const categories = ['All',...[...new Set(risks.map(r=>r.category))]];
+  const filtered = risks.filter(r =>
+    (catFilter==='All'||r.category===catFilter) &&
+    (!showAI||r.ai) &&
+    r.title.toLowerCase().includes(search.toLowerCase())
+  ).sort((a,b)=>{
+    const v = sortDir==='asc'?1:-1;
+    return a[sortKey]>b[sortKey]?v:-v;
+  });
+
+  const critical = risks.filter(r=>r.inherentScore>=20).length;
+  const exceedsAppetite = risks.filter(r=>getAppetite(r.residualScore)!=='Within').length;
+  const aiRisks = risks.filter(r=>r.ai).length;
+  const open = risks.filter(r=>r.status==='Open'||r.status==='In Treatment').length;
+
+  const HeatMatrix = () => (
+    <div className="bg-white rounded-xl border border-gray-100 p-5 shadow-sm">
+      <h3 className="font-semibold text-gray-900 mb-1">Risk Heat Matrix</h3>
+      <p className="text-xs text-gray-400 mb-4">Inherent risk: Likelihood x Impact — click a dot to open workflow</p>
+      <div className="flex gap-3">
+        <div className="flex flex-col justify-between text-xs text-gray-400 pr-1" style={{height:220}}>
+          {[5,4,3,2,1].map(n=><span key={n} className="leading-none">{n}</span>)}
+        </div>
+        <div className="flex-1 space-y-1">
+          {[5,4,3,2,1].map(l=>(
+            <div key={l} className="flex gap-1" style={{height:40}}>
+              {[1,2,3,4,5].map(i=>{
+                const score=l*i;
+                const bg=score>=20?'#FEE2E2':score>=12?'#FFEDD5':score>=6?'#FEF9C3':'#DCFCE7';
+                const cellRisks=risks.filter(r=>r.likelihood===l&&r.impact===i);
+                return (
+                  <div key={i} className="flex-1 rounded flex items-center justify-center flex-wrap gap-0.5 p-0.5" style={{background:bg}}>
+                    {cellRisks.map(r=>(
+                      <span key={r.id} title={r.id+': '+r.title}
+                        className="w-5 h-5 rounded-full flex items-center justify-center text-white font-bold cursor-pointer hover:scale-125 transition-transform shadow-sm"
+                        style={{background:getRiskColor(r.inherentScore),fontSize:'8px'}}
+                        onClick={()=>setWorkflow(r)}>
+                        {r.id.replace('RSK-','')}
+                      </span>
+                    ))}
+                  </div>
+                );
+              })}
+            </div>
+          ))}
+          <div className="flex gap-1">
+            {[1,2,3,4,5].map(n=><div key={n} className="flex-1 text-center text-xs text-gray-400">{n}</div>)}
+          </div>
+          <p className="text-xs text-center text-gray-400 mt-0.5">Impact →</p>
+        </div>
+      </div>
+      <div className="flex gap-3 mt-3 flex-wrap">
+        {[['Critical (≥20)','#FEE2E2'],['High (12-19)','#FFEDD5'],['Medium (6-11)','#FEF9C3'],['Low (1-5)','#DCFCE7']].map(([l,c])=>(
+          <div key={l} className="flex items-center gap-1"><span className="w-3 h-3 rounded" style={{background:c}}/><span className="text-xs text-gray-500">{l}</span></div>
+        ))}
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="space-y-4">
+      {workflow && <WorkflowPanel item={workflow} itemType="Risk" onClose={()=>setWorkflow(null)} />}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <KPICard title="Open Risks"       value={open}            icon={AlertTriangle} color="#EF4444" subtitle={critical+" critical"} />
+        <KPICard title="Exceeds Appetite" value={exceedsAppetite} icon={TrendingUp}    color="#F97316" subtitle="residual above threshold" />
+        <KPICard title="AI-Related Risks" value={aiRisks}         icon={Cpu}           color="#9333EA" subtitle="4 with no tested controls" />
+        <div className="bg-white rounded-xl border border-gray-100 p-4 shadow-sm">
+          <p className="text-xs text-gray-400 mb-2">Risk Appetite Thresholds</p>
+          <div className="space-y-1.5">
+            <div className="flex justify-between text-xs"><span className="text-green-600 font-medium">Within</span><span className="text-gray-500">Residual ≤ {RISK_APPETITE.medium}</span></div>
+            <div className="flex justify-between text-xs"><span className="text-amber-600 font-medium">Exceeds</span><span className="text-gray-500">{RISK_APPETITE.medium+1}–{RISK_APPETITE.high}</span></div>
+            <div className="flex justify-between text-xs"><span className="text-red-600 font-medium">Sig. Exceeds</span><span className="text-gray-500">&gt; {RISK_APPETITE.high}</span></div>
+          </div>
+        </div>
+      </div>
+      <div className="flex gap-2">
+        {[['register','Risk Register'],['matrix','Heat Matrix']].map(([id,label])=>(
+          <button key={id} onClick={()=>setActiveView(id)} className={"px-4 py-2 rounded-lg text-sm font-medium transition-colors "+(activeView===id?'bg-blue-600 text-white':'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50')}>{label}</button>
+        ))}
+      </div>
+      {activeView==='matrix' ? <HeatMatrix /> : (
+        <div className="bg-white rounded-xl border border-gray-100 shadow-sm">
+          <ModuleHeader title="Risk Register" subtitle={filtered.length+" risks"} search={search} setSearch={setSearch}
+            filters={<>
+              <select value={catFilter} onChange={e=>setCatFilter(e.target.value)} className="px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none">
+                {categories.map(c=><option key={c}>{c}</option>)}
+              </select>
+              <button onClick={()=>setShowAI(a=>!a)} className={"px-3 py-2 text-sm font-medium rounded-lg border transition-colors flex items-center gap-1.5 "+(showAI?'bg-purple-600 text-white border-purple-600':'bg-white text-gray-600 border-gray-200 hover:bg-gray-50')}>
+                <Cpu size={13}/> AI Only
+              </button>
+            </>}
+          />
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead><tr className="bg-gray-50 text-left">
+                {['ID','Risk','Category','Inherent','Residual','Appetite','Treatment','Controls','Status',''].map(h=>(
+                  <th key={h} className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">{h}</th>
+                ))}
+              </tr></thead>
+              <tbody className="divide-y divide-gray-50">
+                {filtered.map(r=>(
+                  <tr key={r.id} className="hover:bg-gray-50 transition-colors">
+                    <td className="px-4 py-3.5"><span className="font-mono text-xs text-gray-400">{r.id}</span></td>
+                    <td className="px-4 py-3.5 max-w-xs">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-sm font-medium text-gray-800 truncate">{r.title}</span>
+                        {r.ai&&<span className="px-1.5 py-0.5 bg-purple-100 text-purple-700 text-xs rounded font-medium flex-shrink-0">AI</span>}
+                      </div>
+                      <p className="text-xs text-gray-400 mt-0.5">{r.asset}</p>
+                    </td>
+                    <td className="px-4 py-3.5"><span className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded">{r.category}</span></td>
+                    <td className="px-4 py-3.5">
+                      <div className="flex items-center gap-1.5">
+                        <span className="w-2 h-2 rounded-full" style={{background:getRiskColor(r.inherentScore)}}/>
+                        <span className="text-sm font-bold text-gray-700">{r.inherentScore}</span>
+                        <span className="text-xs text-gray-400">{getRiskRating(r.inherentScore)}</span>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3.5">
+                      <div className="flex items-center gap-1.5">
+                        <span className="w-2 h-2 rounded-full" style={{background:getRiskColor(r.residualScore)}}/>
+                        <span className="text-sm font-bold text-gray-700">{r.residualScore}</span>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3.5">
+                      {(a=>(
+                        <span className={"px-2 py-0.5 rounded-full text-xs font-semibold "+(a==='Within'?'bg-green-50 text-green-700':a==='Exceeds'?'bg-amber-50 text-amber-700':'bg-red-50 text-red-700')}>{a}</span>
+                      ))(getAppetite(r.residualScore))}
+                    </td>
+                    <td className="px-4 py-3.5"><span className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded font-medium">{r.treatment}</span></td>
+                    <td className="px-4 py-3.5">
+                      <div className="flex gap-1 flex-wrap">
+                        {r.controlIds.map(id=>{const c=ctrlMap[id];return c?<EffectivenessBadge key={id} effectiveness={c.effectiveness} score={c.score}/>:null})}
+                      </div>
+                    </td>
+                    <td className="px-4 py-3.5"><StatusBadge status={r.status}/></td>
+                    <td className="px-4 py-3.5">
+                      <button onClick={()=>setWorkflow(r)} className="px-3 py-1 text-xs font-medium bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors">Actions</button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Audit Management ─────────────────────────────────────────────────────────
+function AuditManagement() {
+  const { controls } = useGRCData();
+  const ctrlMap = Object.fromEntries(controls.map(c=>[c.id,c]));
+  const [selectedAudit, setSelectedAudit] = useState(null);
+  const [workflow, setWorkflow] = useState(null);
+  const findings = selectedAudit ? auditFindings.filter(f=>f.auditId===selectedAudit.id) : auditFindings;
+  const openFindings = auditFindings.filter(f=>f.status!=='Resolved').length;
+  const avgReadiness = Math.round(audits.reduce((s,a)=>s+a.readiness,0)/audits.length);
+  const auditStatColor = { Scheduled:'bg-blue-50 text-blue-600', 'In Preparation':'bg-amber-50 text-amber-700', Planning:'bg-slate-50 text-slate-600', Completed:'bg-green-50 text-green-700' };
+
+  return (
+    <div className="space-y-4">
+      {workflow && <WorkflowPanel item={workflow} itemType="Finding" onClose={()=>setWorkflow(null)} />}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <KPICard title="Upcoming Audits"  value={audits.filter(a=>a.status!=='Completed').length} icon={FileText}     color="#2563EB" subtitle="next: SOC 2 Jul 15" />
+        <KPICard title="Avg Readiness"    value={avgReadiness+"%"}                                 icon={CheckCircle}  color="#22C55E" subtitle="across all frameworks" />
+        <KPICard title="Open Findings"    value={openFindings}                                      icon={AlertTriangle} color="#EF4444" subtitle="2 high severity" />
+        <KPICard title="EU AI Act Ready"  value="22%"                                               icon={Cpu}          color="#DC2626" subtitle="urgent — enforcement 2026" />
+      </div>
+      <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
+        {audits.map(audit=>(
+          <div key={audit.id} onClick={()=>setSelectedAudit(selectedAudit?.id===audit.id?null:audit)}
+            className={"bg-white rounded-xl border-2 p-5 shadow-sm cursor-pointer hover:shadow-md transition-all "+(selectedAudit?.id===audit.id?'':'border-gray-100')}
+            style={selectedAudit?.id===audit.id?{borderColor:audit.color}:{}}>
+            <div className="flex items-start justify-between mb-3">
+              <div>
+                <p className="font-semibold text-gray-900 text-sm">{audit.name}</p>
+                <p className="text-xs text-gray-400 mt-0.5">{audit.auditor} · {audit.scope.slice(0,40)}{audit.scope.length>40?"…":""}</p>
+              </div>
+              <span className={"px-2 py-0.5 rounded-full text-xs font-semibold "+(auditStatColor[audit.status]||'bg-gray-50 text-gray-500')}>{audit.status}</span>
+            </div>
+            <div className="flex items-center gap-3 mb-3">
+              <p className="text-xs text-gray-500">{audit.startDate} → {audit.endDate}</p>
+              <span className="text-xs font-semibold px-2 py-0.5 rounded" style={{background:audit.color+"15",color:audit.color}}>{audit.framework}</span>
+            </div>
+            <div className="mb-2">
+              <div className="flex justify-between text-xs mb-1"><span className="text-gray-500">Audit Readiness</span><span className="font-bold text-gray-700">{audit.readiness}%</span></div>
+              <div className="w-full bg-gray-100 rounded-full h-2"><div className="h-2 rounded-full" style={{width:audit.readiness+"%",background:audit.readiness>=80?"#22C55E":audit.readiness>=60?"#EAB308":"#EF4444"}}/></div>
+            </div>
+            {auditFindings.filter(f=>f.auditId===audit.id&&f.status!=="Resolved").length>0&&(
+              <p className="text-xs text-amber-600 font-medium">{auditFindings.filter(f=>f.auditId===audit.id&&f.status!=="Resolved").length} open findings</p>
+            )}
+          </div>
+        ))}
+      </div>
+      <div className="bg-white rounded-xl border border-gray-100 shadow-sm">
+        <div className="p-5 border-b border-gray-100 flex items-center justify-between">
+          <div><h3 className="font-semibold text-gray-900">Audit Findings</h3><p className="text-xs text-gray-400 mt-0.5">{selectedAudit?selectedAudit.name:"All audits"} · {findings.length} findings</p></div>
+          {selectedAudit&&<button onClick={()=>setSelectedAudit(null)} className="text-xs text-blue-500 hover:text-blue-700 font-medium">Show all →</button>}
+        </div>
+        <ModuleTable
+          columns={[
+            { key:"id",      label:"ID",          render:r=><span className="font-mono text-xs text-gray-400">{r.id}</span> },
+            { key:"title",   label:"Finding",     render:r=><span className="text-sm font-medium text-gray-800">{r.title}</span> },
+            { key:"sev",     label:"Severity",    render:r=><SeverityBadge severity={r.severity}/> },
+            { key:"ctrl",    label:"Control",     render:r=>{const c=ctrlMap[r.controlId];return c?<div><span className="font-mono text-xs text-gray-400">{r.controlId}</span><p className="text-xs text-gray-500 truncate max-w-xs">{c.name}</p></div>:null} },
+            { key:"eff",     label:"Effectiveness", render:r=>{const c=ctrlMap[r.controlId];return c?<EffectivenessBadge effectiveness={c.effectiveness} score={c.score}/>:null} },
+            { key:"status",  label:"Status",      render:r=><StatusBadge status={r.status}/> },
+            { key:"due",     label:"Due",         render:r=><span className={"text-xs "+(r.dueDate<"2026-07-01"&&r.status!=="Resolved"?"text-red-500 font-semibold":"text-gray-400")}>{r.dueDate}</span> },
+            { key:"owner",   label:"Owner",       render:r=><span className="text-xs text-gray-500">{r.owner}</span> },
+            { key:"actions", label:"",            render:r=><button onClick={()=>setWorkflow(r)} className="px-3 py-1 text-xs font-medium bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors">Actions</button> },
+          ]}
+          rows={findings}
+          emptyMsg="No findings"
+        />
+      </div>
+    </div>
+  );
+}
+
+// ─── Evidence Locker ──────────────────────────────────────────────────────────
+function EvidenceLocker() {
+  const { controls } = useGRCData();
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('All');
+  const [selectedCtrl, setSelectedCtrl] = useState(null);
+
+  const evByCtrl = controls.reduce((m,c)=>{m[c.id]=evidenceItems.filter(e=>e.controlId===c.id);return m;},{});
+  const current  = evidenceItems.filter(e=>e.status==='Current').length;
+  const expiring = evidenceItems.filter(e=>e.status==='Expiring').length;
+  const expired  = evidenceItems.filter(e=>e.status==='Expired').length;
+  const noEvidence = controls.filter(c=>!evByCtrl[c.id]?.length).length;
+  const evStatusCls = { Current:'bg-green-50 text-green-700 border-green-200', Expiring:'bg-amber-50 text-amber-700 border-amber-200', Expired:'bg-red-50 text-red-700 border-red-200' };
+  const evTypeIcon  = { Screenshot:'📸', 'Policy Document':'📄', 'Test Result':'🧪', Certificate:'🏅', Configuration:'⚙️', 'Training Record':'🎓', Assessment:'📋' };
+
+  const filteredControls = controls.filter(c=>{
+    const ev = evByCtrl[c.id]||[];
+    const matchStatus = statusFilter==='All'||ev.some(e=>e.status===statusFilter)||(statusFilter==='Missing'&&!ev.length);
+    const matchSearch = c.name.toLowerCase().includes(search.toLowerCase())||c.id.toLowerCase().includes(search.toLowerCase());
+    return matchStatus && matchSearch;
+  });
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <KPICard title="Current Evidence" value={current}    icon={CheckCircle}   color="#22C55E" subtitle="valid and up to date" />
+        <KPICard title="Expiring Soon"    value={expiring}   icon={AlertTriangle} color="#EAB308" subtitle="within 30 days" />
+        <KPICard title="Expired"          value={expired}    icon={AlertTriangle} color="#EF4444" subtitle="immediate action needed" />
+        <KPICard title="No Evidence"      value={noEvidence} icon={Eye}           color="#9CA3AF" subtitle="controls without evidence" />
+      </div>
+      <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
+        <p className="text-sm font-semibold text-gray-800 mb-1">Audit Readiness — Evidence Coverage</p>
+        <p className="text-xs text-gray-600">{evidenceItems.length} evidence items across {[...new Set(evidenceItems.map(e=>e.controlId))].length} of {controls.length} controls. {noEvidence} controls have no evidence — required for SOC 2 Type II and ISO 27001.</p>
+      </div>
+      <div className="bg-white rounded-xl border border-gray-100 shadow-sm">
+        <ModuleHeader title="Evidence Locker" subtitle={filteredControls.length+" controls"} search={search} setSearch={setSearch}
+          filters={
+            <select value={statusFilter} onChange={e=>setStatusFilter(e.target.value)} className="px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none">
+              {['All','Current','Expiring','Expired','Missing'].map(s=><option key={s}>{s}</option>)}
+            </select>
+          }
+        />
+        <div className="divide-y divide-gray-50">
+          {filteredControls.map(ctrl=>{
+            const ev = evByCtrl[ctrl.id]||[];
+            const isOpen = selectedCtrl===ctrl.id;
+            return (
+              <div key={ctrl.id}>
+                <div onClick={()=>setSelectedCtrl(isOpen?null:ctrl.id)} className="flex items-center justify-between px-5 py-4 hover:bg-gray-50 cursor-pointer transition-colors">
+                  <div className="flex items-center gap-3 min-w-0">
+                    {ctrl.ai&&<Cpu size={13} className="text-purple-400 flex-shrink-0"/>}
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2"><span className="font-mono text-xs text-gray-400">{ctrl.id}</span>{ctrl.ai&&<span className="px-1.5 py-0.5 bg-purple-100 text-purple-700 text-xs rounded font-medium">AI</span>}</div>
+                      <p className="text-sm font-medium text-gray-800 truncate">{ctrl.name}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3 flex-shrink-0 ml-4">
+                    <EffectivenessBadge effectiveness={ctrl.effectiveness} score={ctrl.score}/>
+                    {ev.length===0
+                      ? <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-gray-100 text-gray-400">No evidence</span>
+                      : <div className="flex gap-1">
+                          {['Current','Expiring','Expired'].map(s=>{const n=ev.filter(e=>e.status===s).length;return n?<span key={s} className={"px-2 py-0.5 rounded-full text-xs font-semibold border "+(evStatusCls[s]||'')}>{n} {s}</span>:null;})}
+                        </div>
+                    }
+                    <ChevronRight size={14} className={"text-gray-300 transition-transform "+(isOpen?'rotate-90':'')}/>
+                  </div>
+                </div>
+                {isOpen&&(
+                  <div className="px-5 pb-4 bg-gray-50 border-t border-gray-100">
+                    {ev.length===0
+                      ? <div className="py-4 flex items-center justify-between">
+                          <p className="text-sm text-gray-400">No evidence uploaded for this control.</p>
+                          <button className="px-3 py-1.5 text-xs font-semibold bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">+ Upload Evidence</button>
+                        </div>
+                      : <div className="space-y-2 pt-3">
+                          {ev.map(e=>(
+                            <div key={e.id} className="flex items-center justify-between bg-white rounded-lg border border-gray-100 px-4 py-2.5">
+                              <div className="flex items-center gap-2 min-w-0">
+                                <span className="text-base">{evTypeIcon[e.type]||"📁"}</span>
+                                <div className="min-w-0"><p className="text-sm font-medium text-gray-800 truncate">{e.name}</p><p className="text-xs text-gray-400">{e.type} · {e.uploadDate} · {e.uploadedBy}</p></div>
+                              </div>
+                              <div className="flex items-center gap-3 flex-shrink-0 ml-3">
+                                <div className="text-right"><p className="text-xs text-gray-400">Expires</p><p className={"text-xs font-medium "+(e.status==='Expired'?'text-red-600':e.status==='Expiring'?'text-amber-600':'text-gray-600')}>{e.expiryDate}</p></div>
+                                <span className={"px-2 py-0.5 rounded-full text-xs font-semibold border "+(evStatusCls[e.status]||'')}>{e.status}</span>
+                              </div>
+                            </div>
+                          ))}
+                          <button className="text-xs text-blue-500 hover:text-blue-700 font-medium pt-1">+ Upload additional evidence</button>
+                        </div>
+                    }
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 
 const navGroups = [
   {
