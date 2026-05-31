@@ -25,7 +25,3 @@ build/
 .env
 .env.local
 
-# Local tooling directories not part of the project
-plugins/
-schemas/
-tests/

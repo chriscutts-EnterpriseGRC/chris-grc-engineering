@@ -1,0 +1,9 @@
+{
+  "name": "iso42001",
+  "version": "0.1.0",
+  "description": "ISO/IEC 42001:2023 AI Management System Standard — clause-level control mapping across all 10 sections and Annex A controls. Covers AI policy, planning, risk treatment, performance evaluation, and continual improvement for chris-grc-engineering.",
+  "author": { "name": "Chris Cutts" },
+  "repository": "https://github.com/9snxz8htcw-netizen/chris-grc-engineering",
+  "license": "MIT",
+  "keywords": ["grc", "ai", "iso", "42001", "isms", "management-system"]
+}

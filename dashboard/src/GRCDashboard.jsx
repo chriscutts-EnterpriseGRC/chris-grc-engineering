@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useContext, createContext } from 'react';
 import { BarChart, Bar, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import {
-  Shield, AlertTriangle, Grid, Search, Bell, Settings, User, Menu, Activity,
+  Shield, AlertTriangle, TrendingUp, TrendingDown, CheckCircle,
+  Grid, Search, Bell, Settings, User, Menu, Activity,
   ArrowUpRight, ArrowDownRight, ChevronRight, Zap, Database,
   Lock, Globe, Eye, RefreshCw, Play, FileText,
-  CheckSquare, Bug, Flame, BookOpen, Building2, Cpu
+  CheckSquare, Bug, Flame, BookOpen, Building2, Cpu,
+  Users, Download, Award, BarChart2
 } from 'lucide-react';
 import { api } from './lib/api';
 import { isLive } from './lib/supabase';
@@ -119,6 +121,99 @@ const frameworks = [
   { name: 'NIST CSF',      progress: 88, controls: 108,passing: 95, color: '#DC2626', status: 'Compliant' },
   { name: 'EU AI Act',     progress: 22, controls: 31, passing: 7,  color: '#9333EA', status: 'Gap' },
   { name: 'ISO/IEC 42001', progress: 18, controls: 44, passing: 8,  color: '#0EA5E9', status: 'Gap' },
+];
+
+// ─── Team Definitions (Leadership Scorecard) ─────────────────────────────────
+
+const teams = [
+  {
+    id: 'identity',      name: 'Identity & Access',       lead: 'J. Martinez', dept: 'Security Engineering',
+    color: '#2563EB',    icon: Lock,
+    controls: ['UCF.01.01','UCF.01.02','UCF.07.02'],
+  },
+  {
+    id: 'data',          name: 'Data Protection',          lead: 'A. Patel',    dept: 'Security Engineering',
+    color: '#7C3AED',    icon: Shield,
+    controls: ['UCF.02.01','UCF.02.02','UCF.AI.01','UCF.AI.02','UCF.AI.06','UCF.AI.08','UCF.AI.09'],
+  },
+  {
+    id: 'infra',         name: 'Infrastructure Security',  lead: 'T. Williams', dept: 'Platform Engineering',
+    color: '#059669',    icon: Database,
+    controls: ['UCF.03.01','UCF.03.02','UCF.08.01','UCF.AI.03','UCF.AI.07'],
+  },
+  {
+    id: 'secops',        name: 'Security Operations',      lead: 'K. Thompson', dept: 'Security Operations',
+    color: '#D97706',    icon: Activity,
+    controls: ['UCF.04.01','UCF.08.02','UCF.09.01','UCF.AI.05','UCF.AI.10'],
+  },
+  {
+    id: 'grc',           name: 'GRC & Vendor Risk',        lead: 'S. Chen',     dept: 'GRC',
+    color: '#0891B2',    icon: FileText,
+    controls: ['UCF.06.01','UCF.06.02','UCF.07.01','UCF.AI.04'],
+  },
+  {
+    id: 'rd',            name: 'R&D / Product',            lead: 'Engineering Leads', dept: 'Product Engineering',
+    color: '#DC2626',    icon: Cpu,
+    controls: ['UCF.AI.03','UCF.AI.05','UCF.AI.07','UCF.03.01','UCF.05.01'],
+  },
+];
+
+// ─── Risk Register Data ───────────────────────────────────────────────────────
+const RISK_APPETITE = { medium: 11, high: 19 };
+const getRiskRating = s => s >= 20 ? 'Critical' : s >= 12 ? 'High' : s >= 6 ? 'Medium' : 'Low';
+const getRiskColor  = s => s >= 20 ? '#EF4444' : s >= 12 ? '#F97316' : s >= 6 ? '#EAB308' : '#22C55E';
+const getAppetite   = s => s > RISK_APPETITE.high ? 'Significantly Exceeds' : s > RISK_APPETITE.medium ? 'Exceeds' : 'Within';
+const CTRL_EFF = {'UCF.01.01':92,'UCF.01.02':38,'UCF.02.02':45,'UCF.03.02':41,'UCF.AI.02':33,'UCF.AI.03':0,'UCF.AI.04':51,'UCF.AI.05':0,'UCF.04.01':87,'UCF.05.01':71,'UCF.06.01':63,'UCF.06.02':62,'UCF.07.01':74,'UCF.09.01':69,'UCF.AI.01':29};
+
+const _rawRisks = [
+  { id:'RSK-001', title:'Privileged accounts without MFA',               category:'Access Control', asset:'Identity Platform',       owner:'J. Martinez', likelihood:4, impact:5, controlIds:['UCF.01.01','UCF.01.02'], treatment:'Mitigate', treatmentPlan:'Enforce Okta MFA for all admin accounts by 2026-06-15',              status:'Open',        reviewDate:'2026-06-15', linkedModule:'vulns',      ai:false },
+  { id:'RSK-002', title:'AI model training data exfiltration risk',      category:'AI Governance',  asset:'ML Training Environment', owner:'A. Patel',    likelihood:3, impact:5, controlIds:['UCF.AI.02','UCF.AI.03'], treatment:'Mitigate', treatmentPlan:'Implement strict access controls on ML environments',                status:'Open',        reviewDate:'2026-06-30', linkedModule:'incidents',  ai:true  },
+  { id:'RSK-003', title:'Critical vulnerabilities unpatched >30 days',   category:'Vuln Mgmt',      asset:'Production Systems',      owner:'T. Williams', likelihood:4, impact:4, controlIds:['UCF.03.02'],             treatment:'Mitigate', treatmentPlan:'Deploy automated patch pipeline and enforce 14-day SLA',            status:'Open',        reviewDate:'2026-06-20', linkedModule:'vulns',      ai:false },
+  { id:'RSK-004', title:'OpenAI vendor — no contract or DPA',            category:'Third Party',    asset:'AI Chat Features',        owner:'S. Chen',     likelihood:3, impact:4, controlIds:['UCF.AI.04','UCF.06.01'], treatment:'Mitigate', treatmentPlan:'Execute DPA and security addendum with OpenAI by 2026-07-01',      status:'In Treatment',reviewDate:'2026-07-01', linkedModule:'thirdparty', ai:true  },
+  { id:'RSK-005', title:'DLP controls ineffective — cloud storage gaps', category:'Data Protection', asset:'AWS S3 / GCS Buckets',   owner:'A. Patel',    likelihood:3, impact:4, controlIds:['UCF.02.02'],             treatment:'Mitigate', treatmentPlan:'Deploy cloud DLP scanning across all storage tiers',               status:'Open',        reviewDate:'2026-07-15', linkedModule:'vulns',      ai:false },
+  { id:'RSK-006', title:'No AI usage or governance policy in place',     category:'AI Governance',  asset:'All AI Systems',          owner:'A. Patel',    likelihood:4, impact:3, controlIds:['UCF.AI.01'],             treatment:'Mitigate', treatmentPlan:'Draft, ratify and publish AI Usage and Ethics Policies',           status:'Open',        reviewDate:'2026-06-30', linkedModule:'policy',     ai:true  },
+  { id:'RSK-007', title:'AI incident response plan never tested',        category:'AI Security',    asset:'AI Systems',              owner:'K. Thompson', likelihood:3, impact:4, controlIds:['UCF.AI.05','UCF.04.01'], treatment:'Mitigate', treatmentPlan:'Run AI-specific tabletop exercise Q3 2026',                        status:'Open',        reviewDate:'2026-08-30', linkedModule:'incidents',  ai:true  },
+  { id:'RSK-008', title:'Vendor questionnaire backlog — 18 vendors',    category:'Third Party',    asset:'18 Vendor Relationships', owner:'S. Chen',     likelihood:3, impact:3, controlIds:['UCF.06.02'],             treatment:'Mitigate', treatmentPlan:'Automate questionnaire distribution via Vanta integration',        status:'In Treatment',reviewDate:'2026-08-01', linkedModule:'thirdparty', ai:false },
+  { id:'RSK-009', title:'Prompt injection in public AI endpoint',        category:'AI Security',    asset:'AI Assistant API',        owner:'T. Williams', likelihood:4, impact:4, controlIds:['UCF.AI.03'],             treatment:'Mitigate', treatmentPlan:'Implement input validation and OWASP LLM Top 10 controls',         status:'Open',        reviewDate:'2026-06-15', linkedModule:'vulns',      ai:true  },
+  { id:'RSK-010', title:'Password policy — 4 outstanding exceptions',   category:'Access Control', asset:'Employee Accounts',       owner:'J. Martinez', likelihood:2, impact:3, controlIds:['UCF.01.01'],             treatment:'Accept',   treatmentPlan:'Review all 4 exceptions for documented business justification',    status:'Accepted',    reviewDate:'2026-09-30', linkedModule:'policy',     ai:false },
+  { id:'RSK-011', title:'Business continuity plan not validated',        category:'BCM',            asset:'Critical Systems',        owner:'K. Thompson', likelihood:2, impact:4, controlIds:['UCF.09.01'],             treatment:'Mitigate', treatmentPlan:'Conduct DR test and tabletop exercise by end Q3 2026',            status:'Open',        reviewDate:'2026-09-01', linkedModule:'policy',     ai:false },
+  { id:'RSK-012', title:'Employee offboarding access revocation lag',    category:'Access Control', asset:'All Systems',             owner:'J. Martinez', likelihood:2, impact:2, controlIds:['UCF.01.01','UCF.01.02'], treatment:'Accept',   treatmentPlan:'Current 24h SLA acceptable — review quarterly',                   status:'Accepted',    reviewDate:'2026-10-01', linkedModule:'incidents',  ai:false },
+];
+const risks = _rawRisks.map(r => {
+  const inherentScore = r.likelihood * r.impact;
+  const reductionFactor = r.controlIds.reduce((f,id) => f * (1 - ((CTRL_EFF[id]??50)/100)*0.5), 1);
+  const residualScore = Math.max(2, Math.round(inherentScore * reductionFactor));
+  return { ...r, inherentScore, residualScore };
+});
+
+// ─── Audit Management Data ────────────────────────────────────────────────────
+const audits = [
+  { id:'AUD-001', name:'SOC 2 Type II Annual Audit',        framework:'SOC 2',     auditor:'Deloitte',  status:'Scheduled',      startDate:'2026-07-15', endDate:'2026-08-30', readiness:94, scope:'Security, Availability, Confidentiality', color:'#2563EB' },
+  { id:'AUD-002', name:'ISO 27001 Surveillance Audit',      framework:'ISO 27001', auditor:'BSI Group', status:'In Preparation', startDate:'2026-09-10', endDate:'2026-09-14', readiness:87, scope:'Full ISMS scope',                         color:'#7C3AED' },
+  { id:'AUD-003', name:'EU AI Act Compliance Review',       framework:'EU AI Act', auditor:'Internal',  status:'Planning',       startDate:'2026-10-01', endDate:'2026-10-31', readiness:22, scope:'High-risk AI systems',                   color:'#DC2626' },
+  { id:'AUD-004', name:'GDPR Annual Data Protection Audit', framework:'GDPR',      auditor:'PwC',       status:'Completed',      startDate:'2026-03-01', endDate:'2026-03-15', readiness:91, scope:'Data processing activities',             color:'#0891B2' },
+  { id:'AUD-005', name:'PCI DSS QSA Assessment',            framework:'PCI DSS',   auditor:'Trustwave', status:'Scheduled',      startDate:'2026-11-01', endDate:'2026-11-30', readiness:83, scope:'Cardholder data environment',            color:'#D97706' },
+];
+const auditFindings = [
+  { id:'FND-001', auditId:'AUD-004', title:'Data retention schedule not enforced in S3',     severity:'High',   controlId:'UCF.02.01', status:'In Remediation', dueDate:'2026-06-30', owner:'A. Patel'    },
+  { id:'FND-002', auditId:'AUD-004', title:'Missing DPIA for new AI recommendation feature', severity:'High',   controlId:'UCF.AI.02', status:'Open',           dueDate:'2026-07-15', owner:'A. Patel'    },
+  { id:'FND-003', auditId:'AUD-004', title:'Third party processor agreement gaps',            severity:'Medium', controlId:'UCF.06.01', status:'Resolved',       dueDate:'2026-05-30', owner:'S. Chen'     },
+  { id:'FND-004', auditId:'AUD-004', title:'Cookie consent banners not granular enough',      severity:'Medium', controlId:'UCF.07.01', status:'In Remediation', dueDate:'2026-06-15', owner:'A. Patel'    },
+  { id:'FND-005', auditId:'AUD-001', title:'Patch management SLA not formally documented',    severity:'Low',    controlId:'UCF.03.02', status:'Open',           dueDate:'2026-07-01', owner:'T. Williams' },
+];
+
+// ─── Evidence Locker Data ─────────────────────────────────────────────────────
+const evidenceItems = [
+  { id:'EVD-001', controlId:'UCF.01.01', type:'Screenshot',     name:'Okta MFA enforcement config',          uploadedBy:'J. Martinez', uploadDate:'2026-05-15', expiryDate:'2026-11-15', status:'Current'  },
+  { id:'EVD-002', controlId:'UCF.01.01', type:'Policy Document', name:'Authentication Policy v2.8',           uploadedBy:'J. Martinez', uploadDate:'2026-04-01', expiryDate:'2026-10-01', status:'Current'  },
+  { id:'EVD-003', controlId:'UCF.03.01', type:'Test Result',     name:'Qualys scan report May 2026',          uploadedBy:'T. Williams', uploadDate:'2026-05-20', expiryDate:'2026-06-20', status:'Expiring' },
+  { id:'EVD-004', controlId:'UCF.08.01', type:'Configuration',   name:'Splunk SIEM alert rules export',       uploadedBy:'T. Williams', uploadDate:'2026-05-22', expiryDate:'2026-11-22', status:'Current'  },
+  { id:'EVD-005', controlId:'UCF.04.01', type:'Test Result',     name:'IR tabletop exercise results Apr-26',  uploadedBy:'K. Thompson', uploadDate:'2026-04-30', expiryDate:'2026-10-30', status:'Current'  },
+  { id:'EVD-006', controlId:'UCF.02.01', type:'Certificate',     name:'AWS KMS encryption compliance cert',   uploadedBy:'A. Patel',    uploadDate:'2026-04-20', expiryDate:'2026-04-20', status:'Expired'  },
+  { id:'EVD-007', controlId:'UCF.07.02', type:'Training Record', name:'Security awareness completion report', uploadedBy:'J. Martinez', uploadDate:'2026-05-10', expiryDate:'2026-11-10', status:'Current'  },
+  { id:'EVD-008', controlId:'UCF.06.01', type:'Assessment',      name:'AWS vendor risk assessment Q1-26',     uploadedBy:'S. Chen',     uploadDate:'2026-03-10', expiryDate:'2026-09-10', status:'Current'  },
+  { id:'EVD-009', controlId:'UCF.08.02', type:'Policy Document', name:'Change management procedure v3.5',     uploadedBy:'K. Thompson', uploadDate:'2026-05-18', expiryDate:'2026-11-18', status:'Current'  },
+  { id:'EVD-010', controlId:'UCF.AI.01', type:'Policy Document', name:'AI Governance Policy DRAFT v0.9',      uploadedBy:'A. Patel',    uploadDate:'2026-02-10', expiryDate:'2026-08-10', status:'Current'  },
 ];
 
 // ─── Shared Components ────────────────────────────────────────────────────────
@@ -266,23 +361,39 @@ function Overview({ navigate }) {
   useEffect(() => { const t = setTimeout(() => setScore(71), 300); return () => clearTimeout(t); }, []);
 
   const effCounts = controls.reduce((a, c) => { a[c.effectiveness] = (a[c.effectiveness] || 0) + 1; return a; }, {});
-  const aiGaps = controls.filter(c => c.ai && (c.effectiveness === 'ineffective' || c.effectiveness === 'not_tested'));
-  const topFailingControls = [...controls].filter(c => c.effectiveness === 'ineffective' || c.effectiveness === 'not_tested').sort((a, b) => a.score - b.score).slice(0, 4);
+  const allGaps = controls.filter(c => c.effectiveness === 'ineffective' || c.effectiveness === 'not_tested');
+  const failingControls = [...controls].filter(c => c.effectiveness === 'ineffective' || c.effectiveness === 'not_tested').sort((a, b) => a.score - b.score).slice(0, 6);
+
+  // Control gaps grouped by category
+  const gapsByCategory = controls.reduce((acc, c) => {
+    if (!acc[c.category]) acc[c.category] = { total: 0, gaps: 0 };
+    acc[c.category].total++;
+    if (c.effectiveness === 'ineffective' || c.effectiveness === 'not_tested') acc[c.category].gaps++;
+    return acc;
+  }, {});
+  const categoryGaps = Object.entries(gapsByCategory)
+    .filter(([, v]) => v.gaps > 0)
+    .sort((a, b) => b[1].gaps - a[1].gaps);
 
   const moduleSummaries = [
-    { id: 'vulns',    label: 'Vulnerabilities', icon: Bug,       color: '#EF4444', count: vulns.filter(v=>v.status==='Open'||v.status==='In Progress').length,   unit: 'open',          critical: vulns.filter(v=>v.severity==='Critical'&&v.status!=='Patched').length,   ctrlId: 'UCF.03.02' },
-    { id: 'incidents',label: 'Incidents',       icon: Flame,     color: '#F97316', count: incidents.filter(i=>i.status!=='Resolved').length,                    unit: 'active',        critical: incidents.filter(i=>i.severity==='Critical'&&i.status!=='Resolved').length, ctrlId: 'UCF.04.01' },
-    { id: 'policy',   label: 'Policy',          icon: BookOpen,  color: '#7C3AED', count: policies.filter(p=>p.status==='Overdue'||p.status==='Missing').length, unit: 'overdue',       critical: policies.filter(p=>p.status==='Missing').length,                            ctrlId: 'UCF.07.01' },
-    { id: 'thirdparty',label:'Third Party',     icon: Building2, color: '#0891B2', count: vendors.filter(v=>v.riskScore>=60).length,                            unit: 'high risk',     critical: vendors.filter(v=>v.status==='No Contract').length,                         ctrlId: 'UCF.06.01' },
+    { id: 'vulns',     label: 'Vulnerabilities', icon: Bug,       color: '#EF4444', count: vulns.filter(v=>v.status==='Open'||v.status==='In Progress').length,   unit: 'open',      ctrlId: 'UCF.03.02' },
+    { id: 'incidents', label: 'Incidents',        icon: Flame,     color: '#F97316', count: incidents.filter(i=>i.status!=='Resolved').length,                    unit: 'active',    ctrlId: 'UCF.04.01' },
+    { id: 'policy',    label: 'Policy',           icon: BookOpen,  color: '#7C3AED', count: policies.filter(p=>p.status==='Overdue'||p.status==='Missing').length, unit: 'overdue',   ctrlId: 'UCF.07.01' },
+    { id: 'thirdparty',label: 'Third Party',      icon: Building2, color: '#0891B2', count: vendors.filter(v=>v.riskScore>=60).length,                            unit: 'high risk', ctrlId: 'UCF.06.01' },
   ];
+
+  const riskScoreColor = (s) => s >= 20 ? 'text-red-600' : s >= 12 ? 'text-orange-500' : s >= 6 ? 'text-amber-500' : 'text-green-600';
+  const riskBand = (s) => s >= 20 ? 'Critical' : s >= 12 ? 'High' : s >= 6 ? 'Medium' : 'Low';
+  const riskBandBg = (s) => s >= 20 ? 'bg-red-50 text-red-700' : s >= 12 ? 'bg-orange-50 text-orange-700' : s >= 6 ? 'bg-amber-50 text-amber-700' : 'bg-green-50 text-green-700';
 
   return (
     <div className="space-y-5">
+      {/* KPI row */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <KPICard title="Open Vulnerabilities" value={vulns.filter(v=>v.status!=='Patched').length} delta="3" deltaType="up" icon={Bug} color="#EF4444" subtitle="2 critical" />
+        <KPICard title="Open Vulnerabilities" value={vulns.filter(v=>v.status!=='Patched').length} delta="3" deltaType="up" icon={Bug} color="#EF4444" subtitle="2 critical unpatched" />
         <KPICard title="Active Incidents"     value={incidents.filter(i=>i.status!=='Resolved').length} delta="2" deltaType="up" icon={Flame} color="#F97316" subtitle="2 unresolved critical" />
-        <KPICard title="Policy Gaps"          value={policies.filter(p=>p.status==='Overdue'||p.status==='Missing').length} delta="2" deltaType="up" icon={BookOpen} color="#7C3AED" subtitle="3 AI policies missing" />
-        <KPICard title="High-Risk Vendors"    value={vendors.filter(v=>v.riskScore>=60).length} delta="1" deltaType="up" icon={Building2} color="#0891B2" subtitle="1 vendor with no contract" />
+        <KPICard title="Policy Gaps"          value={policies.filter(p=>p.status==='Overdue'||p.status==='Missing').length} delta="2" deltaType="up" icon={BookOpen} color="#7C3AED" subtitle={`${policies.filter(p=>p.status==='Missing').length} missing`} />
+        <KPICard title="Control Gaps"         value={allGaps.length} delta="1" deltaType="up" icon={AlertTriangle} color="#DC2626" subtitle={`${allGaps.filter(c=>!c.ai).length} core · ${allGaps.filter(c=>c.ai).length} AI`} />
       </div>
 
       {/* Resilience score + module cards */}
@@ -291,7 +402,7 @@ function Overview({ navigate }) {
           <h3 className="font-semibold text-gray-900 mb-1">Resilience Score</h3>
           <p className="text-xs text-gray-400 mb-3">Composite across all modules</p>
           <HealthRing score={score} />
-          <p className="text-xs text-amber-600 font-medium mt-2">AI controls dragging score down</p>
+          <p className="text-xs text-amber-600 font-medium mt-2">{allGaps.length} controls need remediation</p>
         </div>
         <div className="lg:col-span-2 grid grid-cols-2 gap-3">
           {moduleSummaries.map(m => {
@@ -313,7 +424,7 @@ function Overview({ navigate }) {
         </div>
       </div>
 
-      {/* Control effectiveness summary + AI gaps */}
+      {/* Control effectiveness + gaps by category */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <div className="bg-white rounded-xl border border-gray-100 p-5 shadow-sm">
           <h3 className="font-semibold text-gray-900 mb-4">Control Effectiveness — UCF Library</h3>
@@ -335,42 +446,81 @@ function Overview({ navigate }) {
 
         <div className="bg-white rounded-xl border border-red-100 p-5 shadow-sm">
           <div className="flex items-center gap-2 mb-4">
-            <Cpu size={16} className="text-purple-600" />
-            <h3 className="font-semibold text-gray-900">AI Control Gaps</h3>
-            <span className="ml-auto px-2 py-0.5 bg-red-50 text-red-600 text-xs font-semibold rounded-full">{aiGaps.length} gaps</span>
+            <AlertTriangle size={16} className="text-red-500" />
+            <h3 className="font-semibold text-gray-900">Control Gaps by Category</h3>
+            <span className="ml-auto px-2 py-0.5 bg-red-50 text-red-600 text-xs font-semibold rounded-full">{allGaps.length} total</span>
           </div>
-          <div className="space-y-2.5">
-            {aiGaps.map(c => (
-              <div key={c.id} className="flex items-center justify-between gap-3">
-                <div className="min-w-0">
-                  <span className="font-mono text-xs text-gray-400">{c.id}</span>
-                  <p className="text-xs text-gray-700 truncate">{c.name}</p>
-                  <p className="text-xs text-gray-400">{c.frameworks.slice(0,2).join(' · ')}</p>
+          <div className="space-y-2">
+            {categoryGaps.map(([cat, v]) => (
+              <div key={cat} className="flex items-center gap-3">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between mb-0.5">
+                    <span className="text-xs font-medium text-gray-700 truncate">{cat}</span>
+                    <span className="text-xs text-red-600 font-semibold ml-2 flex-shrink-0">{v.gaps}/{v.total}</span>
+                  </div>
+                  <div className="w-full bg-gray-100 rounded-full h-1.5">
+                    <div className="h-1.5 rounded-full bg-red-400" style={{ width: `${(v.gaps/v.total)*100}%` }} />
+                  </div>
                 </div>
-                <EffectivenessBadge effectiveness={c.effectiveness} score={c.score} />
               </div>
             ))}
           </div>
         </div>
       </div>
 
-      {/* Top failing controls */}
+      {/* Risk Register Snapshot */}
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm">
-        <div className="p-5 border-b border-gray-100">
-          <h3 className="font-semibold text-gray-900">Top Failing Controls</h3>
-          <p className="text-xs text-gray-400 mt-0.5">Highest-impact ineffective and untested controls</p>
+        <div className="p-5 border-b border-gray-100 flex items-center justify-between">
+          <div>
+            <h3 className="font-semibold text-gray-900">Open Risk Register</h3>
+            <p className="text-xs text-gray-400 mt-0.5">Top risks by inherent score — click Risks tab for full register</p>
+          </div>
+          <span className="px-2.5 py-1 bg-red-50 text-red-600 text-xs font-semibold rounded-full">{openRisks.filter(r=>r.status!=='closed').length} open</span>
         </div>
         <div className="divide-y divide-gray-50">
-          {topFailingControls.map(c => (
+          {openRisks.map(r => (
+            <div key={r.risk_id} className="flex items-center justify-between px-5 py-3.5 hover:bg-gray-50 transition-colors">
+              <div className="flex items-center gap-3 min-w-0">
+                <span className={`text-lg font-bold flex-shrink-0 ${riskScoreColor(r.inherent.score)}`}>{r.inherent.score}</span>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="font-mono text-xs text-gray-400">{r.risk_id}</span>
+                    <span className={`px-1.5 py-0.5 text-xs font-semibold rounded ${riskBandBg(r.inherent.score)}`}>{riskBand(r.inherent.score)}</span>
+                  </div>
+                  <p className="text-sm text-gray-800 truncate">{r.title}</p>
+                  <p className="text-xs text-gray-400">{r.owner.team} · {r.treatment}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3 flex-shrink-0 ml-4">
+                {r.residual && <span className="text-xs text-gray-400">residual <strong className="text-gray-700">{r.residual.score}</strong></span>}
+                <StatusBadge status={r.status} />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* All failing controls */}
+      <div className="bg-white rounded-xl border border-gray-100 shadow-sm">
+        <div className="p-5 border-b border-gray-100 flex items-center justify-between">
+          <div>
+            <h3 className="font-semibold text-gray-900">Failing Controls</h3>
+            <p className="text-xs text-gray-400 mt-0.5">All ineffective and untested controls across every domain</p>
+          </div>
+          <span className="text-xs text-gray-400">{allGaps.length} controls</span>
+        </div>
+        <div className="divide-y divide-gray-50">
+          {failingControls.map(c => (
             <div key={c.id} className="flex items-center justify-between px-5 py-3.5 hover:bg-gray-50 transition-colors">
               <div className="flex items-center gap-3 min-w-0">
                 {c.ai && <Cpu size={14} className="text-purple-400 flex-shrink-0" />}
                 <div className="min-w-0">
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <span className="font-mono text-xs text-gray-400">{c.id}</span>
                     <span className="text-sm font-medium text-gray-800 truncate">{c.name}</span>
+                    <span className="text-xs bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded flex-shrink-0">{c.category}</span>
                   </div>
-                  <p className="text-xs text-gray-400 mt-0.5">{c.frameworks.join(' · ')}</p>
+                  <p className="text-xs text-gray-400 mt-0.5 truncate">{c.frameworks.slice(0,3).join(' · ')}</p>
                 </div>
               </div>
               <div className="flex items-center gap-4 flex-shrink-0 ml-4">
@@ -379,6 +529,9 @@ function Overview({ navigate }) {
               </div>
             </div>
           ))}
+          {allGaps.length > 6 && (
+            <div className="px-5 py-3 text-xs text-gray-400 text-center">+{allGaps.length - 6} more — view Control Alignment for full list</div>
+          )}
         </div>
       </div>
     </div>
@@ -788,6 +941,162 @@ const frameworkDefs = [
 
 const typeColors = { cybersecurity:'bg-blue-50 text-blue-700', ai:'bg-purple-50 text-purple-700', audit:'bg-cyan-50 text-cyan-700', standard:'bg-green-50 text-green-700', regulation:'bg-amber-50 text-amber-700', meta:'bg-slate-50 text-slate-600' };
 
+// ─── Leadership Scorecard ─────────────────────────────────────────────────────
+
+function Scorecard() {
+  const { controls, vulns, incidents } = useGRCData();
+  const ctrlMap = Object.fromEntries(controls.map(c => [c.id, c]));
+  const [expanded, setExpanded] = useState(null);
+
+  const teamStats = teams.map(team => {
+    const owned = team.controls.map(id => ctrlMap[id]).filter(Boolean);
+    const effective   = owned.filter(c => c.effectiveness === 'effective').length;
+    const partial     = owned.filter(c => c.effectiveness === 'partial').length;
+    const gaps        = owned.filter(c => c.effectiveness === 'ineffective' || c.effectiveness === 'not_tested').length;
+    const health      = owned.length ? Math.round(((effective + partial * 0.5) / owned.length) * 100) : 0;
+    const openVulns   = vulns.filter(v => owned.some(c => c.id === v.controlId) && v.status !== 'Patched').length;
+    const openInc     = incidents.filter(i => owned.some(c => c.id === i.controlId) && i.status !== 'Resolved').length;
+    const worstCtrl   = owned.filter(c => c.effectiveness === 'ineffective' || c.effectiveness === 'not_tested').sort((a,b) => a.score - b.score)[0];
+    const riskScore   = openRisks.filter(r => r.owner.team === team.name || owned.some(c => c.owner === team.lead)).reduce((s, r) => Math.max(s, r.inherent.score), 0);
+    return { ...team, owned, effective, partial, gaps, health, openVulns, openInc, worstCtrl, riskScore };
+  });
+
+  const criticalTeams = teamStats.filter(t => t.health < 50).length;
+  const totalGaps     = teamStats.reduce((s, t) => s + t.gaps, 0);
+  const avgHealth     = Math.round(teamStats.reduce((s, t) => s + t.health, 0) / teamStats.length);
+
+  const healthColor = (h) => h >= 80 ? 'text-emerald-600' : h >= 60 ? 'text-amber-500' : 'text-red-500';
+  const healthBg    = (h) => h >= 80 ? 'bg-emerald-500' : h >= 60 ? 'bg-amber-400' : 'bg-red-500';
+  const healthBorder= (h) => h >= 80 ? 'border-emerald-200' : h >= 60 ? 'border-amber-200' : 'border-red-200';
+
+  return (
+    <div className="space-y-5">
+      {/* Program KPIs */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <KPICard title="Program Health"     value={`${avgHealth}%`}    icon={Award}    color="#2563EB" subtitle="avg across all teams" />
+        <KPICard title="Teams At Risk"      value={criticalTeams}       icon={AlertTriangle} color="#EF4444" subtitle="health below 50%" />
+        <KPICard title="Total Control Gaps" value={totalGaps}           icon={CheckSquare}   color="#D97706" subtitle="ineffective + untested" />
+        <KPICard title="Open Risk Exposure" value={openRisks.filter(r=>r.inherent.score>=15).length} icon={BarChart2} color="#7C3AED" subtitle="critical + high risks" />
+      </div>
+
+      {/* Team scorecard grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
+        {teamStats.map(team => {
+          const Icon = team.icon;
+          const isOpen = expanded === team.id;
+          return (
+            <div key={team.id} className={`bg-white rounded-xl border shadow-sm transition-all ${healthBorder(team.health)}`}>
+              <button className="w-full p-5 text-left" onClick={() => setExpanded(isOpen ? null : team.id)}>
+                <div className="flex items-start justify-between mb-3">
+                  <div className="flex items-center gap-2.5">
+                    <div className="p-2 rounded-lg flex-shrink-0" style={{ background: team.color + '18' }}>
+                      <Icon size={15} style={{ color: team.color }} />
+                    </div>
+                    <div>
+                      <p className="font-semibold text-gray-900 text-sm leading-tight">{team.name}</p>
+                      <p className="text-xs text-gray-400">{team.dept} · {team.lead}</p>
+                    </div>
+                  </div>
+                  <div className="text-right flex-shrink-0">
+                    <p className={`text-2xl font-bold ${healthColor(team.health)}`}>{team.health}%</p>
+                    <p className="text-xs text-gray-400">health</p>
+                  </div>
+                </div>
+
+                {/* Health bar */}
+                <div className="w-full bg-gray-100 rounded-full h-1.5 mb-3">
+                  <div className={`h-1.5 rounded-full ${healthBg(team.health)} transition-all`} style={{ width: `${team.health}%` }} />
+                </div>
+
+                {/* Stats row */}
+                <div className="grid grid-cols-4 gap-2 text-center">
+                  <div><p className="text-sm font-bold text-emerald-600">{team.effective}</p><p className="text-xs text-gray-400">Effective</p></div>
+                  <div><p className="text-sm font-bold text-amber-500">{team.partial}</p><p className="text-xs text-gray-400">Partial</p></div>
+                  <div><p className="text-sm font-bold text-red-500">{team.gaps}</p><p className="text-xs text-gray-400">Gaps</p></div>
+                  <div><p className="text-sm font-bold text-orange-500">{team.openVulns + team.openInc}</p><p className="text-xs text-gray-400">Issues</p></div>
+                </div>
+              </button>
+
+              {/* Expanded detail */}
+              {isOpen && (
+                <div className="px-5 pb-5 border-t border-gray-50 pt-4 space-y-3">
+                  {team.worstCtrl && (
+                    <div className="p-3 bg-red-50 rounded-lg border border-red-100">
+                      <p className="text-xs font-semibold text-red-700 mb-1">Critical Gap</p>
+                      <p className="font-mono text-xs text-red-400">{team.worstCtrl.id}</p>
+                      <p className="text-xs text-red-800 font-medium">{team.worstCtrl.name}</p>
+                      <p className="text-xs text-red-500 mt-1">{team.worstCtrl.frameworks.slice(0,2).join(' · ')}</p>
+                    </div>
+                  )}
+                  <div className="space-y-1.5">
+                    {team.owned.map(c => (
+                      <div key={c.id} className="flex items-center justify-between gap-2">
+                        <div className="min-w-0">
+                          <span className="font-mono text-xs text-gray-400 mr-1.5">{c.id}</span>
+                          <span className="text-xs text-gray-700 truncate">{c.name}</span>
+                        </div>
+                        <EffectivenessBadge effectiveness={c.effectiveness} score={c.score} />
+                      </div>
+                    ))}
+                  </div>
+                  {team.riskScore > 0 && (
+                    <div className="flex items-center gap-2 pt-1">
+                      <AlertTriangle size={12} className="text-amber-500 flex-shrink-0" />
+                      <p className="text-xs text-gray-500">Max risk exposure: <strong className={healthColor(100 - team.riskScore * 4)}>{team.riskScore}/25</strong></p>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Framework exposure by team */}
+      <div className="bg-white rounded-xl border border-gray-100 shadow-sm">
+        <div className="p-5 border-b border-gray-100">
+          <h3 className="font-semibold text-gray-900">Framework Exposure by Team</h3>
+          <p className="text-xs text-gray-400 mt-0.5">Which frameworks are most at risk per team based on control gaps</p>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-xs">
+            <thead>
+              <tr className="border-b border-gray-50">
+                <th className="text-left px-5 py-3 text-gray-400 font-medium">Team</th>
+                {['SOC 2','ISO 27001','NIST CSF','EU AI Act','ISO 42001','GDPR'].map(f => (
+                  <th key={f} className="text-center px-3 py-3 text-gray-400 font-medium">{f}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-50">
+              {teamStats.map(team => {
+                const gaps = team.owned.filter(c => c.effectiveness === 'ineffective' || c.effectiveness === 'not_tested');
+                const hasGapIn = (keyword) => gaps.some(c => c.frameworks.some(f => f.includes(keyword)));
+                return (
+                  <tr key={team.id} className="hover:bg-gray-50">
+                    <td className="px-5 py-3 font-medium text-gray-700">{team.name}</td>
+                    {[
+                      ['SOC2','SOC 2'], ['ISO A.','ISO 27001'], ['NIST','NIST CSF'],
+                      ['EU AI Act','EU AI Act'], ['42001','ISO 42001'], ['GDPR','GDPR']
+                    ].map(([keyword, label]) => (
+                      <td key={label} className="text-center px-3 py-3">
+                        {hasGapIn(keyword)
+                          ? <span className="inline-flex items-center justify-center w-5 h-5 bg-red-100 text-red-600 rounded-full text-xs">✕</span>
+                          : <span className="inline-flex items-center justify-center w-5 h-5 bg-emerald-50 text-emerald-600 rounded-full text-xs">✓</span>
+                        }
+                      </td>
+                    ))}
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function ControlAlignment() {
   const { controls } = useGRCData();
   const ctrlMap = Object.fromEntries(controls.map(c => [c.id, c]));
@@ -824,6 +1133,40 @@ function ControlAlignment() {
 
   const nistFn = nistAIFunctions.find(f => f.id === activeNistFn);
 
+  const exportOSCAL = () => {
+    const ssp = {
+      "system-security-plan": {
+        uuid: crypto.randomUUID(),
+        metadata: { title: "chris-grc-engineering SSP", version: "1.0", "last-modified": new Date().toISOString() },
+        "system-characteristics": {
+          "system-name": "Resilience Operations Platform",
+          description: "GRC dashboard and control management system.",
+          "security-sensitivity-level": "moderate",
+        },
+        "control-implementation": {
+          description: "UCF control library mapped to NIST SP 800-53 and multiple frameworks.",
+          "implemented-requirements": controls.map(c => ({
+            uuid: crypto.randomUUID(),
+            "control-id": c.id,
+            description: c.name,
+            props: [
+              { name: "effectiveness", value: c.effectiveness },
+              { name: "score", value: String(c.score) },
+              { name: "owner", value: c.owner },
+              { name: "last-tested", value: c.lastTested || "not-tested" },
+              { name: "frameworks", value: c.frameworks.join(", ") },
+            ],
+          })),
+        },
+      },
+    };
+    const blob = new Blob([JSON.stringify(ssp, null, 2)], { type: "application/json" });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement("a");
+    a.href = url; a.download = `oscal-ssp-${new Date().toISOString().slice(0,10)}.json`; a.click();
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div className="space-y-5">
 
@@ -847,7 +1190,16 @@ function ControlAlignment() {
           <p className="text-xs text-gray-400 mt-1">{controls.length} UCF controls · 1 control satisfies multiple frameworks</p>
         </div>
         <KPICard title="Frameworks Mapped" value={frameworkDefs.length - 1} icon={Shield} color="#2563EB" subtitle="in UCF alignment" />
-        <KPICard title="AI-Specific Gaps" value={controls.filter(c=>c.ai&&(c.effectiveness==='ineffective'||c.effectiveness==='not_tested')).length} icon={Cpu} color="#DC2626" subtitle="ineffective or untested" />
+        <div className="bg-white rounded-xl border border-gray-100 p-4 shadow-sm flex flex-col justify-between">
+          <div>
+            <p className="text-xs text-gray-400 font-medium uppercase tracking-wider mb-1">OSCAL Export</p>
+            <p className="text-xs text-gray-500">Download controls as NIST OSCAL SSP JSON for audit submissions</p>
+          </div>
+          <button onClick={exportOSCAL}
+            className="mt-3 flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 text-white text-xs font-semibold rounded-lg hover:bg-blue-700 transition-colors w-fit">
+            <Download size={12} /> Export OSCAL
+          </button>
+        </div>
       </div>
 
       {/* Framework selector cards */}
@@ -1358,11 +1710,12 @@ const navGroups = [
   {
     label: 'RESILIENCE OPS',
     items: [
-      { id: 'overview',    label: 'Overview',       icon: Grid },
-      { id: 'vulns',       label: 'Vulnerabilities',icon: Bug },
-      { id: 'incidents',   label: 'Incidents',      icon: Flame },
-      { id: 'policy',      label: 'Policy',         icon: BookOpen },
-      { id: 'thirdparty',  label: 'Third Party',    icon: Building2 },
+      { id: 'overview',    label: 'Overview',        icon: Grid },
+      { id: 'risks',       label: 'Risk Register',   icon: AlertTriangle },
+      { id: 'vulns',       label: 'Vulnerabilities', icon: Bug },
+      { id: 'incidents',   label: 'Incidents',       icon: Flame },
+      { id: 'policy',      label: 'Policy',          icon: BookOpen },
+      { id: 'thirdparty',  label: 'Third Party',     icon: Building2 },
     ],
   },
   {
@@ -1370,6 +1723,8 @@ const navGroups = [
     items: [
       { id: 'alignment',   label: 'Control Alignment', icon: CheckSquare },
       { id: 'compliance',  label: 'Compliance',        icon: Shield },
+      { id: 'audits',      label: 'Audit Management',  icon: FileText },
+      { id: 'evidence',    label: 'Evidence Locker',   icon: Eye },
       { id: 'architecture',label: 'Architecture',      icon: Activity },
     ],
   },
@@ -1537,12 +1892,15 @@ export default function GRCDashboard() {
 
   const pageMap = {
     overview:     <Overview navigate={setPage} />,
+    risks:        <RiskRegister />,
     vulns:        <Vulnerabilities />,
     incidents:    <Incidents />,
     policy:       <PolicyModule />,
     thirdparty:   <ThirdParty />,
     alignment:    <ControlAlignment />,
     compliance:   <Compliance />,
+    audits:       <AuditManagement />,
+    evidence:     <EvidenceLocker />,
     architecture: <Architecture />,
   };
 

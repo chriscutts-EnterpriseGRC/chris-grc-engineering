@@ -1,0 +1,9 @@
+{
+  "name": "eu-ai-act",
+  "version": "0.1.0",
+  "description": "EU AI Act compliance plugin — risk-based classification (prohibited, high-risk, limited, minimal), Article-level control mapping, transparency obligations, and enforcement timeline tracking for chris-grc-engineering.",
+  "author": { "name": "Chris Cutts" },
+  "repository": "https://github.com/9snxz8htcw-netizen/chris-grc-engineering",
+  "license": "MIT",
+  "keywords": ["grc", "ai", "eu", "regulation", "compliance", "ai-act"]
+}
