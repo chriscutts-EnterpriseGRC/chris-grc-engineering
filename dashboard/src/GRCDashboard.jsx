@@ -1143,7 +1143,7 @@ const nistAIFunctions = [
   },
 ];
 
-function AIGovernance() {
+function _AIGovernanceLegacy() {
   const { controls } = useGRCData();
   const ctrlMap = Object.fromEntries(controls.map(c => [c.id, c]));
   const [activeFunction, setActiveFunction] = useState('GOVERN');
