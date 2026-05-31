@@ -50,6 +50,11 @@ const controls = [
   { id: 'UCF.AI.03', name: 'AI Security Controls',             category: 'AI Security',        frameworks: ['NIST AI 2.5','ISO/IEC 42001','OWASP LLM Top 10'],           effectiveness: 'not_tested',   score: 0,  owner: 'T. Williams', lastTested: null,           ai: true },
   { id: 'UCF.AI.04', name: 'AI Vendor Risk Management',        category: 'AI Governance',      frameworks: ['ISO A.15.1','NIST AI 1.4','EU AI Act Art.28'],              effectiveness: 'partial',      score: 51, owner: 'S. Chen',     lastTested: '2026-03-05', ai: true },
   { id: 'UCF.AI.05', name: 'AI Incident Response',             category: 'AI Security',        frameworks: ['NIST IR-8','NIST AI 2.7','EU AI Act Art.62'],               effectiveness: 'not_tested',   score: 0,  owner: 'K. Thompson', lastTested: null,           ai: true },
+  { id: 'UCF.AI.06', name: 'AI Risk Categorization & Use Case Register', category: 'AI Governance', frameworks: ['NIST AI RMF MAP 2.1','EU AI Act Art.6','ISO/IEC 42001 6.1'], effectiveness: 'not_tested', score: 0,  owner: 'A. Patel',    lastTested: null,           ai: true },
+  { id: 'UCF.AI.07', name: 'AI Model Performance Monitoring',  category: 'AI Security',        frameworks: ['NIST AI RMF MEASURE 3.2','ISO/IEC 42001 9.1','EU AI Act Art.72'], effectiveness: 'not_tested', score: 0, owner: 'T. Williams', lastTested: null,           ai: true },
+  { id: 'UCF.AI.08', name: 'AI Explainability & Transparency', category: 'AI Governance',      frameworks: ['NIST AI RMF MEASURE 3.4','EU AI Act Art.13','GDPR Art.22'],   effectiveness: 'not_tested',   score: 0,  owner: 'A. Patel',    lastTested: null,           ai: true },
+  { id: 'UCF.AI.09', name: 'AI Data Provenance & Lineage',     category: 'AI Security',        frameworks: ['NIST AI RMF MAP 2.4','GDPR Art.5','ISO/IEC 42001 8.4'],       effectiveness: 'not_tested',   score: 0,  owner: 'A. Patel',    lastTested: null,           ai: true },
+  { id: 'UCF.AI.10', name: 'AI Model Lifecycle Management',    category: 'AI Governance',      frameworks: ['NIST AI RMF MANAGE 4.3','EU AI Act Art.9','ISO/IEC 42001 8.3'], effectiveness: 'partial',     score: 45, owner: 'K. Thompson', lastTested: '2026-02-20', ai: true },
 ];
 
 const ctrlMap = Object.fromEntries(controls.map(c => [c.id, c]));
@@ -786,6 +791,284 @@ function ControlsLibrary() {
   );
 }
 
+// ─── NIST AI RMF Data ────────────────────────────────────────────────────────
+
+const nistAIFunctions = [
+  {
+    id: 'GOVERN', label: 'GOVERN', color: '#7C3AED', bgColor: '#7C3AED15',
+    description: 'Policies, accountability structures, and risk culture for AI systems',
+    subcategories: [
+      { ref: 'GOVERN 1.1', title: 'AI risk policies established',         ucfId: 'UCF.AI.01' },
+      { ref: 'GOVERN 1.2', title: 'Accountability structures for AI risk', ucfId: 'UCF.AI.01' },
+      { ref: 'GOVERN 1.4', title: 'AI vendor risk management',            ucfId: 'UCF.AI.04' },
+      { ref: 'GOVERN 1.5', title: 'AI risk culture & training',           ucfId: 'UCF.07.02' },
+      { ref: 'GOVERN 1.6', title: 'AI governance documentation',          ucfId: 'UCF.AI.01' },
+      { ref: 'GOVERN 1.7', title: 'AI incident disclosure policies',      ucfId: 'UCF.AI.05' },
+    ],
+    csfCrosswalks: [
+      { csfRef: 'CSF ID.GV-1', csfName: 'Policy Review Process',        ucfId: 'UCF.07.01', satisfies: 'GOVERN 1.1' },
+      { csfRef: 'CSF ID.GV-3', csfName: 'Security Awareness Training',  ucfId: 'UCF.07.02', satisfies: 'GOVERN 1.5' },
+      { csfRef: 'CSF ID.SC-2', csfName: 'Third Party Risk Assessment',  ucfId: 'UCF.06.01', satisfies: 'GOVERN 1.4' },
+    ],
+  },
+  {
+    id: 'MAP', label: 'MAP', color: '#0891B2', bgColor: '#0891B215',
+    description: 'Categorize AI use cases, understand risk context, and map stakeholder impacts',
+    subcategories: [
+      { ref: 'MAP 2.1', title: 'AI use cases & risk categorization',    ucfId: 'UCF.AI.06' },
+      { ref: 'MAP 2.2', title: 'AI bias & fairness assessment',         ucfId: 'UCF.AI.02' },
+      { ref: 'MAP 2.3', title: 'AI stakeholder impact mapping',         ucfId: 'UCF.AI.06' },
+      { ref: 'MAP 2.4', title: 'AI data provenance & lineage',          ucfId: 'UCF.AI.09' },
+      { ref: 'MAP 2.5', title: 'AI security threat modeling',           ucfId: 'UCF.AI.03' },
+      { ref: 'MAP 2.6', title: 'AI third-party risk mapping',           ucfId: 'UCF.AI.04' },
+    ],
+    csfCrosswalks: [
+      { csfRef: 'CSF ID.AM-1', csfName: 'Vulnerability Scanning',       ucfId: 'UCF.03.01', satisfies: 'MAP 2.5' },
+      { csfRef: 'CSF ID.RA-1', csfName: 'Vulnerability Scanning',       ucfId: 'UCF.03.01', satisfies: 'MAP 2.2' },
+      { csfRef: 'CSF PR.DS-3', csfName: 'Data Encryption at Rest',      ucfId: 'UCF.02.01', satisfies: 'MAP 2.4' },
+    ],
+  },
+  {
+    id: 'MEASURE', label: 'MEASURE', color: '#059669', bgColor: '#05966915',
+    description: 'Analyze and assess AI risk quantitatively and qualitatively',
+    subcategories: [
+      { ref: 'MEASURE 3.1', title: 'AI risk metrics & KPIs defined',    ucfId: 'UCF.AI.01' },
+      { ref: 'MEASURE 3.2', title: 'AI model performance monitoring',   ucfId: 'UCF.AI.07' },
+      { ref: 'MEASURE 3.3', title: 'AI bias measurement & testing',     ucfId: 'UCF.AI.02' },
+      { ref: 'MEASURE 3.4', title: 'AI explainability assessment',      ucfId: 'UCF.AI.08' },
+      { ref: 'MEASURE 3.5', title: 'AI security testing (adversarial)', ucfId: 'UCF.AI.03' },
+    ],
+    csfCrosswalks: [
+      { csfRef: 'CSF DE.CM-1', csfName: 'Log Monitoring & SIEM',        ucfId: 'UCF.08.01', satisfies: 'MEASURE 3.2' },
+      { csfRef: 'CSF DE.CM-8', csfName: 'Vulnerability Scanning',       ucfId: 'UCF.03.01', satisfies: 'MEASURE 3.5' },
+    ],
+  },
+  {
+    id: 'MANAGE', label: 'MANAGE', color: '#D97706', bgColor: '#D9770615',
+    description: 'Prioritize, treat, and monitor AI risks through response and lifecycle management',
+    subcategories: [
+      { ref: 'MANAGE 4.1', title: 'AI risk treatment planning',         ucfId: 'UCF.AI.01' },
+      { ref: 'MANAGE 4.2', title: 'AI incident response & recovery',    ucfId: 'UCF.AI.05' },
+      { ref: 'MANAGE 4.3', title: 'AI model lifecycle management',      ucfId: 'UCF.AI.10' },
+      { ref: 'MANAGE 4.4', title: 'AI supply chain management',         ucfId: 'UCF.AI.04' },
+    ],
+    csfCrosswalks: [
+      { csfRef: 'CSF RS.RP-1', csfName: 'Incident Response Plan',       ucfId: 'UCF.04.01', satisfies: 'MANAGE 4.2' },
+      { csfRef: 'CSF RC.RP-1', csfName: 'Business Continuity Plan',     ucfId: 'UCF.09.01', satisfies: 'MANAGE 4.1' },
+      { csfRef: 'CSF ID.SC-4', csfName: 'Vendor Questionnaire Process', ucfId: 'UCF.06.02', satisfies: 'MANAGE 4.4' },
+    ],
+  },
+];
+
+function AIGovernance() {
+  const { controls } = useGRCData();
+  const ctrlMap = Object.fromEntries(controls.map(c => [c.id, c]));
+  const [activeFunction, setActiveFunction] = useState('GOVERN');
+  const [activeTab, setActiveTab] = useState('controls'); // 'controls' | 'crosswalk'
+
+  const aiControls = controls.filter(c => c.ai);
+  const fn = nistAIFunctions.find(f => f.id === activeFunction);
+
+  // Coverage: subcategory has a control that is not not_tested
+  const coveredCount = fn.subcategories.filter(s => {
+    const ctrl = ctrlMap[s.ucfId];
+    return ctrl && ctrl.effectiveness !== 'not_tested';
+  }).length;
+  const coveragePct = Math.round((coveredCount / fn.subcategories.length) * 100);
+
+  // Overall AI RMF coverage across all functions
+  const allSubs = nistAIFunctions.flatMap(f => f.subcategories);
+  const totalCovered = allSubs.filter(s => {
+    const ctrl = ctrlMap[s.ucfId];
+    return ctrl && ctrl.effectiveness !== 'not_tested';
+  }).length;
+  const overallPct = Math.round((totalCovered / allSubs.length) * 100);
+
+  return (
+    <div className="space-y-5">
+      {/* Header strip */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="bg-white rounded-xl border border-gray-100 p-4 shadow-sm col-span-2">
+          <div className="flex items-center justify-between mb-2">
+            <div>
+              <p className="text-xs text-gray-400 font-medium uppercase tracking-wider">NIST AI RMF Overall Coverage</p>
+              <p className="text-3xl font-bold text-gray-900 mt-0.5">{overallPct}%</p>
+            </div>
+            <div className="text-right">
+              <p className="text-xs text-gray-400">{totalCovered} / {allSubs.length} subcategories</p>
+              <p className="text-xs text-amber-600 font-medium mt-0.5">Separate from NIST CSF</p>
+            </div>
+          </div>
+          <div className="w-full bg-gray-100 rounded-full h-2">
+            <div className="h-2 rounded-full bg-purple-500" style={{ width: `${overallPct}%` }} />
+          </div>
+          <p className="text-xs text-gray-400 mt-1.5">NIST CSF covers cybersecurity · AI RMF covers AI-specific risk governance</p>
+        </div>
+        <KPICard title="AI Controls" value={aiControls.length} icon={Cpu} color="#7C3AED"
+          subtitle={`${aiControls.filter(c=>c.effectiveness==='not_tested').length} not yet tested`} />
+        <KPICard title="Critical Gaps" value={aiControls.filter(c=>c.effectiveness==='ineffective'||c.effectiveness==='not_tested').length}
+          icon={AlertTriangle} color="#EF4444" subtitle="ineffective or untested" />
+      </div>
+
+      {/* CSF vs AI RMF explainer */}
+      <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+        <div className="flex items-start gap-3">
+          <div className="p-1.5 bg-blue-100 rounded-lg flex-shrink-0"><Shield size={16} className="text-blue-600" /></div>
+          <div>
+            <p className="text-sm font-semibold text-gray-900">How NIST CSF and NIST AI RMF relate</p>
+            <p className="text-xs text-gray-600 mt-1 leading-relaxed">
+              <strong>NIST CSF</strong> (Identify, Protect, Detect, Respond, Recover) governs <em>how you secure systems</em>.
+              <strong> NIST AI RMF</strong> (Govern, Map, Measure, Manage) governs <em>how you manage AI-specific risk</em> — bias, explainability, model drift, data provenance, AI supply chain.
+              They are complementary: your existing CSF controls satisfy some AI RMF subcategories (shown in the crosswalk below), but AI RMF requires additional controls that CSF does not cover.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* 4 function selector */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        {nistAIFunctions.map(f => {
+          const fnControls = f.subcategories.map(s => ctrlMap[s.ucfId]).filter(Boolean);
+          const fnCovered = fnControls.filter(c => c.effectiveness !== 'not_tested').length;
+          const fnPct = Math.round((fnCovered / f.subcategories.length) * 100);
+          const isActive = activeFunction === f.id;
+          return (
+            <button key={f.id} onClick={() => setActiveFunction(f.id)}
+              className={`rounded-xl border-2 p-4 text-left transition-all ${isActive ? 'shadow-lg scale-[1.02]' : 'hover:shadow-md bg-white'}`}
+              style={{ borderColor: isActive ? f.color : '#E5E7EB', background: isActive ? f.bgColor : 'white' }}>
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-bold tracking-widest" style={{ color: f.color }}>{f.label}</span>
+                <span className="text-sm font-bold text-gray-800">{fnPct}%</span>
+              </div>
+              <div className="w-full bg-gray-100 rounded-full h-1.5 mb-2">
+                <div className="h-1.5 rounded-full" style={{ width: `${fnPct}%`, background: f.color }} />
+              </div>
+              <p className="text-xs text-gray-500 leading-snug">{f.description.slice(0, 60)}…</p>
+              <p className="text-xs text-gray-400 mt-1">{f.subcategories.length} subcategories</p>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Detail panel */}
+      <div className="bg-white rounded-xl border border-gray-100 shadow-sm">
+        {/* Tabs */}
+        <div className="flex border-b border-gray-100">
+          {[['controls','Controls & Coverage'],['crosswalk','CSF → AI RMF Crosswalk']].map(([id,label]) => (
+            <button key={id} onClick={() => setActiveTab(id)}
+              className={`px-5 py-3.5 text-sm font-medium transition-colors ${activeTab===id
+                ?'border-b-2 bg-opacity-40' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'}`}
+              style={activeTab===id?{borderBottomColor:fn.color,color:fn.color}:{}}>
+              {label}
+            </button>
+          ))}
+          <div className="ml-auto flex items-center px-5 gap-2">
+            <span className="text-xs text-gray-400 font-medium">{fn.label} function</span>
+            <span className="text-xs font-bold" style={{color:fn.color}}>{coveragePct}% covered</span>
+          </div>
+        </div>
+
+        {activeTab === 'controls' && (
+          <div>
+            <div className="px-5 py-3 bg-gray-50 border-b border-gray-100">
+              <p className="text-xs text-gray-500">{fn.description}</p>
+            </div>
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-gray-50 text-left">
+                  {['AI RMF Ref','Subcategory','Linked UCF Control','Frameworks','Effectiveness'].map(h => (
+                    <th key={h} className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-50">
+                {fn.subcategories.map(s => {
+                  const ctrl = ctrlMap[s.ucfId];
+                  return (
+                    <tr key={s.ref} className="hover:bg-gray-50 transition-colors">
+                      <td className="px-4 py-3.5">
+                        <span className="font-mono text-xs font-semibold px-2 py-0.5 rounded" style={{background:fn.bgColor,color:fn.color}}>{s.ref}</span>
+                      </td>
+                      <td className="px-4 py-3.5 text-sm text-gray-700 max-w-xs">{s.title}</td>
+                      <td className="px-4 py-3.5">
+                        {ctrl ? (
+                          <div>
+                            <span className="font-mono text-xs text-gray-400">{ctrl.id}</span>
+                            <p className="text-xs text-gray-600 mt-0.5 max-w-[180px] truncate">{ctrl.name}</p>
+                          </div>
+                        ) : <span className="text-xs text-red-400 font-medium">No control mapped</span>}
+                      </td>
+                      <td className="px-4 py-3.5">
+                        {ctrl && <div className="flex flex-wrap gap-1">{ctrl.frameworks.slice(0,2).map(f => (
+                          <span key={f} className="text-xs bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded font-medium">{f}</span>
+                        ))}</div>}
+                      </td>
+                      <td className="px-4 py-3.5">
+                        {ctrl
+                          ? <EffectivenessBadge effectiveness={ctrl.effectiveness} score={ctrl.score} />
+                          : <span className="text-xs text-red-400">Unmapped</span>
+                        }
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {activeTab === 'crosswalk' && (
+          <div>
+            <div className="px-5 py-3 bg-gray-50 border-b border-gray-100">
+              <p className="text-xs text-gray-500">
+                Existing NIST CSF controls that already satisfy {fn.label} subcategories — no duplicate effort needed for these.
+              </p>
+            </div>
+            {fn.csfCrosswalks.length === 0
+              ? <p className="px-5 py-8 text-center text-sm text-gray-400">No CSF crosswalk for this function</p>
+              : (
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="bg-gray-50 text-left">
+                      {['CSF Reference','CSF Control Name','UCF ID','AI RMF Satisfied','Effectiveness'].map(h => (
+                        <th key={h} className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-50">
+                    {fn.csfCrosswalks.map(cw => {
+                      const ctrl = ctrlMap[cw.ucfId];
+                      return (
+                        <tr key={cw.csfRef} className="hover:bg-gray-50 transition-colors">
+                          <td className="px-4 py-3.5"><span className="font-mono text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded">{cw.csfRef}</span></td>
+                          <td className="px-4 py-3.5 text-sm text-gray-700">{cw.csfName}</td>
+                          <td className="px-4 py-3.5"><span className="font-mono text-xs text-gray-400">{cw.ucfId}</span></td>
+                          <td className="px-4 py-3.5">
+                            <span className="font-mono text-xs font-semibold px-2 py-0.5 rounded" style={{background:fn.bgColor,color:fn.color}}>{cw.satisfies}</span>
+                          </td>
+                          <td className="px-4 py-3.5">
+                            {ctrl ? <EffectivenessBadge effectiveness={ctrl.effectiveness} score={ctrl.score} /> : null}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              )
+            }
+            <div className="px-5 py-4 bg-amber-50 border-t border-amber-100 rounded-b-xl">
+              <p className="text-xs text-amber-700">
+                <strong>Note:</strong> CSF crosswalk shows which existing controls reduce your AI RMF gap, but does not replace AI-specific controls.
+                {fn.subcategories.length - fn.csfCrosswalks.length} subcategories in {fn.label} have no CSF equivalent and require new AI controls.
+              </p>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ─── Sidebar Nav ──────────────────────────────────────────────────────────────
 
 const navGroups = [
@@ -804,6 +1087,7 @@ const navGroups = [
     items: [
       { id: 'controls',    label: 'UCF Controls',   icon: CheckSquare },
       { id: 'compliance',  label: 'Compliance',     icon: Shield },
+      { id: 'aigovernance',label: 'NIST AI RMF',    icon: Cpu },
       { id: 'architecture',label: 'Architecture',   icon: Activity },
     ],
   },
@@ -977,6 +1261,7 @@ export default function GRCDashboard() {
     thirdparty:   <ThirdParty />,
     controls:     <ControlsLibrary />,
     compliance:   <Compliance />,
+    aigovernance: <AIGovernance />,
     architecture: <Architecture />,
   };
 

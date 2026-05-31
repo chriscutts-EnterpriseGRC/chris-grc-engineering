@@ -23,7 +23,12 @@ INSERT INTO controls (id, name, category, frameworks, effectiveness, score, owne
 ('UCF.AI.02','AI Data Privacy & Bias Controls', 'AI Governance',      ARRAY['GDPR Art.22','NIST AI 2.2','EU AI Act Art.10'],            'ineffective',  33,'A. Patel',   '2026-01-20',true),
 ('UCF.AI.03','AI Security Controls',            'AI Security',        ARRAY['NIST AI 2.5','ISO/IEC 42001','OWASP LLM Top 10'],          'not_tested',    0,'T. Williams', null,         true),
 ('UCF.AI.04','AI Vendor Risk Management',       'AI Governance',      ARRAY['ISO A.15.1','NIST AI 1.4','EU AI Act Art.28'],             'partial',      51,'S. Chen',    '2026-03-05',true),
-('UCF.AI.05','AI Incident Response',            'AI Security',        ARRAY['NIST IR-8','NIST AI 2.7','EU AI Act Art.62'],              'not_tested',    0,'K. Thompson', null,         true)
+('UCF.AI.05','AI Incident Response',            'AI Security',        ARRAY['NIST IR-8','NIST AI 2.7','EU AI Act Art.62'],              'not_tested',    0,'K. Thompson', null,         true),
+('UCF.AI.06','AI Risk Categorization & Use Case Register','AI Governance',ARRAY['NIST AI RMF MAP 2.1','EU AI Act Art.6','ISO/IEC 42001 6.1'],  'not_tested',    0,'A. Patel',    null,         true),
+('UCF.AI.07','AI Model Performance Monitoring', 'AI Security',        ARRAY['NIST AI RMF MEASURE 3.2','ISO/IEC 42001 9.1','EU AI Act Art.72'],'not_tested',    0,'T. Williams', null,         true),
+('UCF.AI.08','AI Explainability & Transparency','AI Governance',      ARRAY['NIST AI RMF MEASURE 3.4','EU AI Act Art.13','GDPR Art.22'],       'not_tested',    0,'A. Patel',    null,         true),
+('UCF.AI.09','AI Data Provenance & Lineage',    'AI Security',        ARRAY['NIST AI RMF MAP 2.4','GDPR Art.5','ISO/IEC 42001 8.4'],           'not_tested',    0,'A. Patel',    null,         true),
+('UCF.AI.10','AI Model Lifecycle Management',   'AI Governance',      ARRAY['NIST AI RMF MANAGE 4.3','EU AI Act Art.9','ISO/IEC 42001 8.3'],   'partial',      45,'K. Thompson','2026-02-20', true)
 ON CONFLICT (id) DO UPDATE SET
   name=EXCLUDED.name, effectiveness=EXCLUDED.effectiveness, score=EXCLUDED.score, updated_at=NOW();
 
