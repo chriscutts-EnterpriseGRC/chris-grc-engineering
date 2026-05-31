@@ -734,59 +734,342 @@ function Compliance() {
 
 // ─── UCF Controls Library View ────────────────────────────────────────────────
 
-function ControlsLibrary() {
-  const { controls } = useGRCData();
-  const [search, setSearch] = useState('');
-  const [effFilter, setEffFilter] = useState('All');
-  const [showAI, setShowAI] = useState(false);
+// ─── Framework Alignment Data ────────────────────────────────────────────────
 
-  const data = controls.filter(c =>
-    (effFilter === 'All' || c.effectiveness === effFilter) &&
-    (!showAI || c.ai) &&
-    (c.name.toLowerCase().includes(search.toLowerCase()) || c.id.toLowerCase().includes(search.toLowerCase()))
-  );
+const frameworkDefs = [
+  {
+    id: 'ALL',        label: 'All Controls',   shortLabel: 'All',      color: '#475569', icon: '⊞',
+    description: 'Every UCF control across all frameworks — one control ID satisfies multiple regulatory requirements simultaneously.',
+    type: 'meta',
+  },
+  {
+    id: 'NIST_CSF',   label: 'NIST CSF',       shortLabel: 'NIST CSF', color: '#2563EB', icon: '🔒',
+    description: 'Cybersecurity Framework (v2.0). Organises cybersecurity activities into five functions: Identify, Protect, Detect, Respond, Recover. The most widely adopted cybersecurity framework globally.',
+    match: (f) => f.includes('NIST') && !f.includes('AI') && !f.includes('RMF'),
+    type: 'cybersecurity',
+  },
+  {
+    id: 'NIST_AI_RMF',label: 'NIST AI RMF',    shortLabel: 'AI RMF',   color: '#7C3AED', icon: '🤖',
+    description: 'AI Risk Management Framework (2023). Four functions — Govern, Map, Measure, Manage — designed specifically for AI-related risks including bias, explainability, model drift, and AI supply chain.',
+    match: (f) => f.includes('NIST AI') || f.includes('AI RMF'),
+    type: 'ai',
+  },
+  {
+    id: 'SOC2',        label: 'SOC 2',          shortLabel: 'SOC 2',    color: '#0891B2', icon: '✅',
+    description: 'Service Organization Control 2. Five Trust Services Criteria: Security, Availability, Processing Integrity, Confidentiality, and Privacy. Required for SaaS and cloud service providers.',
+    match: (f) => f.includes('SOC2') || f.includes('SOC 2'),
+    type: 'audit',
+  },
+  {
+    id: 'ISO27001',    label: 'ISO 27001',       shortLabel: 'ISO 27001',color: '#059669', icon: '🌐',
+    description: 'International standard for Information Security Management Systems (ISMS). Annex A provides 93 controls across 4 themes: Organisational, People, Physical, and Technological.',
+    match: (f) => f.includes('ISO A.') || f.includes('ISO/IEC 27001'),
+    type: 'standard',
+  },
+  {
+    id: 'GDPR',        label: 'GDPR',            shortLabel: 'GDPR',     color: '#D97706', icon: '🇪🇺',
+    description: 'EU General Data Protection Regulation. Governs lawful processing, individual rights, data minimisation, breach notification, and international transfers of personal data.',
+    match: (f) => f.includes('GDPR'),
+    type: 'regulation',
+  },
+  {
+    id: 'EU_AI_ACT',   label: 'EU AI Act',        shortLabel: 'EU AI Act',color: '#DC2626', icon: '⚖️',
+    description: 'First comprehensive AI law globally (effective 2024–2026). Risk-based approach: prohibited AI practices, high-risk AI system requirements, transparency obligations, and AI governance mandates.',
+    match: (f) => f.includes('EU AI Act'),
+    type: 'ai',
+  },
+  {
+    id: 'ISO42001',    label: 'ISO/IEC 42001',    shortLabel: '42001',    color: '#9333EA', icon: '🧠',
+    description: 'AI Management System Standard (2023). Establishes requirements for responsible development and use of AI systems including governance, risk management, and continual improvement.',
+    match: (f) => f.includes('42001'),
+    type: 'ai',
+  },
+];
+
+const typeColors = { cybersecurity:'bg-blue-50 text-blue-700', ai:'bg-purple-50 text-purple-700', audit:'bg-cyan-50 text-cyan-700', standard:'bg-green-50 text-green-700', regulation:'bg-amber-50 text-amber-700', meta:'bg-slate-50 text-slate-600' };
+
+function ControlAlignment() {
+  const { controls } = useGRCData();
+  const ctrlMap = Object.fromEntries(controls.map(c => [c.id, c]));
+  const [activeFramework, setActiveFramework] = useState('ALL');
+  const [activeNistFn, setActiveNistFn] = useState('GOVERN');
+  const [activeTab, setActiveTab]     = useState('controls');
+  const [search, setSearch]           = useState('');
+  const [selectedCtrl, setSelectedCtrl] = useState(null);
+
+  const fw = frameworkDefs.find(f => f.id === activeFramework);
+
+  // Filter controls to selected framework
+  const filteredControls = controls.filter(c => {
+    const matchesFw = activeFramework === 'ALL' || (fw?.match && c.frameworks.some(fw.match));
+    const matchesSearch = !search || c.name.toLowerCase().includes(search.toLowerCase()) || c.id.toLowerCase().includes(search.toLowerCase());
+    return matchesFw && matchesSearch;
+  });
+
+  // Framework coverage stats
+  const fwStats = frameworkDefs.filter(f => f.id !== 'ALL').map(f => {
+    const matched = controls.filter(c => f.match && c.frameworks.some(f.match));
+    const effective = matched.filter(c => c.effectiveness === 'effective').length;
+    const total = matched.length;
+    const score = total ? Math.round((effective / total) * 100) : 0;
+    return { ...f, total, effective, score };
+  });
+
+  // Per-control: which frameworks does it satisfy?
+  const getAlignedFrameworks = (ctrl) =>
+    frameworkDefs.filter(f => f.id !== 'ALL' && f.match && ctrl.frameworks.some(f.match));
+
+  // Overall effectiveness counts
+  const effCounts = controls.reduce((a, c) => { a[c.effectiveness] = (a[c.effectiveness]||0)+1; return a; }, {});
+
+  const nistFn = nistAIFunctions.find(f => f.id === activeNistFn);
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
+
+      {/* Top summary strip */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {Object.entries(effConfig).map(([key, cfg]) => {
-          const count = controls.filter(c => c.effectiveness === key).length;
+        <div className="bg-white rounded-xl border border-gray-100 p-4 shadow-sm col-span-2">
+          <p className="text-xs text-gray-400 font-medium uppercase tracking-wider mb-2">UCF Control Effectiveness</p>
+          <div className="flex gap-3 mb-2">
+            {Object.entries(effConfig).map(([k, cfg]) => (
+              <div key={k} className={`flex-1 p-2 rounded-lg border text-center ${cfg.bg} ${cfg.border}`}>
+                <p className={`text-xl font-bold ${cfg.text}`}>{effCounts[k]||0}</p>
+                <p className={`text-xs ${cfg.text}`}>{cfg.label}</p>
+              </div>
+            ))}
+          </div>
+          <div className="flex h-2 rounded-full overflow-hidden gap-0.5">
+            {Object.entries(effConfig).map(([k, cfg]) => (
+              <div key={k} className="h-2 rounded-full" style={{ width:`${((effCounts[k]||0)/controls.length)*100}%`, background:cfg.bar }} />
+            ))}
+          </div>
+          <p className="text-xs text-gray-400 mt-1">{controls.length} UCF controls · 1 control satisfies multiple frameworks</p>
+        </div>
+        <KPICard title="Frameworks Mapped" value={frameworkDefs.length - 1} icon={Shield} color="#2563EB" subtitle="in UCF alignment" />
+        <KPICard title="AI-Specific Gaps" value={controls.filter(c=>c.ai&&(c.effectiveness==='ineffective'||c.effectiveness==='not_tested')).length} icon={Cpu} color="#DC2626" subtitle="ineffective or untested" />
+      </div>
+
+      {/* Framework selector cards */}
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-2">
+        {frameworkDefs.map(f => {
+          const stat = fwStats.find(s => s.id === f.id);
+          const isActive = activeFramework === f.id;
           return (
-            <button key={key} onClick={() => setEffFilter(effFilter === key ? 'All' : key)}
-              className={`bg-white rounded-xl border p-4 shadow-sm text-left hover:shadow-md transition-all ${effFilter===key?`border-2 ${cfg.border}`:' border-gray-100'}`}>
-              <p className={`text-2xl font-bold ${cfg.text}`}>{count}</p>
-              <p className="text-sm font-medium text-gray-700 mt-0.5">{cfg.label}</p>
-              <p className="text-xs text-gray-400">controls</p>
+            <button key={f.id} onClick={() => { setActiveFramework(f.id); setSearch(''); }}
+              className={`rounded-xl border-2 p-3 text-left transition-all ${isActive?'shadow-lg scale-[1.03]':'hover:shadow-md bg-white'}`}
+              style={{ borderColor: isActive ? f.color : '#E5E7EB', background: isActive ? f.color+'10' : 'white' }}>
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="text-base">{f.icon}</span>
+                {stat && <span className="text-xs font-bold" style={{color:f.color}}>{stat.score}%</span>}
+              </div>
+              <p className="text-xs font-bold text-gray-800 leading-tight">{f.shortLabel}</p>
+              {stat && (
+                <div className="mt-1.5">
+                  <div className="w-full bg-gray-100 rounded-full h-1"><div className="h-1 rounded-full" style={{width:`${stat.score}%`,background:f.color}} /></div>
+                  <p className="text-xs text-gray-400 mt-0.5">{stat.total} controls</p>
+                </div>
+              )}
             </button>
           );
         })}
       </div>
-      <div className="bg-white rounded-xl border border-gray-100 shadow-sm">
-        <ModuleHeader title="UCF Controls Library" subtitle={`${data.length} controls — cross-mapped to all frameworks`}
-          search={search} setSearch={setSearch}
-          filters={<>
-            <select value={effFilter} onChange={e => setEffFilter(e.target.value)} className="px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none">
-              <option value="All">All</option>
-              {Object.entries(effConfig).map(([k,v]) => <option key={k} value={k}>{v.label}</option>)}
-            </select>
-            <button onClick={() => setShowAI(a => !a)} className={`px-3 py-2 text-sm font-medium rounded-lg border transition-colors flex items-center gap-1.5 ${showAI ? 'bg-purple-600 text-white border-purple-600' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'}`}>
-              <Cpu size={13} /> AI Controls
-            </button>
-          </>}
-        />
-        <ModuleTable
-          columns={[
-            { key: 'id',           label: 'UCF ID',        render: r => <span className="font-mono text-xs font-semibold text-gray-600">{r.id}</span> },
-            { key: 'name',         label: 'Control Name',  render: r => <div className="flex items-center gap-1.5"><span className="text-sm font-medium text-gray-800">{r.name}</span>{r.ai && <span className="px-1.5 py-0.5 bg-purple-100 text-purple-700 text-xs rounded font-medium flex-shrink-0">AI</span>}</div> },
-            { key: 'category',     label: 'Category',      render: r => <span className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded">{r.category}</span> },
-            { key: 'frameworks',   label: 'Frameworks',    render: r => <div className="flex flex-wrap gap-1">{r.frameworks.map(f => <span key={f} className="text-xs bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded font-medium">{f}</span>)}</div> },
-            { key: 'effectiveness',label: 'Effectiveness', render: r => <EffectivenessBadge effectiveness={r.effectiveness} score={r.score} /> },
-            { key: 'owner',        label: 'Owner',         render: r => <span className="text-xs text-gray-500">{r.owner}</span> },
-            { key: 'lastTested',   label: 'Last Tested',   render: r => <span className={`text-xs ${!r.lastTested?'text-red-500 font-semibold':'text-gray-400'}`}>{r.lastTested||'Never'}</span> },
-          ]}
-          rows={data}
-        />
-      </div>
+
+      {/* Framework description banner */}
+      {fw && fw.id !== 'ALL' && (
+        <div className="rounded-xl border p-4 flex items-start gap-3" style={{background:fw.color+'08', borderColor:fw.color+'30'}}>
+          <span className="text-2xl flex-shrink-0">{fw.icon}</span>
+          <div className="flex-1">
+            <div className="flex items-center gap-2 mb-1">
+              <h3 className="font-semibold text-gray-900">{fw.label}</h3>
+              <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${typeColors[fw.type]||typeColors.meta}`}>{fw.type}</span>
+            </div>
+            <p className="text-sm text-gray-600">{fw.description}</p>
+          </div>
+        </div>
+      )}
+
+      {/* ── NIST AI RMF: show 4-function view ── */}
+      {activeFramework === 'NIST_AI_RMF' ? (
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            {nistAIFunctions.map(f => {
+              const covered = f.subcategories.filter(s => { const c=ctrlMap[s.ucfId]; return c&&c.effectiveness!=='not_tested'; }).length;
+              const pct = Math.round((covered/f.subcategories.length)*100);
+              const isAct = activeNistFn === f.id;
+              return (
+                <button key={f.id} onClick={() => setActiveNistFn(f.id)}
+                  className={`rounded-xl border-2 p-4 text-left transition-all ${isAct?'shadow-lg scale-[1.02]':'hover:shadow-md bg-white'}`}
+                  style={{borderColor:isAct?f.color:'#E5E7EB',background:isAct?f.bgColor:'white'}}>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs font-bold tracking-widest" style={{color:f.color}}>{f.label}</span>
+                    <span className="text-sm font-bold text-gray-800">{pct}%</span>
+                  </div>
+                  <div className="w-full bg-gray-100 rounded-full h-1.5 mb-2"><div className="h-1.5 rounded-full" style={{width:`${pct}%`,background:f.color}} /></div>
+                  <p className="text-xs text-gray-500 leading-snug">{f.description.slice(0,60)}…</p>
+                  <p className="text-xs text-gray-400 mt-1">{f.subcategories.length} subcategories</p>
+                </button>
+              );
+            })}
+          </div>
+          <div className="bg-white rounded-xl border border-gray-100 shadow-sm">
+            <div className="flex border-b border-gray-100">
+              {[['controls','Controls & Coverage'],['crosswalk','CSF → AI RMF Crosswalk']].map(([id,label]) => (
+                <button key={id} onClick={() => setActiveTab(id)}
+                  className={`px-5 py-3.5 text-sm font-medium transition-colors ${activeTab===id?'border-b-2 bg-opacity-40':'text-gray-500 hover:text-gray-700 hover:bg-gray-50'}`}
+                  style={activeTab===id?{borderBottomColor:nistFn.color,color:nistFn.color}:{}}>
+                  {label}
+                </button>
+              ))}
+              <div className="ml-auto flex items-center px-5 gap-2">
+                <span className="text-xs text-gray-400 font-medium">{nistFn.label} function</span>
+                <span className="text-xs font-bold" style={{color:nistFn.color}}>{Math.round((nistFn.subcategories.filter(s=>{const c=ctrlMap[s.ucfId];return c&&c.effectiveness!=='not_tested';}).length/nistFn.subcategories.length)*100)}% covered</span>
+              </div>
+            </div>
+            {activeTab === 'controls' && (
+              <table className="w-full text-sm">
+                <thead><tr className="bg-gray-50 text-left">{['AI RMF Ref','Subcategory','Linked UCF Control','Frameworks','Effectiveness'].map(h=><th key={h} className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">{h}</th>)}</tr></thead>
+                <tbody className="divide-y divide-gray-50">
+                  {nistFn.subcategories.map(s => {
+                    const ctrl = ctrlMap[s.ucfId];
+                    return (
+                      <tr key={s.ref} className="hover:bg-gray-50 transition-colors">
+                        <td className="px-4 py-3.5"><span className="font-mono text-xs font-semibold px-2 py-0.5 rounded" style={{background:nistFn.bgColor,color:nistFn.color}}>{s.ref}</span></td>
+                        <td className="px-4 py-3.5 text-sm text-gray-700 max-w-xs">{s.title}</td>
+                        <td className="px-4 py-3.5">{ctrl?<div><span className="font-mono text-xs text-gray-400">{ctrl.id}</span><p className="text-xs text-gray-600 mt-0.5 max-w-[180px] truncate">{ctrl.name}</p></div>:<span className="text-xs text-red-400 font-medium">No control mapped</span>}</td>
+                        <td className="px-4 py-3.5">{ctrl&&<div className="flex flex-wrap gap-1">{ctrl.frameworks.slice(0,2).map(f=><span key={f} className="text-xs bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded font-medium">{f}</span>)}</div>}</td>
+                        <td className="px-4 py-3.5">{ctrl?<EffectivenessBadge effectiveness={ctrl.effectiveness} score={ctrl.score}/>:<span className="text-xs text-red-400">Unmapped</span>}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            )}
+            {activeTab === 'crosswalk' && (
+              <div>
+                <div className="px-5 py-3 bg-gray-50 border-b border-gray-100"><p className="text-xs text-gray-500">Existing NIST CSF controls that already satisfy {nistFn.label} subcategories — no duplicate effort needed.</p></div>
+                {nistFn.csfCrosswalks.length===0?<p className="px-5 py-8 text-center text-sm text-gray-400">No CSF crosswalk for this function</p>:(
+                  <table className="w-full text-sm">
+                    <thead><tr className="bg-gray-50 text-left">{['CSF Reference','Control Name','UCF ID','AI RMF Satisfied','Effectiveness'].map(h=><th key={h} className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">{h}</th>)}</tr></thead>
+                    <tbody className="divide-y divide-gray-50">
+                      {nistFn.csfCrosswalks.map(cw=>{const ctrl=ctrlMap[cw.ucfId];return(
+                        <tr key={cw.csfRef} className="hover:bg-gray-50">
+                          <td className="px-4 py-3.5"><span className="font-mono text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded">{cw.csfRef}</span></td>
+                          <td className="px-4 py-3.5 text-sm text-gray-700">{cw.csfName}</td>
+                          <td className="px-4 py-3.5"><span className="font-mono text-xs text-gray-400">{cw.ucfId}</span></td>
+                          <td className="px-4 py-3.5"><span className="font-mono text-xs font-semibold px-2 py-0.5 rounded" style={{background:nistFn.bgColor,color:nistFn.color}}>{cw.satisfies}</span></td>
+                          <td className="px-4 py-3.5">{ctrl&&<EffectivenessBadge effectiveness={ctrl.effectiveness} score={ctrl.score}/>}</td>
+                        </tr>
+                      );})}
+                    </tbody>
+                  </table>
+                )}
+                <div className="px-5 py-4 bg-amber-50 border-t border-amber-100 rounded-b-xl">
+                  <p className="text-xs text-amber-700"><strong>Note:</strong> CSF crosswalk shows where existing controls reduce your AI RMF gap but does not replace AI-specific controls. {nistFn.subcategories.length-nistFn.csfCrosswalks.length} subcategories in {nistFn.label} require new AI controls.</p>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+      ) : (
+        /* ── All other frameworks: alignment matrix ── */
+        <div className="bg-white rounded-xl border border-gray-100 shadow-sm">
+          <div className="p-5 border-b border-gray-100 flex items-center justify-between flex-wrap gap-3">
+            <div>
+              <h3 className="font-semibold text-gray-900">{fw?.id === 'ALL' ? 'All UCF Controls — Framework Alignment Matrix' : `${fw?.label} Controls`}</h3>
+              <p className="text-xs text-gray-400 mt-0.5">{filteredControls.length} controls · coloured dots show which other frameworks each control also satisfies</p>
+            </div>
+            <div className="relative">
+              <Search size={13} className="absolute left-2.5 top-2.5 text-gray-400" />
+              <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search controls…"
+                className="pl-8 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-100 w-48" />
+            </div>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-gray-50 text-left">
+                  <th className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">UCF ID</th>
+                  <th className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Control</th>
+                  <th className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Effectiveness</th>
+                  <th className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Framework Alignment</th>
+                  <th className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Owner</th>
+                  <th className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Last Tested</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-50">
+                {filteredControls.map(ctrl => {
+                  const aligned = getAlignedFrameworks(ctrl);
+                  return (
+                    <tr key={ctrl.id} onClick={() => setSelectedCtrl(selectedCtrl?.id===ctrl.id?null:ctrl)}
+                      className={`cursor-pointer transition-colors ${selectedCtrl?.id===ctrl.id?'bg-blue-50':'hover:bg-gray-50'}`}>
+                      <td className="px-4 py-3.5">
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-mono text-xs font-semibold text-gray-600">{ctrl.id}</span>
+                          {ctrl.ai && <span className="px-1.5 py-0.5 bg-purple-100 text-purple-700 text-xs rounded font-medium">AI</span>}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3.5">
+                        <p className="text-sm font-medium text-gray-800">{ctrl.name}</p>
+                        <p className="text-xs text-gray-400">{ctrl.category}</p>
+                      </td>
+                      <td className="px-4 py-3.5"><EffectivenessBadge effectiveness={ctrl.effectiveness} score={ctrl.score} /></td>
+                      <td className="px-4 py-3.5">
+                        <div className="flex flex-wrap gap-1.5">
+                          {aligned.map(f => (
+                            <span key={f.id} title={f.label}
+                              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold"
+                              style={{background:f.color+'15',color:f.color,border:`1px solid ${f.color}30`}}>
+                              {f.shortLabel}
+                            </span>
+                          ))}
+                          {aligned.length === 0 && <span className="text-xs text-gray-300">—</span>}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3.5 text-xs text-gray-500">{ctrl.owner}</td>
+                      <td className="px-4 py-3.5"><span className={`text-xs ${!ctrl.lastTested?'text-red-500 font-semibold':'text-gray-400'}`}>{ctrl.lastTested||'Never'}</span></td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Control detail drawer */}
+          {selectedCtrl && (
+            <div className="border-t border-gray-100 p-5 bg-slate-50">
+              <div className="flex items-start justify-between mb-3">
+                <div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="font-mono text-sm font-bold text-gray-600">{selectedCtrl.id}</span>
+                    {selectedCtrl.ai && <span className="px-2 py-0.5 bg-purple-100 text-purple-700 text-xs rounded font-semibold">AI Control</span>}
+                  </div>
+                  <h4 className="text-lg font-semibold text-gray-900">{selectedCtrl.name}</h4>
+                  <p className="text-xs text-gray-400 mt-0.5">{selectedCtrl.category} · Owner: {selectedCtrl.owner} · Last tested: {selectedCtrl.lastTested || 'Never'}</p>
+                </div>
+                <EffectivenessBadge effectiveness={selectedCtrl.effectiveness} score={selectedCtrl.score} />
+              </div>
+              <div>
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Satisfies requirements in:</p>
+                <div className="flex flex-wrap gap-2">
+                  {selectedCtrl.frameworks.map(ref => {
+                    const matchedFw = frameworkDefs.find(f => f.id !== 'ALL' && f.match && f.match(ref));
+                    return (
+                      <div key={ref} className="flex items-center gap-2 px-3 py-1.5 rounded-lg border"
+                        style={matchedFw?{background:matchedFw.color+'10',borderColor:matchedFw.color+'30'}:{background:'#F8FAFC',borderColor:'#E2E8F0'}}>
+                        {matchedFw && <span className="text-sm">{matchedFw.icon}</span>}
+                        <span className="text-xs font-semibold text-gray-700">{ref}</span>
+                        {matchedFw && <span className="text-xs font-medium" style={{color:matchedFw.color}}>{matchedFw.shortLabel}</span>}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -1085,10 +1368,9 @@ const navGroups = [
   {
     label: 'GRC',
     items: [
-      { id: 'controls',    label: 'UCF Controls',   icon: CheckSquare },
-      { id: 'compliance',  label: 'Compliance',     icon: Shield },
-      { id: 'aigovernance',label: 'NIST AI RMF',    icon: Cpu },
-      { id: 'architecture',label: 'Architecture',   icon: Activity },
+      { id: 'alignment',   label: 'Control Alignment', icon: CheckSquare },
+      { id: 'compliance',  label: 'Compliance',        icon: Shield },
+      { id: 'architecture',label: 'Architecture',      icon: Activity },
     ],
   },
 ];
@@ -1259,9 +1541,8 @@ export default function GRCDashboard() {
     incidents:    <Incidents />,
     policy:       <PolicyModule />,
     thirdparty:   <ThirdParty />,
-    controls:     <ControlsLibrary />,
+    alignment:    <ControlAlignment />,
     compliance:   <Compliance />,
-    aigovernance: <AIGovernance />,
     architecture: <Architecture />,
   };
 
