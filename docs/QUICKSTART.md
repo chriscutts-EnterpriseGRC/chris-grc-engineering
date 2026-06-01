@@ -141,4 +141,6 @@ chris-grc-engineering/
 - [RISK-METHODOLOGY.md](RISK-METHODOLOGY.md) - scoring model, bands, SLAs, approval authority
 - [METHODOLOGY.md](METHODOLOGY.md) - GRC engineering approach and health score
 - [METRICS.md](METRICS.md) - KPIs, KRIs, and targets
+- [DOCKER-INTEGRATION-ROADMAP.md](DOCKER-INTEGRATION-ROADMAP.md) - Docker Scout, Build Cloud, Registry, runtime scanning roadmap
 - [FAQ.md](FAQ.md) - common questions
+- [../deployment/AWS_DEPLOYMENT.md](../deployment/AWS_DEPLOYMENT.md) - AWS infrastructure (RDS, ECS, Lambda)
