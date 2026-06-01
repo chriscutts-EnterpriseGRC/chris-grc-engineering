@@ -113,16 +113,16 @@ This document outlines the systematic approach used to design and implement the 
 ## Compliance Framework
 
 ### Standards Mapping
-- Identify applicable regulations and standards
-- Map requirements to technical controls
+- Identify applicable regulations and standards: SOC 2, ISO 27001, NIST CSF, GDPR, PCI DSS 4.0, EU AI Act, ISO/IEC 42001
+- Map requirements to UCF control IDs — one control satisfies multiple frameworks simultaneously
 - Establish control testing procedures
 - Document evidence collection methods
 
 ### Control Implementation
-- Preventive controls: Stop incidents before they occur
-- Detective controls: Identify incidents when they occur
-- Corrective controls: Remediate incidents after they occur
-- Compensating controls: Alternative measures when primary controls aren't feasible
+- **Preventive controls**: Stop incidents before they occur — enforced at the pipeline level using Open Policy Agent (OPA) in the [circleci-aws-opa-lab](https://github.com/9snxz8htcw-netizen/circleci-aws-opa-lab); blocks non-compliant IaC before deployment
+- **Detective controls**: Identify incidents when they occur — SIEM integration, vulnerability scanning, log monitoring surfaced in the dashboard
+- **Corrective controls**: Remediate incidents after they occur — tracked through the Incidents and Vulnerabilities modules with MTTR metrics
+- **Compensating controls**: Alternative measures when primary controls aren't feasible — documented via risk acceptance workflow in the Policy module
 
 ### Evidence Management
 - Automated evidence collection

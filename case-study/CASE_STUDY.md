@@ -211,44 +211,49 @@ This case study demonstrates the practical application of GRC Engineering princi
 ## Technology Stack
 
 ### Platform Components
-- **GRC Platform**: Custom-built on Python/FastAPI
-- **Database**: PostgreSQL for relational data, InfluxDB for metrics
-- **Frontend**: React with D3.js for visualizations
-- **Infrastructure**: AWS with Kubernetes orchestration
+- **Frontend**: React 19, Tailwind CSS v3, Recharts, Lucide icons
+- **Database**: Supabase (PostgreSQL) with Row Level Security
+- **Integration layer**: Node.js adapters — one file per source system
+- **Preventive controls**: Open Policy Agent (OPA) in CircleCI CI/CD pipeline
+- **Deployment**: Vercel / Netlify (planned), or internal nginx behind VPN
 
 ### Integrations
 - **SIEM**: Splunk for security event correlation
-- **Vulnerability Scanner**: Qualys for vulnerability management
-- **Ticketing**: Jira for issue tracking
-- **Cloud**: AWS CloudTrail for cloud monitoring
-- **Identity**: Okta for user management
+- **Vulnerability Scanner**: Qualys VMDR for vulnerability management
+- **Ticketing**: Jira for incident tracking
+- **Cloud security**: AWS Security Hub for cloud vulnerability findings
+- **Identity**: Okta for user management (planned)
+- **Policy docs**: Notion integration for policy document store (planned)
 
 ### Security Measures
-- Multi-factor authentication
-- Role-based access control
-- Encryption at rest and in transit
-- Regular security assessments
-- Compliance with security best practices
+- Supabase Row Level Security on all tables
+- Service role key server-side only — never in browser
+- Credentials stored in macOS Keychain (dev) / secrets manager (prod)
+- OPA pipeline blocks non-compliant infrastructure before deployment
+- Auth layer (Supabase Auth / Okta SSO) — planned before production use
 
 ## Future Roadmap
 
-### Short-term (6 months)
-- Expand to additional compliance standards (ISO 27001)
-- Implement AI-powered risk prediction
-- Enhance mobile capabilities
-- Add more third-party integrations
+### Immediate (P0 — before real data)
+- Harden Supabase RLS — restrict `anon_read` to authenticated sessions only
+- Add authentication layer — Supabase Auth or Okta SSO with role-based views (Director, VP, Analyst, Compliance)
 
-### Medium-term (12 months)
-- Implement continuous compliance monitoring
-- Expand to international regulations
-- Develop industry-specific templates
-- Enhance reporting capabilities
+### Short-term
+- ServiceNow adapter (incidents + policy)
+- AWS Security Hub adapter (vulnerabilities)
+- Vanta integration (compliance control sync)
+- Notion integration (live policy document store)
+- CircleCI webhook → Supabase (OPA pass/fail updates control effectiveness scores in real time)
 
-### Long-term (18+ months)
-- Machine learning for automated control testing
-- Blockchain for immutable audit trails
-- Advanced threat intelligence integration
-- Industry benchmarking network
+### Medium-term
+- Deploy for team — Vercel or Netlify with auth gate, or internal nginx behind VPN
+- Audit log table — track who changed what for SOC 2 CC7.2 evidence
+- Pagination on all data fetches — handle large production datasets
+
+### Long-term
+- AI-assisted risk prediction from control trend data
+- OSCAL export for machine-readable compliance evidence
+- Multi-tenant support for enterprise deployments
 
 ## Conclusion
 

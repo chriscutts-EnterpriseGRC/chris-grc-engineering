@@ -28,23 +28,30 @@ Welcome to the GRC Engineering Portfolio. This guide will help you quickly under
 
 ```
 chris-grc-engineering/
-├── README.md              # Project overview
-├── LICENSE               # MIT License
-├── .gitignore           # Git ignore rules
-├── docs/                # Core documentation
-│   ├── QUICKSTART.md    # This file
-│   ├── ARCHITECTURE.md  # System architecture
-│   ├── METHODOLOGY.md   # Implementation methodology
-│   ├── METRICS.md       # Success metrics
-│   └── FAQ.md          # Frequently asked questions
-├── case-study/          # Real-world case study
-│   └── CASE_STUDY.md
-└── diagrams/            # Interactive visualizations
-    ├── README.md
-    ├── risk-architecture-diagram.html
-    ├── domain-taxonomy.html
-    ├── health-score-algorithm.html
-    └── dashboard-views.html
+├── README.md                       # Project overview
+├── LICENSE                         # MIT License
+├── dashboard/                      # React application
+│   ├── src/
+│   │   ├── GRCDashboard.jsx        # Main dashboard — all modules
+│   │   └── lib/
+│   │       ├── supabase.js         # Supabase client (null if unconfigured)
+│   │       └── api.js              # Data access layer with mock fallback
+│   ├── integrations/
+│   │   ├── jira.js                 # Jira → incidents
+│   │   ├── qualys.js               # Qualys → vulnerabilities
+│   │   ├── splunk.js               # Splunk → incidents
+│   │   └── sync.js                 # Sync runner
+│   └── .env.example                # Credential template
+├── supabase/
+│   ├── migrations/
+│   │   └── 001_initial_schema.sql  # Full schema with RLS
+│   └── seed.sql                    # Enriched demo data
+├── docs/                           # Supporting documentation
+├── case-study/                     # Implementation case study
+├── diagrams/                       # Interactive HTML visualizations
+├── plugins/                        # Connector plugins
+├── schemas/                        # JSON schemas
+└── tests/                          # Test suite
 ```
 
 ## Key Concepts

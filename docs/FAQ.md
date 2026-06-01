@@ -25,10 +25,10 @@ The system supports multiple compliance standards including:
 ## Technical Questions
 
 ### What are the system requirements?
-- **Backend**: Python 3.9+, PostgreSQL, Redis
+- **Node.js**: 18+ (for integration adapters)
 - **Frontend**: Modern web browser (Chrome, Firefox, Safari, Edge)
-- **Infrastructure**: Docker, Kubernetes (for production)
-- **Minimum RAM**: 8GB for development, 16GB+ for production
+- **Database**: Supabase account (free tier sufficient for demo)
+- **Minimum RAM**: 4GB for local development
 
 ### How do I install the system?
 See the [Quick Start Guide](QUICKSTART.md) for detailed installation instructions. The basic steps are:

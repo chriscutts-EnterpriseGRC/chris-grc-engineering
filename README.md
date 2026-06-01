@@ -12,7 +12,7 @@ A central risk reporting platform for **Vulnerabilities, Incidents, Policy, and 
 | **Incidents** | Active incidents, MTTR, AI data leaks | UCF.04.01 IR Plan, UCF.AI.05 AI IR |
 | **Policy** | Policy library, overdue reviews, missing AI policies | UCF.07.01 Policy Review, UCF.AI.01–02 |
 | **Third Party** | Vendor risk scores, contracts, AI vendor gaps | UCF.06.01 TP Assessment, UCF.AI.04 |
-| **UCF Controls** | 20 controls cross-mapped to all frameworks | SOC 2, ISO 27001, NIST, GDPR, EU AI Act |
+| **UCF Controls** | 25 controls cross-mapped to all frameworks | SOC 2, ISO 27001, NIST, GDPR, PCI DSS, EU AI Act |
 | **Compliance** | Framework coverage — including EU AI Act & ISO 42001 | Per-framework progress and gap analysis |
 | **Architecture** | Signal pipeline, domain reviewers, integrations | Live status per stage |
 
@@ -151,24 +151,32 @@ chris-grc-engineering/
 
 ## UCF Controls
 
-All 20 controls follow the **Unified Compliance Framework** model — one control ID maps to multiple regulatory frameworks simultaneously. This means a single remediation effort satisfies requirements across SOC 2, ISO 27001, NIST, GDPR, EU AI Act, and OWASP LLM Top 10 at once.
+All 25 controls follow the **Unified Compliance Framework** model — one control ID maps to multiple regulatory frameworks simultaneously. This means a single remediation effort satisfies requirements across SOC 2, ISO 27001, NIST, GDPR, PCI DSS 4.0, EU AI Act, and OWASP LLM Top 10 at once.
 
-AI-specific controls (UCF.AI.01–05) cover:
+Core controls (UCF.01–09) cover access, data protection, vulnerability management, incident response, network security, vendor management, policy, detection, and BCM — each mapped to PCI DSS 4.0 requirements in addition to existing framework coverage.
+
+AI-specific controls (UCF.AI.01–10) cover:
 - AI Model Governance (EU AI Act Art.9, ISO/IEC 42001)
 - AI Data Privacy & Bias (GDPR Art.22, NIST AI 2.2)
 - AI Security Controls (OWASP LLM Top 10, NIST AI 2.5)
 - AI Vendor Risk Management (EU AI Act Art.28)
 - AI Incident Response (EU AI Act Art.62, NIST AI 2.7)
+- AI Risk Categorization & Use Case Register (NIST AI RMF MAP 2.1, EU AI Act Art.6)
+- AI Model Performance Monitoring (NIST AI RMF MEASURE 3.2, ISO/IEC 42001 9.1)
+- AI Explainability & Transparency (EU AI Act Art.13, GDPR Art.22)
+- AI Data Provenance & Lineage (NIST AI RMF MAP 2.4, GDPR Art.5)
+- AI Model Lifecycle Management (NIST AI RMF MANAGE 4.3, EU AI Act Art.9)
 
 ---
 
 ## Security
 
 - `.env` is git-ignored — credentials never touch version control
-- Supabase anon key is read-only, scoped by RLS policies (safe to expose in frontend per Supabase's design)
+- Supabase anon key is used in the React frontend; RLS policies control what it can access
 - `SUPABASE_SERVICE_ROLE_KEY` (write access) is used only in server-side integration scripts — never in the browser
-- For internal deployments: run behind your org's VPN/firewall, add an auth layer before exposing to multiple users
-- For production: store the service role key in a secrets manager (AWS Secrets Manager, HashiCorp Vault) rather than a plain `.env` file
+- **Before connecting real data**: tighten the `anon_read` RLS policy and add an auth layer — the current open policy is suitable for demo only
+- For internal deployments: run behind your org's VPN/firewall and add Supabase Auth or Okta SSO before exposing to multiple users
+- For production: store the service role key in a secrets manager (macOS Keychain, AWS Secrets Manager, HashiCorp Vault) rather than a plain `.env` file
 
 ---
 
@@ -187,11 +195,21 @@ AI-specific controls (UCF.AI.01–05) cover:
 
 ---
 
+## Related repositories
+
+| Repository | Role |
+|---|---|
+| [GRC-Portfolio](https://github.com/ewelina-kowalska-oneill/GRC-Portfolio) | Source GRC artefacts — IR plan, playbooks, policy docs, and tabletop scenarios used to enrich demo seed data |
+| [circleci-aws-opa-lab](https://github.com/9snxz8htcw-netizen/circleci-aws-opa-lab) | Preventive control layer — OPA policies enforce encryption, versioning, access, and tagging on IaC before deployment; control mappings inform UCF framework references |
+
+---
+
 ## Next steps
 
+- [ ] **P0 — Tighten RLS** — restrict `anon_read` policy so unauthenticated users cannot read security data
+- [ ] **P0 — Add authentication** — Supabase Auth or Okta SSO before connecting real data
 - [ ] **Create a Supabase project and go live** — follow the [Go live](#go-live-with-real-data) section above
 - [ ] **Add more integrations** — ServiceNow (incidents/policy), AWS Security Hub (vulnerabilities), Vanta (compliance), Notion (policy docs)
-- [ ] **Add authentication** — Supabase Auth or Okta SSO so different personas (Director, VP, Analyst, Compliance) see tailored views with appropriate data access
 - [ ] **Deploy for your team** — Vercel or Netlify for a shareable URL (add auth first), or serve internally via nginx behind your org's VPN
 
 ---
