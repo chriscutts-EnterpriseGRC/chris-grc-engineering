@@ -1,6 +1,6 @@
 # Resilience Operations Dashboard
 
-A central risk reporting platform for **Vulnerabilities, Incidents, Policy, and Third Party risk** — each item tied to a UCF control with a live effectiveness score. Built to run as a demo out of the box, and go live against real data sources by adding credentials.
+A central risk reporting platform for **Risk, Vulnerabilities, Incidents, Policy, and Third Party risk** — each item tied to a UCF control with a live effectiveness score. Built to run as a demo out of the box, and go live against real data sources by adding credentials.
 
 ---
 
@@ -8,15 +8,20 @@ A central risk reporting platform for **Vulnerabilities, Incidents, Policy, and 
 
 | Module | What it tracks | Control layer |
 |---|---|---|
+| **Risk Register** | Inherent risk scores (likelihood × impact), treatment plans, risk appetite, linked controls | Cross-module — links to vulns, incidents, policy, vendors |
 | **Vulnerabilities** | CVE register, CVSS scores, AI/LLM vulns | UCF.03.02 Patch Mgmt, UCF.AI.03 AI Security |
 | **Incidents** | Active incidents, MTTR, AI data leaks | UCF.04.01 IR Plan, UCF.AI.05 AI IR |
-| **Policy** | Policy library, overdue reviews, missing AI policies | UCF.07.01 Policy Review, UCF.AI.01–02 |
+| **Policy** | Policy library, overdue reviews, missing AI policies, live document links | UCF.07.01 Policy Review, UCF.AI.01–02 |
 | **Third Party** | Vendor risk scores, contracts, AI vendor gaps | UCF.06.01 TP Assessment, UCF.AI.04 |
-| **UCF Controls** | 25 controls cross-mapped to all frameworks | SOC 2, ISO 27001, NIST, GDPR, PCI DSS, EU AI Act |
+| **Control Alignment** | 25 controls cross-mapped to all frameworks | SOC 2, ISO 27001, NIST, GDPR, PCI DSS, EU AI Act |
 | **Compliance** | Framework coverage — including EU AI Act & ISO 42001 | Per-framework progress and gap analysis |
+| **Audit Management** | Active audits, readiness scores, scope and timeline tracking | All frameworks |
+| **Evidence Locker** | Control evidence register, expiry tracking, upload history | Linked to UCF controls |
+| **Scorecard** | Per-team health scores, gamification, leaderboard | Leadership visibility |
+| **Monthly Report** | Per-leader monthly GRC report | Director / VP views |
 | **Architecture** | Signal pipeline, domain reviewers, integrations | Live status per stage |
 
-The **Overview** page shows a composite Resilience Score (0–100), surfaces AI control gaps, and lets you click through to any module directly.
+The **Overview** page shows a composite Resilience Score (0–100), surfaces AI control gaps, shows the top open risks, and lets you click through to any module directly.
 
 ---
 
