@@ -2539,28 +2539,38 @@ function RiskRegister() {
     </div>
   );
 
+  const withinAppetite = risks.filter(r=>getAppetite(r.residualScore)==='Within').length;
+
   return (
     <div className="space-y-4">
       {workflow && <WorkflowPanel item={workflow} itemType="Risk" onClose={()=>setWorkflow(null)} />}
+
+      {/* KPI Row — 4 uniform cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <KPICard title="Open Risks"       value={open}            icon={AlertTriangle} color="#EF4444" subtitle={critical+" critical"} />
-        <KPICard title="Exceeds Appetite" value={exceedsAppetite} icon={TrendingUp}    color="#F97316" subtitle="residual above threshold" />
-        <KPICard title="AI-Related Risks" value={aiRisks}         icon={Cpu}           color="#9333EA" subtitle="4 with no tested controls" />
-        <div className="bg-white rounded-xl border border-gray-100 p-4 shadow-sm">
-          <p className="text-xs text-gray-400 mb-2">Risk Appetite Thresholds</p>
-          <div className="space-y-1.5">
-            <div className="flex justify-between text-xs"><span className="text-green-600 font-medium">Within</span><span className="text-gray-500">Residual ≤ {RISK_APPETITE.moderate}</span></div>
-            <div className="flex justify-between text-xs"><span className="text-amber-600 font-medium">Approaches</span><span className="text-gray-500">{RISK_APPETITE.moderate+1}–{RISK_APPETITE.high}</span></div>
-            <div className="flex justify-between text-xs"><span className="text-orange-600 font-medium">Exceeds</span><span className="text-gray-500">{RISK_APPETITE.high+1}–{RISK_APPETITE.severe}</span></div>
-            <div className="flex justify-between text-xs"><span className="text-red-600 font-medium">Sig. Exceeds</span><span className="text-gray-500">&gt; {RISK_APPETITE.severe}</span></div>
-          </div>
+        <KPICard title="Open Risks"         value={open}            icon={AlertTriangle} color="#EF4444" subtitle={critical+" critical"} />
+        <KPICard title="Exceeds Appetite"   value={exceedsAppetite} icon={TrendingUp}    color="#F97316" subtitle="residual above threshold" />
+        <KPICard title="AI-Related Risks"   value={aiRisks}         icon={Cpu}           color="#9333EA" subtitle="4 with no tested controls" />
+        <KPICard title="Within Appetite"    value={withinAppetite}  icon={CheckCircle}   color="#22C55E" subtitle={"of "+risks.length+" total risks"} />
+      </div>
+
+      {/* View toggle + appetite legend on one line */}
+      <div className="flex items-center justify-between">
+        <div className="flex gap-1.5">
+          {[['register','Risk Register'],['matrix','Heat Matrix']].map(([id,label])=>(
+            <button key={id} onClick={()=>setActiveView(id)}
+              className={"px-4 py-2 rounded-lg text-sm font-medium transition-colors "+(activeView===id?'bg-blue-600 text-white':'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50')}>
+              {label}
+            </button>
+          ))}
+        </div>
+        <div className="flex items-center gap-4 text-xs text-gray-500">
+          <span className="text-gray-400 font-medium uppercase tracking-wider text-[10px]">Appetite</span>
+          {[['Within','text-green-600','≤9'],['Approaches','text-amber-600','10–15'],['Exceeds','text-orange-600','16–24'],['Sig. Exceeds','text-red-600','>24']].map(([l,c,r])=>(
+            <span key={l}><span className={c+" font-semibold"}>{l}</span> <span className="text-gray-400">{r}</span></span>
+          ))}
         </div>
       </div>
-      <div className="flex gap-2">
-        {[['register','Risk Register'],['matrix','Heat Matrix']].map(([id,label])=>(
-          <button key={id} onClick={()=>setActiveView(id)} className={"px-4 py-2 rounded-lg text-sm font-medium transition-colors "+(activeView===id?'bg-blue-600 text-white':'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50')}>{label}</button>
-        ))}
-      </div>
+
       {activeView==='matrix' ? <HeatMatrix /> : (
         <div className="bg-white rounded-xl border border-gray-100 shadow-sm">
           <ModuleHeader title="Risk Register" subtitle={filtered.length+" risks"} search={search} setSearch={setSearch}
@@ -2576,58 +2586,61 @@ function RiskRegister() {
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead><tr className="bg-gray-50 text-left">
-                {['ID','Risk','Category','Inherent','Residual','Appetite','Treatment','Controls','Status','Response SLA','Acceptance Auth',''].map(h=>(
+                {['Risk','Category','Score','Appetite','Controls','Status','Owner',''].map(h=>(
                   <th key={h} className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">{h}</th>
                 ))}
               </tr></thead>
               <tbody className="divide-y divide-gray-50">
-                {filtered.map(r=>(
-                  <tr key={r.id} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-4 py-3.5"><span className="font-mono text-xs text-gray-400">{r.id}</span></td>
-                    <td className="px-4 py-3.5 max-w-xs">
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-sm font-medium text-gray-800 truncate">{r.title}</span>
-                        {r.ai&&<span className="px-1.5 py-0.5 bg-purple-100 text-purple-700 text-xs rounded font-medium flex-shrink-0">AI</span>}
-                      </div>
-                      <p className="text-xs text-gray-400 mt-0.5">{r.asset}</p>
-                    </td>
-                    <td className="px-4 py-3.5"><span className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded">{r.category}</span></td>
-                    <td className="px-4 py-3.5">
-                      <div className="flex items-center gap-1.5">
-                        <span className="w-2 h-2 rounded-full" style={{background:getRiskColor(r.inherentScore)}}/>
-                        <span className="text-sm font-bold text-gray-700">{r.inherentScore}</span>
-                        <span className="text-xs text-gray-400">{getRiskRating(r.inherentScore)}</span>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3.5">
-                      <div className="flex items-center gap-1.5">
-                        <span className="w-2 h-2 rounded-full" style={{background:getRiskColor(r.residualScore)}}/>
-                        <span className="text-sm font-bold text-gray-700">{r.residualScore}</span>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3.5">
-                      {(a=>(
-                        <span className={"px-2 py-0.5 rounded-full text-xs font-semibold "+(a==='Within'?'bg-green-50 text-green-700':a==='Exceeds'?'bg-amber-50 text-amber-700':'bg-red-50 text-red-700')}>{a}</span>
-                      ))(getAppetite(r.residualScore))}
-                    </td>
-                    <td className="px-4 py-3.5"><span className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded font-medium">{r.treatment}</span></td>
-                    <td className="px-4 py-3.5">
-                      <div className="flex gap-1 flex-wrap">
-                        {r.controlIds.map(id=>{const c=ctrlMap[id];return c?<EffectivenessBadge key={id} effectiveness={c.effectiveness} score={c.score}/>:null})}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3.5"><StatusBadge status={r.status}/></td>
-                    <td className="px-4 py-3.5">
-                      <span className="text-xs text-gray-500 whitespace-nowrap">{RESPONSE_SLA[getRiskRating(r.inherentScore)]}</span>
-                    </td>
-                    <td className="px-4 py-3.5">
-                      <span className="text-xs text-gray-500 whitespace-nowrap">{ACCEPT_AUTH[getRiskRating(r.inherentScore)]}</span>
-                    </td>
-                    <td className="px-4 py-3.5">
-                      <button onClick={()=>setWorkflow(r)} className="px-3 py-1 text-xs font-medium bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors">Actions</button>
-                    </td>
-                  </tr>
-                ))}
+                {filtered.map(r=>{
+                  const appetite = getAppetite(r.residualScore);
+                  const aptColor = appetite==='Within'?'bg-green-50 text-green-700':appetite==='Approaches'?'bg-amber-50 text-amber-700':appetite==='Exceeds'?'bg-orange-50 text-orange-700':'bg-red-50 text-red-700';
+                  const avgEff = r.controlIds.length ? Math.round(r.controlIds.reduce((s,id)=>s+(CTRL_EFF[id]??50),0)/r.controlIds.length) : null;
+                  const effColor = avgEff===null?'text-gray-400':avgEff>=70?'text-green-600':avgEff>=40?'text-amber-600':'text-red-600';
+                  return (
+                    <tr key={r.id} className="hover:bg-gray-50 transition-colors">
+                      <td className="px-4 py-3.5 max-w-sm">
+                        <div className="flex items-center gap-1.5 mb-0.5">
+                          <span className="font-mono text-[10px] text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded">{r.id}</span>
+                          {r.ai&&<span className="px-1.5 py-0.5 bg-purple-100 text-purple-700 text-[10px] rounded font-semibold">AI</span>}
+                        </div>
+                        <p className="text-sm font-medium text-gray-800 leading-snug">{r.title}</p>
+                        <p className="text-xs text-gray-400 mt-0.5">{r.asset}</p>
+                      </td>
+                      <td className="px-4 py-3.5 whitespace-nowrap">
+                        <span className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded">{r.category}</span>
+                      </td>
+                      <td className="px-4 py-3.5 whitespace-nowrap">
+                        <div className="flex items-center gap-1">
+                          <span className="w-2 h-2 rounded-full flex-shrink-0" style={{background:getRiskColor(r.inherentScore)}}/>
+                          <span className="font-bold text-gray-700">{r.inherentScore}</span>
+                          <span className="text-gray-300 mx-0.5">→</span>
+                          <span className="w-2 h-2 rounded-full flex-shrink-0" style={{background:getRiskColor(r.residualScore)}}/>
+                          <span className="font-semibold text-gray-600">{r.residualScore}</span>
+                        </div>
+                        <p className="text-[10px] text-gray-400 mt-0.5">{getRiskRating(r.inherentScore)} · {RESPONSE_SLA[getRiskRating(r.inherentScore)]}</p>
+                      </td>
+                      <td className="px-4 py-3.5 whitespace-nowrap">
+                        <span className={"px-2 py-0.5 rounded-full text-xs font-semibold "+aptColor}>{appetite}</span>
+                      </td>
+                      <td className="px-4 py-3.5 whitespace-nowrap">
+                        {avgEff !== null ? (
+                          <div>
+                            <span className={"text-sm font-bold "+effColor}>{avgEff}%</span>
+                            <p className="text-[10px] text-gray-400">{r.controlIds.length} control{r.controlIds.length!==1?'s':''}</p>
+                          </div>
+                        ) : <span className="text-xs text-gray-400">—</span>}
+                      </td>
+                      <td className="px-4 py-3.5 whitespace-nowrap"><StatusBadge status={r.status}/></td>
+                      <td className="px-4 py-3.5 whitespace-nowrap">
+                        <p className="text-xs font-medium text-gray-600">{r.owner}</p>
+                        <p className="text-[10px] text-gray-400">{ACCEPT_AUTH[getRiskRating(r.inherentScore)]}</p>
+                      </td>
+                      <td className="px-4 py-3.5">
+                        <button onClick={()=>setWorkflow(r)} className="px-3 py-1 text-xs font-medium bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors whitespace-nowrap">Actions</button>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
