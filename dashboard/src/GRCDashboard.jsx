@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { api } from './lib/api';
 import { isLive } from './lib/supabase';
+import { daysFromToday, PRIORITY_NAMES, PRIORITY_COLOR, SLA_DAYS } from './lib/vsrm';
 
 // ─── Data Context ─────────────────────────────────────────────────────────────
 const DataContext = createContext(null);
@@ -64,15 +65,77 @@ const ctrlMap = Object.fromEntries(controls.map(c => [c.id, c]));
 // ─── Module Data ──────────────────────────────────────────────────────────────
 
 const vulns = [
-  { id: 'V-001', cve: 'CVE-2024-1234', title: 'Log4Shell RCE in log4j-core',          severity: 'Critical', cvss: 10.0, status: 'Open',        asset: 'prod-api-01',       controlId: 'UCF.03.02', discovered: '2026-05-10' },
-  { id: 'V-002', cve: 'CVE-2024-5678', title: 'OpenSSL buffer overflow',               severity: 'High',     cvss: 8.1,  status: 'In Progress', asset: 'auth-service',      controlId: 'UCF.03.02', discovered: '2026-05-12' },
-  { id: 'V-003', cve: 'CVE-2024-9012', title: 'SMB lateral movement path',             severity: 'Critical', cvss: 9.3,  status: 'Open',        asset: 'corp-workstations', controlId: 'UCF.05.01', discovered: '2026-05-08' },
-  { id: 'V-004', cve: 'CVE-2024-3456', title: 'nginx path traversal',                  severity: 'Medium',   cvss: 6.5,  status: 'Patched',     asset: 'web-proxy',         controlId: 'UCF.03.01', discovered: '2026-05-15' },
-  { id: 'V-005', cve: 'CVE-2024-7890', title: 'AWS IAM privilege escalation',          severity: 'High',     cvss: 8.8,  status: 'Open',        asset: 'aws-prod',          controlId: 'UCF.01.02', discovered: '2026-05-14' },
-  { id: 'V-006', cve: 'CVE-2024-2468', title: 'Docker container escape',               severity: 'High',     cvss: 7.9,  status: 'In Progress', asset: 'k8s-cluster',       controlId: 'UCF.05.01', discovered: '2026-05-18' },
-  { id: 'V-007', cve: 'CVE-2024-1357', title: 'Unencrypted secrets in env vars',       severity: 'Medium',   cvss: 6.2,  status: 'Open',        asset: 'ci-pipeline',       controlId: 'UCF.02.01', discovered: '2026-05-20' },
-  { id: 'V-008', cve: 'LLM-2024-001',  title: 'Prompt injection in AI chat endpoint', severity: 'High',     cvss: 8.0,  status: 'Open',        asset: 'ai-assistant-api',  controlId: 'UCF.AI.03', discovered: '2026-05-25', ai: true },
-  { id: 'V-009', cve: 'LLM-2024-002',  title: 'AI model training data exfiltration',  severity: 'Critical', cvss: 9.1,  status: 'Open',        asset: 'ml-training-env',   controlId: 'UCF.AI.02', discovered: '2026-05-28', ai: true },
+  // VSRM: Production + Public + CVSS 10.0 + Actively Exploited → P0
+  { id: 'V-001', cve: 'CVE-2024-1234', title: 'Log4Shell RCE in log4j-core',
+    severity: 'Critical', cvss: 10.0, status: 'Open', asset: 'prod-api-01',
+    controlId: 'UCF.03.02', discovered: '2026-05-10',
+    priority: 'P0', secTier: 0, environment: 'Production', exposure: 'Public',
+    exploitability: 'Actively Exploited', isCisaKev: true,
+    assignedTo: 'T. Williams', dueDate: '2026-05-11' },
+
+  // VSRM: Production + Public + CVSS 8.1 + Actively Exploited → P1
+  { id: 'V-002', cve: 'CVE-2024-5678', title: 'OpenSSL buffer overflow',
+    severity: 'High', cvss: 8.1, status: 'In Progress', asset: 'auth-service',
+    controlId: 'UCF.03.02', discovered: '2026-05-12',
+    priority: 'P1', secTier: 0, environment: 'Production', exposure: 'Public',
+    exploitability: 'Actively Exploited', isCisaKev: false,
+    assignedTo: 'T. Williams', dueDate: '2026-05-26' },
+
+  // VSRM: Production + Internal + CVSS 9.3 + Mature Exploit → P2
+  { id: 'V-003', cve: 'CVE-2024-9012', title: 'SMB lateral movement path',
+    severity: 'Critical', cvss: 9.3, status: 'Open', asset: 'corp-workstations',
+    controlId: 'UCF.05.01', discovered: '2026-05-08',
+    priority: 'P2', secTier: 1, environment: 'Production', exposure: 'Internal',
+    exploitability: 'Mature Exploit', isCisaKev: false,
+    assignedTo: null, dueDate: '2026-06-07' },
+
+  // VSRM: Production + Public + CVSS 6.5 + POC → P3 (Patched)
+  { id: 'V-004', cve: 'CVE-2024-3456', title: 'nginx path traversal',
+    severity: 'Medium', cvss: 6.5, status: 'Patched', asset: 'web-proxy',
+    controlId: 'UCF.03.01', discovered: '2026-05-15',
+    priority: 'P3', secTier: 0, environment: 'Production', exposure: 'Public',
+    exploitability: 'POC', isCisaKev: false,
+    assignedTo: 'T. Williams', dueDate: '2026-07-13' },
+
+  // VSRM: Production + Internet + CVSS 8.8 + Mature Exploit → P2
+  { id: 'V-005', cve: 'CVE-2024-7890', title: 'AWS IAM privilege escalation',
+    severity: 'High', cvss: 8.8, status: 'Open', asset: 'aws-prod',
+    controlId: 'UCF.01.02', discovered: '2026-05-14',
+    priority: 'P2', secTier: 0, environment: 'Production', exposure: 'Internet',
+    exploitability: 'Mature Exploit', isCisaKev: false,
+    assignedTo: 'J. Martinez', dueDate: '2026-06-13' },
+
+  // VSRM: Production + Internal + CVSS 7.9 + POC → P3
+  { id: 'V-006', cve: 'CVE-2024-2468', title: 'Docker container escape',
+    severity: 'High', cvss: 7.9, status: 'In Progress', asset: 'k8s-cluster',
+    controlId: 'UCF.05.01', discovered: '2026-05-18',
+    priority: 'P3', secTier: 1, environment: 'Production', exposure: 'Internal',
+    exploitability: 'POC', isCisaKev: false,
+    assignedTo: 'T. Williams', dueDate: '2026-07-17' },
+
+  // VSRM: Dev/Stage + Any + CVSS 6.2 + No Exploit → P4
+  { id: 'V-007', cve: 'CVE-2024-1357', title: 'Unencrypted secrets in env vars',
+    severity: 'Medium', cvss: 6.2, status: 'Open', asset: 'ci-pipeline',
+    controlId: 'UCF.02.01', discovered: '2026-05-20',
+    priority: 'P4', secTier: 2, environment: 'Dev/Stage', exposure: 'Internal',
+    exploitability: 'No Exploit', isCisaKev: false,
+    assignedTo: null, dueDate: '2026-08-18' },
+
+  // VSRM: Production + Internet + CVSS 8.0 + Mature Exploit → P2 (AI)
+  { id: 'V-008', cve: 'LLM-2024-001', title: 'Prompt injection in AI chat endpoint',
+    severity: 'High', cvss: 8.0, status: 'Open', asset: 'ai-assistant-api',
+    controlId: 'UCF.AI.03', discovered: '2026-05-25', ai: true,
+    priority: 'P2', secTier: 0, environment: 'Production', exposure: 'Internet',
+    exploitability: 'Mature Exploit', isCisaKev: false,
+    assignedTo: 'A. Patel', dueDate: '2026-06-24' },
+
+  // VSRM: Dev/Stage + Any + CVSS 9.1 + POC → P3 (AI)
+  { id: 'V-009', cve: 'LLM-2024-002', title: 'AI model training data exfiltration',
+    severity: 'Critical', cvss: 9.1, status: 'Open', asset: 'ml-training-env',
+    controlId: 'UCF.AI.02', discovered: '2026-05-28', ai: true,
+    priority: 'P3', secTier: 1, environment: 'Dev/Stage', exposure: 'Internal',
+    exploitability: 'POC', isCisaKev: false,
+    assignedTo: null, dueDate: '2026-07-27' },
 ];
 
 const incidents = [
@@ -589,51 +652,129 @@ function Overview({ navigate }) {
 
 // ─── Vulnerabilities ──────────────────────────────────────────────────────────
 
+function PriorityBadge({ priority }) {
+  if (!priority) return <span className="text-xs text-gray-400">—</span>;
+  const c = PRIORITY_COLOR[priority] || PRIORITY_COLOR.P4;
+  return (
+    <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border ${c.bg} ${c.border}`}>
+      <span className={`text-xs font-bold ${c.text}`}>{priority}</span>
+      <span className={`text-xs ${c.text} opacity-70`}>{PRIORITY_NAMES[priority]}</span>
+    </div>
+  );
+}
+
+function SLACountdown({ dueDate, status }) {
+  if (status === 'Patched') return <span className="text-xs text-emerald-600 font-medium">Resolved</span>;
+  if (!dueDate) return <span className="text-xs text-gray-400">—</span>;
+  const days = daysFromToday(dueDate);
+  if (days < 0)  return <span className="text-xs font-bold text-red-600">{Math.abs(days)}d overdue</span>;
+  if (days === 0) return <span className="text-xs font-bold text-red-500">Due today</span>;
+  if (days <= 3)  return <span className="text-xs font-semibold text-orange-600">{days}d left</span>;
+  if (days <= 7)  return <span className="text-xs font-semibold text-amber-600">{days}d left</span>;
+  return <span className="text-xs text-gray-500">{days}d left</span>;
+}
+
 function Vulnerabilities() {
   const { vulns, controls } = useGRCData();
   const ctrlMap = Object.fromEntries(controls.map(c => [c.id, c]));
   const [search, setSearch] = useState('');
-  const [sevFilter, setSevFilter] = useState('All');
+  const [priorityFilter, setPriorityFilter] = useState('All');
   const [showAI, setShowAI] = useState(false);
 
-  const data = vulns.filter(v =>
-    (sevFilter === 'All' || v.severity === sevFilter) &&
-    (!showAI || v.ai) &&
-    (v.title.toLowerCase().includes(search.toLowerCase()) || v.cve.toLowerCase().includes(search.toLowerCase()))
-  );
+  const open = vulns.filter(v => v.status !== 'Patched');
 
-  const ctrl = ctrlMap['UCF.03.02'];
+  // KRI calculations (VMP §12)
+  const p0Open             = open.filter(v => v.priority === 'P0').length;
+  const p1Open             = open.filter(v => v.priority === 'P1').length;
+  const p1p2Open           = open.filter(v => v.priority === 'P1' || v.priority === 'P2');
+  const p1p2InSLA          = p1p2Open.filter(v => v.dueDate && daysFromToday(v.dueDate) >= 0).length;
+  const slaCompliance      = p1p2Open.length > 0 ? Math.round((p1p2InSLA / p1p2Open.length) * 100) : 100;
+  const unassignedCritical = open.filter(v => (v.priority === 'P0' || v.priority === 'P1') && !v.assignedTo).length;
+
+  const p0Overdue = open.filter(v => v.priority === 'P0' && v.dueDate && daysFromToday(v.dueDate) < 0);
+  const p1Overdue = open.filter(v => v.priority === 'P1' && v.dueDate && daysFromToday(v.dueDate) < 0);
+
   const aiCtrl = ctrlMap['UCF.AI.03'];
-  const openCount = vulns.filter(v => v.status !== 'Patched').length;
-  const critCount = vulns.filter(v => v.severity === 'Critical' && v.status !== 'Patched').length;
+  const ctrl   = ctrlMap['UCF.03.02'];
+
+  const data = vulns.filter(v =>
+    (priorityFilter === 'All' || v.priority === priorityFilter) &&
+    (!showAI || v.ai) &&
+    (v.title.toLowerCase().includes(search.toLowerCase()) ||
+     (v.cve && v.cve.toLowerCase().includes(search.toLowerCase())))
+  );
 
   return (
     <div className="space-y-4">
+
+      {/* KRI panel */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <KPICard title="Open Vulnerabilities" value={openCount} icon={Bug} color="#EF4444" subtitle={`${critCount} critical`} />
-        <KPICard title="Avg CVSS Score" value="8.2" icon={AlertTriangle} color="#F97316" subtitle="across open vulns" />
-        <div className="bg-white rounded-xl border border-gray-100 p-4 shadow-sm col-span-2">
-          <p className="text-xs text-gray-400 mb-1">Primary Control — {ctrl?.id}</p>
-          <p className="text-sm font-semibold text-gray-800 mb-2">{ctrl?.name}</p>
-          <EffectivenessBadge effectiveness={ctrl?.effectiveness} score={ctrl?.score} />
-          <p className="text-xs text-gray-400 mt-1">{ctrl?.frameworks.join(' · ')}</p>
+        <div className={`rounded-xl border p-5 shadow-sm ${p0Open > 0 ? 'bg-red-50 border-red-300' : 'bg-white border-gray-100'}`}>
+          <p className="text-xs text-gray-400 mb-1">P0 Open — Incident</p>
+          <p className={`text-3xl font-bold mb-1 ${p0Open > 0 ? 'text-red-600' : 'text-gray-800'}`}>{p0Open}</p>
+          <p className="text-xs text-gray-400">SLA: 1 day · Target: 0</p>
+        </div>
+        <div className={`rounded-xl border p-5 shadow-sm ${p1Open > 0 ? 'bg-orange-50 border-orange-300' : 'bg-white border-gray-100'}`}>
+          <p className="text-xs text-gray-400 mb-1">P1 Open — Blocker</p>
+          <p className={`text-3xl font-bold mb-1 ${p1Open > 0 ? 'text-orange-600' : 'text-gray-800'}`}>{p1Open}</p>
+          <p className="text-xs text-gray-400">SLA: 14 days</p>
+        </div>
+        <div className={`rounded-xl border p-5 shadow-sm ${slaCompliance < 90 ? 'bg-amber-50 border-amber-300' : 'bg-white border-gray-100'}`}>
+          <p className="text-xs text-gray-400 mb-1">SLA Compliance (P1/P2)</p>
+          <p className={`text-3xl font-bold mb-1 ${slaCompliance < 90 ? 'text-amber-600' : 'text-emerald-600'}`}>{slaCompliance}%</p>
+          <p className="text-xs text-gray-400">Target: &gt;90%</p>
+        </div>
+        <div className={`rounded-xl border p-5 shadow-sm ${unassignedCritical > 0 ? 'bg-red-50 border-red-300' : 'bg-white border-gray-100'}`}>
+          <p className="text-xs text-gray-400 mb-1">Unassigned P0/P1</p>
+          <p className={`text-3xl font-bold mb-1 ${unassignedCritical > 0 ? 'text-red-600' : 'text-emerald-600'}`}>{unassignedCritical}</p>
+          <p className="text-xs text-gray-400">Target: 0 &gt; 24h</p>
         </div>
       </div>
 
+      {/* P0/P1 SLA breach alerts */}
+      {p0Overdue.length > 0 && (
+        <div className="bg-red-50 border border-red-300 rounded-xl p-4 flex items-start gap-3">
+          <AlertTriangle size={16} className="text-red-600 flex-shrink-0 mt-0.5" />
+          <div>
+            <p className="text-sm font-semibold text-red-800">P0 SLA Breach — Incident Response Required</p>
+            <p className="text-xs text-red-700 mt-0.5">
+              {p0Overdue.map(v => `${v.id}: ${v.title} (${Math.abs(daysFromToday(v.dueDate))}d overdue)`).join(' · ')}
+            </p>
+          </div>
+        </div>
+      )}
+      {p1Overdue.length > 0 && (
+        <div className="bg-orange-50 border border-orange-300 rounded-xl p-4 flex items-start gap-3">
+          <AlertTriangle size={16} className="text-orange-600 flex-shrink-0 mt-0.5" />
+          <div>
+            <p className="text-sm font-semibold text-orange-800">P1 SLA Breach — Extension Approval or Escalation Required</p>
+            <p className="text-xs text-orange-700 mt-0.5">
+              {p1Overdue.map(v => `${v.id}: ${v.title} (${Math.abs(daysFromToday(v.dueDate))}d overdue)`).join(' · ')}
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* AI gap banner */}
       <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-start gap-3">
         <Cpu size={16} className="text-purple-600 flex-shrink-0 mt-0.5" />
-        <div>
+        <div className="flex-1">
           <p className="text-sm font-semibold text-gray-800">AI Security Gap — {aiCtrl?.id}: {aiCtrl?.name}</p>
-          <p className="text-xs text-gray-600 mt-0.5">2 AI-specific vulnerabilities open. Control status: <strong className="text-red-600">Not Tested</strong>. No OWASP LLM Top 10 assessment completed. Mapped to {aiCtrl?.frameworks.join(', ')}.</p>
+          <p className="text-xs text-gray-600 mt-0.5">2 AI-specific vulnerabilities open. Control status: <strong className="text-red-600">Not Tested</strong>. No OWASP LLM Top 10 assessment completed.</p>
         </div>
         <EffectivenessBadge effectiveness={aiCtrl?.effectiveness} score={aiCtrl?.score} />
       </div>
 
+      {/* Vulnerability register table */}
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm">
-        <ModuleHeader title="Vulnerability Register" subtitle={`${data.length} vulnerabilities`} search={search} setSearch={setSearch}
+        <ModuleHeader
+          title="Vulnerability Register"
+          subtitle={`${data.length} vulnerabilities · VSRM P0–P4`}
+          search={search}
+          setSearch={setSearch}
           filters={<>
-            <select value={sevFilter} onChange={e => setSevFilter(e.target.value)} className="px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none">
-              {['All','Critical','Severe','High','Moderate','Low'].map(s => <option key={s}>{s}</option>)}
+            <select value={priorityFilter} onChange={e => setPriorityFilter(e.target.value)} className="px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none">
+              {['All','P0','P1','P2','P3','P4'].map(p => <option key={p}>{p}</option>)}
             </select>
             <button onClick={() => setShowAI(a => !a)} className={`px-3 py-2 text-sm font-medium rounded-lg border transition-colors flex items-center gap-1.5 ${showAI ? 'bg-purple-600 text-white border-purple-600' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'}`}>
               <Cpu size={13} /> AI Only
@@ -642,18 +783,67 @@ function Vulnerabilities() {
         />
         <ModuleTable
           columns={[
-            { key: 'id',     label: 'ID',         render: r => <span className="font-mono text-xs text-gray-400">{r.id}</span> },
-            { key: 'cve',    label: 'CVE / Ref',  render: r => <div className="flex items-center gap-1.5"><span className="font-mono text-xs text-blue-600">{r.cve}</span>{r.ai && <span className="px-1.5 py-0.5 bg-purple-100 text-purple-700 text-xs rounded font-medium">AI</span>}</div> },
-            { key: 'title',  label: 'Title',      render: r => <span className="text-sm text-gray-800 font-medium">{r.title}</span> },
-            { key: 'severity',label:'Severity',   render: r => <SeverityBadge severity={r.severity} /> },
-            { key: 'cvss',   label: 'CVSS',       render: r => <span className={`text-sm font-bold ${r.cvss>=9?'text-red-600':r.cvss>=7?'text-orange-500':'text-yellow-600'}`}>{r.cvss}</span> },
-            { key: 'status', label: 'Status',     render: r => <StatusBadge status={r.status} /> },
-            { key: 'asset',  label: 'Asset',      render: r => <span className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded font-mono">{r.asset}</span> },
-            { key: 'ctrl',   label: 'Linked Control', render: r => <ControlCell controlId={r.controlId} /> },
-            { key: 'eff',    label: 'Control Effectiveness', render: r => { const c = ctrlMap[r.controlId]; return c ? <EffectivenessBadge effectiveness={c.effectiveness} score={c.score} /> : null; } },
+            { key: 'id',       label: 'ID',
+              render: r => <span className="font-mono text-xs text-gray-400">{r.id}</span> },
+            { key: 'priority', label: 'Priority (VSRM)',
+              render: r => <PriorityBadge priority={r.priority} /> },
+            { key: 'cve',      label: 'CVE / Ref',
+              render: r => (
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <span className="font-mono text-xs text-blue-600">{r.cve}</span>
+                  {r.ai       && <span className="px-1.5 py-0.5 bg-purple-100 text-purple-700 text-xs rounded font-medium">AI</span>}
+                  {r.isCisaKev && <span className="px-1.5 py-0.5 bg-red-100 text-red-700 text-xs rounded font-medium">KEV</span>}
+                </div>
+              ) },
+            { key: 'title',    label: 'Title',
+              render: r => <span className="text-sm text-gray-800 font-medium">{r.title}</span> },
+            { key: 'sla',      label: 'SLA Deadline',
+              render: r => <SLACountdown dueDate={r.dueDate} status={r.status} /> },
+            { key: 'severity', label: 'Severity',
+              render: r => <SeverityBadge severity={r.severity} /> },
+            { key: 'status',   label: 'Status',
+              render: r => <StatusBadge status={r.status} /> },
+            { key: 'asset',    label: 'Asset',
+              render: r => (
+                <div className="flex items-center gap-1.5">
+                  <span className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded font-mono">{r.asset}</span>
+                  {r.secTier != null && (
+                    <span className={`text-xs px-1.5 py-0.5 rounded font-semibold ${r.secTier === 0 ? 'bg-red-100 text-red-700' : r.secTier === 1 ? 'bg-orange-100 text-orange-700' : 'bg-gray-100 text-gray-500'}`}>
+                      T{r.secTier}
+                    </span>
+                  )}
+                </div>
+              ) },
+            { key: 'owner',    label: 'Owner',
+              render: r => r.assignedTo
+                ? <span className="text-xs text-gray-600">{r.assignedTo}</span>
+                : (r.status !== 'Patched' && (r.priority === 'P0' || r.priority === 'P1'))
+                  ? <span className="text-xs font-semibold text-red-600">⚠ Unassigned</span>
+                  : <span className="text-xs text-gray-400">—</span> },
+            { key: 'ctrl',     label: 'Control',
+              render: r => <ControlCell controlId={r.controlId} /> },
+            { key: 'eff',      label: 'Effectiveness',
+              render: r => { const c = ctrlMap[r.controlId]; return c ? <EffectivenessBadge effectiveness={c.effectiveness} score={c.score} /> : null; } },
           ]}
           rows={data}
         />
+      </div>
+
+      {/* VSRM legend */}
+      <div className="bg-white rounded-xl border border-gray-100 p-4 shadow-sm">
+        <p className="text-xs font-semibold text-gray-500 mb-3">VSRM Priority Legend — SLA targets per priority (VMP §7)</p>
+        <div className="flex flex-wrap gap-3">
+          {Object.entries(PRIORITY_NAMES).map(([p, name]) => {
+            const c = PRIORITY_COLOR[p];
+            return (
+              <div key={p} className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border ${c.bg} ${c.border}`}>
+                <span className={`text-xs font-bold ${c.text}`}>{p}</span>
+                <span className={`text-xs ${c.text}`}>{name}</span>
+                <span className={`text-xs ${c.text} opacity-60`}>· {SLA_DAYS[p]}d SLA</span>
+              </div>
+            );
+          })}
+        </div>
       </div>
     </div>
   );
