@@ -34,7 +34,7 @@ NIST AI RMF, NIST 800-53, CMMC, FedRAMP Rev5, FedRAMP 20x, HITRUST, DORA, CIS Co
 
 ### Does it work without Supabase?
 
-Yes. With no credentials set, the dashboard runs entirely on inline demo data. The header shows **○ Demo**. Add credentials and it switches to **● Live** automatically — no code change required.
+Yes. With no credentials set, the dashboard runs entirely on inline demo data. The header shows **○ Demo**. Add credentials and it switches to **● Live** automatically - no code change required.
 
 ### How do I connect integrations?
 
@@ -59,7 +59,7 @@ Yes. The Export OSCAL button in Control Alignment downloads a JSON file conformi
 
 `Risk Score = Likelihood × Impact` (range 1–25).
 
-**Likelihood** uses a high water mark rule across three dimensions — Frequency, Technical Feasibility, and Likelihood Precursor. The final likelihood score is the highest of the three.
+**Likelihood** uses a high water mark rule across three dimensions - Frequency, Technical Feasibility, and Likelihood Precursor. The final likelihood score is the highest of the three.
 
 **Impact** is a single 1–5 scale.
 
@@ -99,7 +99,7 @@ Any risk that breaches its SLA without a documented decision is deemed accepted 
 
 ### What is the difference between inherent and residual risk?
 
-**Inherent** is the risk score with zero controls applied. **Residual** is recalculated after accounting for the effectiveness of linked UCF controls — a control rated 92% effective reduces residual risk more than one rated 38%. The dashboard shows both scores and flags where residual still exceeds the risk appetite threshold.
+**Inherent** is the risk score with zero controls applied. **Residual** is recalculated after accounting for the effectiveness of linked UCF controls - a control rated 92% effective reduces residual risk more than one rated 38%. The dashboard shows both scores and flags where residual still exceeds the risk appetite threshold.
 
 ---
 
@@ -107,7 +107,7 @@ Any risk that breaches its SLA without a documented decision is deemed accepted 
 
 ### How does the monthly report work?
 
-Navigate to LEADERSHIP → Monthly Report, select a team, and the report auto-generates — filtered to that leader's controls, open vulnerabilities, active incidents, policies they own, risk items, and recommended actions for the coming month. Use the Print button for PDF or copy the share link (`?leader=<teamId>`) to send directly to the leader.
+Navigate to LEADERSHIP → Monthly Report, select a team, and the report auto-generates - filtered to that leader's controls, open vulnerabilities, active incidents, policies they own, risk items, and recommended actions for the coming month. Use the Print button for PDF or copy the share link (`?leader=<teamId>`) to send directly to the leader.
 
 ### What is the Scorecard?
 
@@ -115,7 +115,7 @@ The Scorecard ranks all 6 teams (Identity & Access, Data Protection, Infrastruct
 
 ### Can I share reports without giving access to the full dashboard?
 
-Yes — each leader report has a shareable URL (`?leader=identity`, `?leader=data`, etc.) that opens directly to their filtered view. The dashboard currently runs in open demo mode; restrict access by enabling Supabase Auth before connecting real data.
+Yes - each leader report has a shareable URL (`?leader=identity`, `?leader=data`, etc.) that opens directly to their filtered view. The dashboard currently runs in open demo mode; restrict access by enabling Supabase Auth before connecting real data.
 
 ---
 
@@ -123,7 +123,7 @@ Yes — each leader report has a shareable URL (`?leader=identity`, `?leader=dat
 
 ### How is data protected?
 
-- Supabase anon key is read-only — Row Level Security enforces this at the database level
+- Supabase anon key is read-only - Row Level Security enforces this at the database level
 - Write credentials (`SUPABASE_SERVICE_ROLE_KEY`) are server-side only, never in the browser
 - Preventive controls via OPA block non-compliant infrastructure before it reaches production
 
@@ -131,8 +131,8 @@ Yes — each leader report has a shareable URL (`?leader=identity`, `?leader=dat
 
 Two things are required before production use:
 
-1. **Auth** — Enable Supabase Auth or Okta SSO. Currently `anon_read` is open to any visitor.
-2. **RLS hardening** — Scope the `anon_read` policy to authenticated users or specific roles.
+1. **Auth** - Enable Supabase Auth or Okta SSO. Currently `anon_read` is open to any visitor.
+2. **RLS hardening** - Scope the `anon_read` policy to authenticated users or specific roles.
 
 Both are documented as P0 items in [ARCHITECTURE.md](ARCHITECTURE.md).
 
@@ -142,7 +142,7 @@ Both are documented as P0 items in [ARCHITECTURE.md](ARCHITECTURE.md).
 
 ### Dashboard shows Demo but I set the env vars
 
-Restart the dev server after adding `.env`. React reads env vars at build time for `REACT_APP_*` variables — a hot reload isn't enough.
+Restart the dev server after adding `.env`. React reads env vars at build time for `REACT_APP_*` variables - a hot reload isn't enough.
 
 ### An integration isn't syncing
 
@@ -150,7 +150,7 @@ Check that all required env vars for that adapter are set (see [QUICKSTART.md](Q
 ```bash
 cd dashboard && node integrations/sync.js
 ```
-Errors are logged per adapter. A missing var skips the adapter silently — confirm the var names match `.env.example` exactly.
+Errors are logged per adapter. A missing var skips the adapter silently - confirm the var names match `.env.example` exactly.
 
 ### Health scores seem wrong
 

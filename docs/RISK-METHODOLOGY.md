@@ -22,14 +22,14 @@
 | 2 | Moderate | Noticeable disruption. Manageable through routine oversight. |
 | 1 | Low | Unlikely to materially affect operations. |
 
-### Likelihood (1–5) — High Water Mark Rule
+### Likelihood (1–5) - High Water Mark Rule
 
-Likelihood is scored across **three independent dimensions**. The final score is the **highest of the three** — not an average.
+Likelihood is scored across **three independent dimensions**. The final score is the **highest of the three** - not an average.
 
 | Score | Frequency | Technical Feasibility | Likelihood Precursor |
 |-------|-----------|----------------------|---------------------|
 | 5 | >Once per year | No specialist skills required | Event is active or unavoidable |
-| 4 | Once per year | Moderate effort required | Clear trend — when not if |
+| 4 | Once per year | Moderate effort required | Clear trend - when not if |
 | 3 | Once every 2–3 years | Significant effort required | Near-misses observed |
 | 2 | Once in 3–5 years | Highly specialised skills required | Theoretical only |
 | 1 | Once in 5+ years | State-actor level resources required | Perfect storm required |
@@ -48,8 +48,8 @@ Likelihood is scored across **three independent dimensions**. The final score is
 
 ### Inherent vs. residual
 
-- **Inherent risk** — exposure with zero controls applied
-- **Residual risk** — re-evaluated score assuming existing controls are effective
+- **Inherent risk** - exposure with zero controls applied
+- **Residual risk** - re-evaluated score assuming existing controls are effective
 
 > The risk register carries the residual score by default. When no controls are in place, inherent and residual scores are equal.
 
@@ -143,11 +143,11 @@ Submitted → In Review → Risk Assessment → Mitigating
 
 The dashboard in `dashboard/src/GRCDashboard.jsx` implements this methodology directly:
 
-- **Scoring constants** — `RISK_APPETITE`, `getRiskRating()`, `getRiskColor()`, `getAppetite()` at the top of the file reflect the band thresholds above
-- **Response SLA** — `RESPONSE_SLA` object maps each rating to its SLA; displayed as a column in the Risk Register table
-- **Acceptance Authority** — `ACCEPT_AUTH` object maps each rating to the required approver; displayed alongside SLA in the Risk Register
-- **Risk register states** — `StatusBadge` component supports all workflow states defined in §7 of the framework
-- **Heat matrix** — 5×5 grid colour-coded to Critical / Severe / High / Moderate / Low bands
+- **Scoring constants** - `RISK_APPETITE`, `getRiskRating()`, `getRiskColor()`, `getAppetite()` at the top of the file reflect the band thresholds above
+- **Response SLA** - `RESPONSE_SLA` object maps each rating to its SLA; displayed as a column in the Risk Register table
+- **Acceptance Authority** - `ACCEPT_AUTH` object maps each rating to the required approver; displayed alongside SLA in the Risk Register
+- **Risk register states** - `StatusBadge` component supports all workflow states defined in §7 of the framework
+- **Heat matrix** - 5×5 grid colour-coded to Critical / Severe / High / Moderate / Low bands
 
 ---
 

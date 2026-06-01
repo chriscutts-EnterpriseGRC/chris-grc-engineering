@@ -10,7 +10,7 @@ Key metrics tracked across the Resilience Operations Dashboard. Risk rating band
 
 | Band | Score | Target |
 |------|-------|--------|
-| Critical | 25 | 0 open — immediate escalation |
+| Critical | 25 | 0 open - immediate escalation |
 | Severe | 16–24 | <5% of total register |
 | High | 10–15 | <15% of total register |
 | Moderate | 5–9 | Managed through normal cadence |
@@ -38,7 +38,7 @@ Percentage of risks where a treatment decision is documented within the required
 
 - **Definition**: Average reduction between inherent and residual scores
 - **Measurement**: `(inherentScore - residualScore) / inherentScore × 100`
-- **Target**: >40% reduction — indicates controls are materially effective
+- **Target**: >40% reduction - indicates controls are materially effective
 
 ---
 
@@ -53,7 +53,7 @@ Percentage of risks where a treatment decision is documented within the required
 
 ### Control gap by category
 
-Tracked per domain — Access Control, Data Protection, Vulnerability Mgmt, etc. — visible on the Overview page. Target: zero domains with >50% gap rate.
+Tracked per domain - Access Control, Data Protection, Vulnerability Mgmt, etc. - visible on the Overview page. Target: zero domains with >50% gap rate.
 
 ### Evidence freshness
 
@@ -97,7 +97,7 @@ Tracked per domain — Access Control, Data Protection, Vulnerability Mgmt, etc.
 ### Mean time to respond (MTTR)
 
 - **Target**: <8 hours for Critical, <24 hours for Severe
-- **Dashboard**: Incidents module — displayed per incident and as a KPI average
+- **Dashboard**: Incidents module - displayed per incident and as a KPI average
 
 ### AI-related incident rate
 

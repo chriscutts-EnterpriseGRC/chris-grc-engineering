@@ -1,6 +1,6 @@
 # Quick Start
 
-## Run the dashboard (demo mode — no credentials needed)
+## Run the dashboard (demo mode - no credentials needed)
 
 ```bash
 git clone https://github.com/9snxz8htcw-netizen/chris-grc-engineering
@@ -20,10 +20,10 @@ Open `http://localhost:3000`. The dashboard runs on inline demo data automatical
 Create a free project at [supabase.com](https://supabase.com), then apply the schema:
 
 ```bash
-# Option A — Supabase CLI
+# Option A - Supabase CLI
 supabase db push
 
-# Option B — paste into Supabase SQL editor
+# Option B - paste into Supabase SQL editor
 supabase/migrations/001_initial_schema.sql
 supabase/migrations/002_risks_table.sql
 ```
@@ -45,7 +45,7 @@ The header badge switches from **○ Demo** to **● Live** automatically.
 
 **3. Enable integrations (optional)**
 
-Add credentials to `.env` for any integration — the adapter is skipped if credentials are absent:
+Add credentials to `.env` for any integration - the adapter is skipped if credentials are absent:
 
 | Adapter | Env vars | Target |
 |---------|----------|--------|
@@ -75,7 +75,7 @@ chris-grc-engineering/
 │   │   └── lib/
 │   │       ├── supabase.js         # Supabase client (null if unconfigured → demo mode)
 │   │       └── api.js              # Data layer with per-table mock fallback
-│   ├── integrations/               # Node.js adapters — each is self-contained
+│   ├── integrations/               # Node.js adapters - each is self-contained
 │   │   ├── jira.js
 │   │   ├── qualys.js
 │   │   ├── splunk.js
@@ -126,19 +126,19 @@ chris-grc-engineering/
 | Policy | Policy library, overdue reviews, missing AI policies |
 | Third Party | Vendor risk scores, contract expiry, AI vendor gaps |
 | Control Alignment | UCF crosswalk across 8 frameworks, OSCAL export |
-| Compliance | Framework progress — SOC 2, ISO 27001, NIST, GDPR, EU AI Act, ISO 42001 |
+| Compliance | Framework progress - SOC 2, ISO 27001, NIST, GDPR, EU AI Act, ISO 42001 |
 | Audit Management | Audit schedule, readiness scores, findings tracking |
 | Evidence Locker | Control evidence, expiry tracking, upload history |
 | Scorecard | Per-team health %, gamification levels, leaderboard, badges |
-| Monthly Report | Per-leader report — filtered controls, issues, risks, actions |
+| Monthly Report | Per-leader report - filtered controls, issues, risks, actions |
 | Architecture | Signal pipeline, integrations, domain reviewer status |
 
 ---
 
 ## Key documents
 
-- [ARCHITECTURE.md](ARCHITECTURE.md) — system design and data flow
-- [RISK-METHODOLOGY.md](RISK-METHODOLOGY.md) — scoring model, bands, SLAs, approval authority
-- [METHODOLOGY.md](METHODOLOGY.md) — GRC engineering approach and health score
-- [METRICS.md](METRICS.md) — KPIs, KRIs, and targets
-- [FAQ.md](FAQ.md) — common questions
+- [ARCHITECTURE.md](ARCHITECTURE.md) - system design and data flow
+- [RISK-METHODOLOGY.md](RISK-METHODOLOGY.md) - scoring model, bands, SLAs, approval authority
+- [METHODOLOGY.md](METHODOLOGY.md) - GRC engineering approach and health score
+- [METRICS.md](METRICS.md) - KPIs, KRIs, and targets
+- [FAQ.md](FAQ.md) - common questions
