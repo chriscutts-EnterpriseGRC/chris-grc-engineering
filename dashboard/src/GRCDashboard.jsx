@@ -1231,11 +1231,58 @@ function Scorecard({ onViewReport }) {
 
 // ─── Leader Monthly Report ────────────────────────────────────────────────────
 
-function LeaderReport({ teamId, onBack }) {
+function LeaderReport({ teamId: initialTeamId, onBack }) {
   const { controls, vulns, incidents, policies, vendors } = useGRCData();
   const ctrlMap  = Object.fromEntries(controls.map(c => [c.id, c]));
-  const team     = teams.find(t => t.id === teamId);
-  if (!team) return <div className="p-8 text-gray-400">Team not found.</div>;
+  const [teamId, setTeamId] = useState(initialTeamId);
+  const team = teams.find(t => t.id === teamId);
+
+  // Team picker when no team is selected
+  if (!team) {
+    return (
+      <div className="space-y-5 max-w-3xl mx-auto">
+        <div>
+          <h2 className="text-xl font-bold text-gray-900">Monthly Report</h2>
+          <p className="text-sm text-gray-400 mt-1">Select a team to view their May 2026 report</p>
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          {teams.map(t => {
+            const Icon  = t.icon;
+            const owned = t.controls.map(id => ctrlMap[id]).filter(Boolean);
+            const health = owned.length ? Math.round((owned.filter(c=>c.effectiveness==='effective').length + owned.filter(c=>c.effectiveness==='partial').length * 0.5) / owned.length * 100) : 0;
+            const lvl   = getLevel(health);
+            const hist  = monthlyHistory[t.id] ?? [];
+            const prev  = hist[hist.length - 2]?.health ?? health;
+            const delta = health - prev;
+            return (
+              <button key={t.id} onClick={() => { setTeamId(t.id); window.history.replaceState(null,'',`?leader=${t.id}`); }}
+                className="bg-white rounded-xl border border-gray-100 p-5 shadow-sm hover:shadow-md hover:border-blue-200 transition-all text-left group">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="p-2 rounded-lg" style={{ background: t.color + '18' }}><Icon size={16} style={{ color: t.color }} /></div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-gray-900 text-sm">{t.name}</p>
+                    <p className="text-xs text-gray-400">{t.dept} · {t.lead}</p>
+                  </div>
+                  <ChevronRight size={14} className="text-gray-300 group-hover:text-blue-400 transition-colors" />
+                </div>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className={`text-xl font-bold ${health >= 70 ? 'text-emerald-600' : health >= 50 ? 'text-amber-500' : 'text-red-500'}`}>{health}%</span>
+                    <span className={`text-xs px-1.5 py-0.5 rounded font-bold ${lvl.bg} ${lvl.text}`}>{lvl.icon} {lvl.name}</span>
+                  </div>
+                  {delta > 0
+                    ? <span className="text-xs text-emerald-600 font-semibold flex items-center gap-0.5"><TrendingUp size={11}/>+{delta}%</span>
+                    : delta < 0
+                    ? <span className="text-xs text-red-500 font-semibold flex items-center gap-0.5"><TrendingDown size={11}/>{delta}%</span>
+                    : <span className="text-xs text-gray-300">—</span>}
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
 
   const owned     = team.controls.map(id => ctrlMap[id]).filter(Boolean);
   const effective = owned.filter(c => c.effectiveness === 'effective').length;
