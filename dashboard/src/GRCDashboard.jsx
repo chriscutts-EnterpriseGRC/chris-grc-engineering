@@ -502,11 +502,36 @@ function Overview({ navigate }) {
     <div className="space-y-5">
       {/* KPI row */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <KPICard title="Open Vulnerabilities" value={vulns.filter(v=>v.status!=='Patched').length} delta="3" deltaType="up" icon={Bug} color="#EF4444" subtitle="2 critical unpatched" />
+        <KPICard title="Open Vulnerabilities" value={vulns.filter(v=>v.status!=='Patched').length} delta="3" deltaType="up" icon={Bug} color="#EF4444"
+          subtitle={(() => { const p0=vulns.filter(v=>v.priority==='P0'&&v.status!=='Patched').length; const p1=vulns.filter(v=>v.priority==='P1'&&v.status!=='Patched').length; return (p0||p1) ? `${p0} P0 · ${p1} P1 SLA breached` : 'within SLA'; })()} />
         <KPICard title="Active Incidents"     value={incidents.filter(i=>i.status!=='Resolved').length} delta="2" deltaType="up" icon={Flame} color="#F97316" subtitle="2 unresolved critical" />
         <KPICard title="Policy Gaps"          value={policies.filter(p=>p.status==='Overdue'||p.status==='Missing').length} delta="2" deltaType="up" icon={BookOpen} color="#7C3AED" subtitle={`${policies.filter(p=>p.status==='Missing').length} missing`} />
         <KPICard title="Control Gaps"         value={allGaps.length} delta="1" deltaType="up" icon={AlertTriangle} color="#DC2626" subtitle={`${allGaps.filter(c=>!c.ai).length} core · ${allGaps.filter(c=>c.ai).length} AI`} />
       </div>
+
+      {/* Urgent SLA breach banner */}
+      {(() => {
+        const breached = vulns.filter(v => (v.priority==='P0'||v.priority==='P1') && v.status!=='Patched' && v.dueDate && daysFromToday(v.dueDate) < 0);
+        if (!breached.length) return null;
+        return (
+          <div className="bg-red-50 border border-red-200 rounded-xl p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <AlertTriangle size={14} className="text-red-600 flex-shrink-0" />
+              <p className="text-sm font-semibold text-red-800">Action Required Today — {breached.length} SLA Breach{breached.length > 1 ? 'es' : ''}</p>
+            </div>
+            <div className="space-y-2">
+              {breached.map(v => (
+                <div key={v.id} className="flex items-center gap-3 flex-wrap">
+                  <PriorityBadge priority={v.priority} />
+                  <span className="text-xs font-medium text-gray-800">{v.title}</span>
+                  <SLACountdown dueDate={v.dueDate} status={v.status} />
+                  {v.assignedTo && <span className="text-xs text-gray-400">· {v.assignedTo}</span>}
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Resilience score + module cards */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
@@ -1278,6 +1303,31 @@ function Scorecard({ onViewReport }) {
         <KPICard title="High Risk Exposure" value={risks.filter(r=>r.inherentScore>=15).length} icon={BarChart2} color="#7C3AED" subtitle="critical + high risks" />
       </div>
 
+      {/* Crisis alert — teams below 30% health */}
+      {teamStats.filter(t => t.health < 30).length > 0 && (
+        <div className="bg-red-50 border border-red-300 rounded-xl p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <AlertTriangle size={14} className="text-red-600 flex-shrink-0" />
+            <p className="text-sm font-semibold text-red-800">Teams in Crisis — Immediate Attention Required</p>
+          </div>
+          <div className="space-y-2">
+            {teamStats.filter(t => t.health < 30).map(t => {
+              const Icon = t.icon;
+              return (
+                <div key={t.id} className="flex items-center gap-3 bg-white rounded-lg border border-red-100 px-3 py-2.5 flex-wrap">
+                  <div className="p-1 rounded" style={{ background: t.color + '18' }}><Icon size={13} style={{ color: t.color }} /></div>
+                  <span className="text-sm font-semibold text-gray-800">{t.name}</span>
+                  <span className="text-sm font-bold text-red-600">{t.health}%</span>
+                  {t.delta < 0 && <span className="text-xs text-red-500 font-semibold flex items-center gap-0.5"><TrendingDown size={11}/>{t.delta}% MoM</span>}
+                  <span className="text-xs text-gray-400 ml-1">{t.gaps} control gap{t.gaps !== 1 ? 's' : ''} · {t.openVulns} open vuln{t.openVulns !== 1 ? 's' : ''}</span>
+                  <button onClick={() => onViewReport(t.id)} className="ml-auto text-xs text-blue-600 font-semibold hover:underline">View Report →</button>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* Leaderboard */}
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm">
         <div className="p-5 border-b border-gray-100">
@@ -1670,13 +1720,14 @@ function LeaderReport({ teamId: initialTeamId, onBack }) {
             <div className="bg-white rounded-xl border border-red-100 shadow-sm p-5">
               <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2"><Bug size={14} className="text-red-500" /> Open Vulnerabilities ({myVulns.length})</h3>
               <div className="space-y-2">
-                {myVulns.map(v => (
-                  <div key={v.id} className="flex items-center justify-between gap-2">
-                    <div className="min-w-0">
+                {[...myVulns].sort((a,b) => ['P0','P1','P2','P3','P4'].indexOf(a.priority??'P4') - ['P0','P1','P2','P3','P4'].indexOf(b.priority??'P4')).map(v => (
+                  <div key={v.id} className={`flex items-center gap-3 p-2 rounded-lg ${v.priority==='P0'?'bg-red-50 border border-red-100':v.priority==='P1'?'bg-orange-50 border border-orange-100':'border border-gray-50'}`}>
+                    <PriorityBadge priority={v.priority} />
+                    <div className="min-w-0 flex-1">
                       <p className="text-xs font-mono text-blue-600">{v.cve}</p>
                       <p className="text-xs text-gray-700 truncate">{v.title}</p>
                     </div>
-                    <SeverityBadge severity={v.severity} />
+                    <SLACountdown dueDate={v.dueDate} status={v.status} />
                   </div>
                 ))}
               </div>
@@ -2417,6 +2468,17 @@ function WorkflowPanel({ item, itemType, onClose }) {
   );
 }
 
+// ─── Risk Category colours ────────────────────────────────────────────────────
+const RISK_CAT_COLOR = {
+  'Access Control':  'bg-blue-50 text-blue-700',
+  'AI Governance':   'bg-purple-50 text-purple-700',
+  'AI Security':     'bg-violet-50 text-violet-700',
+  'Vuln Mgmt':       'bg-orange-50 text-orange-700',
+  'Data Protection': 'bg-cyan-50 text-cyan-700',
+  'Third Party':     'bg-amber-50 text-amber-700',
+  'BCM':             'bg-green-50 text-green-700',
+};
+
 // ─── Risk Register ────────────────────────────────────────────────────────────
 function RiskRegister() {
   const { controls } = useGRCData();
@@ -2488,28 +2550,38 @@ function RiskRegister() {
     </div>
   );
 
+  const withinAppetite = risks.filter(r=>getAppetite(r.residualScore)==='Within').length;
+
   return (
     <div className="space-y-4">
       {workflow && <WorkflowPanel item={workflow} itemType="Risk" onClose={()=>setWorkflow(null)} />}
+
+      {/* KPI Row — 4 uniform cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <KPICard title="Open Risks"       value={open}            icon={AlertTriangle} color="#EF4444" subtitle={critical+" critical"} />
-        <KPICard title="Exceeds Appetite" value={exceedsAppetite} icon={TrendingUp}    color="#F97316" subtitle="residual above threshold" />
-        <KPICard title="AI-Related Risks" value={aiRisks}         icon={Cpu}           color="#9333EA" subtitle="4 with no tested controls" />
-        <div className="bg-white rounded-xl border border-gray-100 p-4 shadow-sm">
-          <p className="text-xs text-gray-400 mb-2">Risk Appetite Thresholds</p>
-          <div className="space-y-1.5">
-            <div className="flex justify-between text-xs"><span className="text-green-600 font-medium">Within</span><span className="text-gray-500">Residual ≤ {RISK_APPETITE.moderate}</span></div>
-            <div className="flex justify-between text-xs"><span className="text-amber-600 font-medium">Approaches</span><span className="text-gray-500">{RISK_APPETITE.moderate+1}–{RISK_APPETITE.high}</span></div>
-            <div className="flex justify-between text-xs"><span className="text-orange-600 font-medium">Exceeds</span><span className="text-gray-500">{RISK_APPETITE.high+1}–{RISK_APPETITE.severe}</span></div>
-            <div className="flex justify-between text-xs"><span className="text-red-600 font-medium">Sig. Exceeds</span><span className="text-gray-500">&gt; {RISK_APPETITE.severe}</span></div>
-          </div>
+        <KPICard title="Open Risks"         value={open}            icon={AlertTriangle} color="#EF4444" subtitle={critical+" critical"} />
+        <KPICard title="Exceeds Appetite"   value={exceedsAppetite} icon={TrendingUp}    color="#F97316" subtitle="residual above threshold" />
+        <KPICard title="AI-Related Risks"   value={aiRisks}         icon={Cpu}           color="#9333EA" subtitle="4 with no tested controls" />
+        <KPICard title="Within Appetite"    value={withinAppetite}  icon={CheckCircle}   color="#22C55E" subtitle={"of "+risks.length+" total risks"} />
+      </div>
+
+      {/* View toggle + appetite legend on one line */}
+      <div className="flex items-center justify-between">
+        <div className="flex gap-1.5">
+          {[['register','Risk Register'],['matrix','Heat Matrix']].map(([id,label])=>(
+            <button key={id} onClick={()=>setActiveView(id)}
+              className={"px-4 py-2 rounded-lg text-sm font-medium transition-colors "+(activeView===id?'bg-blue-600 text-white':'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50')}>
+              {label}
+            </button>
+          ))}
+        </div>
+        <div className="flex items-center gap-4 text-xs text-gray-500">
+          <span className="text-gray-400 font-medium uppercase tracking-wider text-[10px]">Appetite</span>
+          {[['Within','text-green-600','≤9'],['Approaches','text-amber-600','10–15'],['Exceeds','text-orange-600','16–24'],['Sig. Exceeds','text-red-600','>24']].map(([l,c,r])=>(
+            <span key={l}><span className={c+" font-semibold"}>{l}</span> <span className="text-gray-400">{r}</span></span>
+          ))}
         </div>
       </div>
-      <div className="flex gap-2">
-        {[['register','Risk Register'],['matrix','Heat Matrix']].map(([id,label])=>(
-          <button key={id} onClick={()=>setActiveView(id)} className={"px-4 py-2 rounded-lg text-sm font-medium transition-colors "+(activeView===id?'bg-blue-600 text-white':'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50')}>{label}</button>
-        ))}
-      </div>
+
       {activeView==='matrix' ? <HeatMatrix /> : (
         <div className="bg-white rounded-xl border border-gray-100 shadow-sm">
           <ModuleHeader title="Risk Register" subtitle={filtered.length+" risks"} search={search} setSearch={setSearch}
@@ -2525,58 +2597,73 @@ function RiskRegister() {
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead><tr className="bg-gray-50 text-left">
-                {['ID','Risk','Category','Inherent','Residual','Appetite','Treatment','Controls','Status','Response SLA','Acceptance Auth',''].map(h=>(
+                {['Risk','Category','Score','Appetite','Controls','Status','Owner',''].map(h=>(
                   <th key={h} className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">{h}</th>
                 ))}
               </tr></thead>
               <tbody className="divide-y divide-gray-50">
-                {filtered.map(r=>(
-                  <tr key={r.id} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-4 py-3.5"><span className="font-mono text-xs text-gray-400">{r.id}</span></td>
-                    <td className="px-4 py-3.5 max-w-xs">
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-sm font-medium text-gray-800 truncate">{r.title}</span>
-                        {r.ai&&<span className="px-1.5 py-0.5 bg-purple-100 text-purple-700 text-xs rounded font-medium flex-shrink-0">AI</span>}
-                      </div>
-                      <p className="text-xs text-gray-400 mt-0.5">{r.asset}</p>
-                    </td>
-                    <td className="px-4 py-3.5"><span className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded">{r.category}</span></td>
-                    <td className="px-4 py-3.5">
-                      <div className="flex items-center gap-1.5">
-                        <span className="w-2 h-2 rounded-full" style={{background:getRiskColor(r.inherentScore)}}/>
-                        <span className="text-sm font-bold text-gray-700">{r.inherentScore}</span>
-                        <span className="text-xs text-gray-400">{getRiskRating(r.inherentScore)}</span>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3.5">
-                      <div className="flex items-center gap-1.5">
-                        <span className="w-2 h-2 rounded-full" style={{background:getRiskColor(r.residualScore)}}/>
-                        <span className="text-sm font-bold text-gray-700">{r.residualScore}</span>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3.5">
-                      {(a=>(
-                        <span className={"px-2 py-0.5 rounded-full text-xs font-semibold "+(a==='Within'?'bg-green-50 text-green-700':a==='Exceeds'?'bg-amber-50 text-amber-700':'bg-red-50 text-red-700')}>{a}</span>
-                      ))(getAppetite(r.residualScore))}
-                    </td>
-                    <td className="px-4 py-3.5"><span className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded font-medium">{r.treatment}</span></td>
-                    <td className="px-4 py-3.5">
-                      <div className="flex gap-1 flex-wrap">
-                        {r.controlIds.map(id=>{const c=ctrlMap[id];return c?<EffectivenessBadge key={id} effectiveness={c.effectiveness} score={c.score}/>:null})}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3.5"><StatusBadge status={r.status}/></td>
-                    <td className="px-4 py-3.5">
-                      <span className="text-xs text-gray-500 whitespace-nowrap">{RESPONSE_SLA[getRiskRating(r.inherentScore)]}</span>
-                    </td>
-                    <td className="px-4 py-3.5">
-                      <span className="text-xs text-gray-500 whitespace-nowrap">{ACCEPT_AUTH[getRiskRating(r.inherentScore)]}</span>
-                    </td>
-                    <td className="px-4 py-3.5">
-                      <button onClick={()=>setWorkflow(r)} className="px-3 py-1 text-xs font-medium bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors">Actions</button>
-                    </td>
-                  </tr>
-                ))}
+                {filtered.map(r=>{
+                  const appetite = getAppetite(r.residualScore);
+                  const aptColor = appetite==='Within'?'bg-green-50 text-green-700':appetite==='Approaches'?'bg-amber-50 text-amber-700':appetite==='Exceeds'?'bg-orange-50 text-orange-700':'bg-red-50 text-red-700';
+                  const avgEff = r.controlIds.length ? Math.round(r.controlIds.reduce((s,id)=>s+(CTRL_EFF[id]??50),0)/r.controlIds.length) : null;
+                  const effBarColor = avgEff===null?'#94A3B8':avgEff>=70?'#22C55E':avgEff>=40?'#EAB308':'#EF4444';
+                  const catClass = RISK_CAT_COLOR[r.category] ?? 'bg-slate-100 text-slate-600';
+                  return (
+                    <tr key={r.id} className="hover:bg-gray-50 transition-colors">
+                      <td className="px-4 py-3.5 max-w-sm">
+                        <div className="flex items-center gap-1.5 mb-0.5">
+                          <span className="font-mono text-[10px] text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded">{r.id}</span>
+                          {r.ai&&<span className="px-1.5 py-0.5 bg-purple-100 text-purple-700 text-[10px] rounded font-semibold">AI</span>}
+                        </div>
+                        <p className="text-sm font-medium text-gray-800 leading-snug">{r.title}</p>
+                        <p className="text-xs text-gray-400 mt-0.5">{r.asset}</p>
+                      </td>
+                      <td className="px-4 py-3.5 whitespace-nowrap">
+                        <span className={"text-xs font-medium px-2 py-0.5 rounded-full "+catClass}>{r.category}</span>
+                      </td>
+                      <td className="px-4 py-3.5 whitespace-nowrap">
+                        <div className="flex items-center gap-1">
+                          <span className="w-2 h-2 rounded-full flex-shrink-0" style={{background:getRiskColor(r.inherentScore)}}/>
+                          <span className="font-bold text-gray-700">{r.inherentScore}</span>
+                          <span className="text-gray-300 mx-0.5">→</span>
+                          <span className="w-2 h-2 rounded-full flex-shrink-0" style={{background:getRiskColor(r.residualScore)}}/>
+                          <span className="font-semibold text-gray-600">{r.residualScore}</span>
+                        </div>
+                        <p className="text-[10px] text-gray-400 mt-0.5">{getRiskRating(r.inherentScore)} · {RESPONSE_SLA[getRiskRating(r.inherentScore)]}</p>
+                      </td>
+                      <td className="px-4 py-3.5 whitespace-nowrap">
+                        <span className={"px-2 py-0.5 rounded-full text-xs font-semibold "+aptColor}>{appetite}</span>
+                      </td>
+                      <td className="px-4 py-3.5" style={{minWidth:'140px'}}>
+                        {r.controlIds.length > 0 ? (
+                          <div>
+                            <div className="flex flex-wrap gap-1 mb-1.5">
+                              {r.controlIds.map(id => {
+                                const eff = CTRL_EFF[id] ?? 50;
+                                const chipColor = eff >= 70 ? 'bg-green-50 text-green-700' : eff >= 40 ? 'bg-amber-50 text-amber-700' : 'bg-red-50 text-red-700';
+                                return <span key={id} className={"font-mono text-[10px] px-1.5 py-0.5 rounded "+chipColor} title={eff+"% effective"}>{id}</span>;
+                              })}
+                            </div>
+                            <div className="flex items-center gap-1.5">
+                              <div className="flex-1 bg-gray-100 rounded-full h-1.5">
+                                <div className="h-1.5 rounded-full transition-all" style={{width:avgEff+'%',background:effBarColor}}/>
+                              </div>
+                              <span className="text-[10px] font-semibold" style={{color:effBarColor}}>{avgEff}%</span>
+                            </div>
+                          </div>
+                        ) : <span className="text-xs text-gray-400">—</span>}
+                      </td>
+                      <td className="px-4 py-3.5 whitespace-nowrap"><StatusBadge status={r.status}/></td>
+                      <td className="px-4 py-3.5 whitespace-nowrap">
+                        <p className="text-xs font-medium text-gray-600">{r.owner}</p>
+                        <p className="text-[10px] text-gray-400">{ACCEPT_AUTH[getRiskRating(r.inherentScore)]}</p>
+                      </td>
+                      <td className="px-4 py-3.5">
+                        <button onClick={()=>setWorkflow(r)} className="px-3 py-1 text-xs font-medium bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors whitespace-nowrap">Actions</button>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -3236,7 +3323,7 @@ export default function GRCDashboard() {
       <aside className={`${sidebarOpen?'w-56':'w-16'} flex-shrink-0 bg-slate-900 flex flex-col transition-all duration-200`}>
         <div className="flex items-center gap-3 px-4 py-5 border-b border-slate-800">
           <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center flex-shrink-0"><Shield size={16} className="text-white" /></div>
-          {sidebarOpen && <div className="min-w-0"><p className="text-white font-semibold text-sm leading-tight truncate">Resilience Ops</p><p className="text-slate-400 text-xs truncate">Chris Cutts</p></div>}
+          {sidebarOpen && <div className="min-w-0"><p className="text-white font-semibold text-sm leading-tight truncate">Docker Resilience Ops</p><p className="text-slate-400 text-xs truncate">GRC Platform</p></div>}
         </div>
         <nav className="flex-1 px-2 py-4 overflow-y-auto">
           {navGroups.map(group => (
