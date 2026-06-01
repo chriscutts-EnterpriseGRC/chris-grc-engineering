@@ -3323,7 +3323,7 @@ export default function GRCDashboard() {
       <aside className={`${sidebarOpen?'w-56':'w-16'} flex-shrink-0 bg-slate-900 flex flex-col transition-all duration-200`}>
         <div className="flex items-center gap-3 px-4 py-5 border-b border-slate-800">
           <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center flex-shrink-0"><Shield size={16} className="text-white" /></div>
-          {sidebarOpen && <div className="min-w-0"><p className="text-white font-semibold text-sm leading-tight truncate">Docker Resilience Ops</p><p className="text-slate-400 text-xs truncate">GRC Platform</p></div>}
+          {sidebarOpen && <div className="min-w-0"><p className="text-white font-semibold text-sm leading-tight truncate">Resilience Ops</p><p className="text-slate-400 text-xs truncate">GRC Platform</p></div>}
         </div>
         <nav className="flex-1 px-2 py-4 overflow-y-auto">
           {navGroups.map(group => (
