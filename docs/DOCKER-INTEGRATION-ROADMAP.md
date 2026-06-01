@@ -296,6 +296,7 @@ See [AWS_DEPLOYMENT.md](../deployment/AWS_DEPLOYMENT.md) for the full infrastruc
 
 ## References
 
+- [THREAT-MODEL-DOCKER-SUPPLY-CHAIN.md](THREAT-MODEL-DOCKER-SUPPLY-CHAIN.md) - STRIDE threat model for the full container supply chain
 - [AWS_DEPLOYMENT.md](../deployment/AWS_DEPLOYMENT.md) - Infrastructure architecture
 - [ARCHITECTURE.md](ARCHITECTURE.md) - Application architecture and integration layer
 - [METHODOLOGY.md](METHODOLOGY.md) - GRC engineering approach

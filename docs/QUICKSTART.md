@@ -142,5 +142,6 @@ chris-grc-engineering/
 - [METHODOLOGY.md](METHODOLOGY.md) - GRC engineering approach and health score
 - [METRICS.md](METRICS.md) - KPIs, KRIs, and targets
 - [DOCKER-INTEGRATION-ROADMAP.md](DOCKER-INTEGRATION-ROADMAP.md) - Docker Scout, Build Cloud, Registry, runtime scanning roadmap
+- [THREAT-MODEL-DOCKER-SUPPLY-CHAIN.md](THREAT-MODEL-DOCKER-SUPPLY-CHAIN.md) - STRIDE threat model for the container supply chain
 - [FAQ.md](FAQ.md) - common questions
 - [../deployment/AWS_DEPLOYMENT.md](../deployment/AWS_DEPLOYMENT.md) - AWS infrastructure (RDS, ECS, Lambda)
