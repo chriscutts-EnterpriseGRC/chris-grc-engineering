@@ -1,51 +1,76 @@
 ---
 name: risk-scorer
-description: Calculates inherent and residual risk scores using a 5x5 likelihood/impact matrix. Provides scored output with reasoning notes for audit traceability.
+description: Calculates inherent and residual risk scores using the 5x5 likelihood/impact matrix defined in the Risk Management Framework v1.0. Produces scored output with reasoning notes for audit traceability.
 allowed-tools: Read
 ---
 
 # Risk Scorer
 
-Applies a consistent 5×5 matrix to produce likelihood, impact, and composite scores.
+Applies the Risk Management Framework v1.0 scoring methodology (aligned ISO 31000 / ISO 27005).
 
-## Scoring dimensions
+## Impact dimensions (1–5)
 
-### Likelihood (1–5)
-| Value | Label | Definition |
-|-------|-------|------------|
-| 5 | Almost Certain | Expected to occur within 3 months without controls |
-| 4 | Likely | Expected to occur within 12 months |
-| 3 | Possible | Could occur within 12 months |
-| 2 | Unlikely | Could occur within 3 years |
-| 1 | Rare | May occur in exceptional circumstances only |
+| Score | Level | Threshold |
+|-------|-------|-----------|
+| 5 | Critical | Total service loss or >$100M impact. Urgent action required. |
+| 4 | Severe | Significantly disrupts core business processes. Must be addressed swiftly. |
+| 3 | High | Substantial impact. Mitigable with focused controls and monitoring. |
+| 2 | Moderate | Noticeable disruption. Manageable through routine oversight. |
+| 1 | Low | Unlikely to materially affect operations. Minimal effort to manage. |
 
-### Impact (1–5)
-| Value | Label | Definition |
-|-------|-------|------------|
-| 5 | Critical | Regulatory action, material breach, or business-stopping event |
-| 4 | Major | Significant data exposure, customer notification required, or >$1M impact |
-| 3 | Moderate | Degraded service, limited data exposure, or $100K–$1M impact |
-| 2 | Minor | Contained incident, no data exposure, or <$100K impact |
-| 1 | Negligible | No measurable impact; resolved internally without escalation |
+## Likelihood dimensions (1–5) — HIGH WATER MARK RULE
 
-### Composite score
+Likelihood is scored across **three independent dimensions**. The final score is the **highest of the three**.
+
+| Score | Frequency | Technical Feasibility | Likelihood Precursor |
+|-------|-----------|----------------------|---------------------|
+| 5 | More than once per year | No specialist skills required | Event is active or unavoidable |
+| 4 | Once per year | Moderate effort required | Clear trend — when not if |
+| 3 | Once every 2–3 years | Significant effort required | Near-misses observed |
+| 2 | Once in 3–5 years | Highly specialised skills required | Theoretical only |
+| 1 | Once in 5+ years | State-actor level resources required | Perfect storm required |
+
+## Composite score
+
 `score = likelihood × impact` (range 1–25)
+
+## Risk rating bands
+
+| Rating | Score | Response Decision SLA | Acceptance Authority |
+|--------|-------|-----------------------|----------------------|
+| Critical | 25 | 7 days | C-Suite / SVP+ |
+| Severe | 16–24 | 30 days | VP+ |
+| High | 10–15 | 60 days | Director+ |
+| Moderate | 5–9 | 90 days | Sr Manager+ |
+| Low | 1–4 | 180 days | Manager+ |
+
+> **Default acceptance rule (§6, Step 3):** Any risk that breaches its Response Decision SLA is deemed accepted by default. A lack of action constitutes de-facto acceptance.
 
 ## Inherent vs. residual
 
-- **Inherent**: score assuming zero controls are in place
-- **Residual**: score given current control effectiveness from the `controls` table
+- **Inherent**: score assuming zero controls in place
+- **Residual**: re-evaluated likelihood and impact assuming existing controls are effective
 
-When scoring residual, reduce likelihood and/or impact based on linked controls:
-- `effective` control → reduce linked dimension by 1–2 points
-- `partial` control → reduce by 1 point
+When controls are present, reduce the relevant dimension based on control effectiveness:
+- `effective` → reduce linked dimension by 1–2 points
+- `partial` → reduce by 1 point
 - `ineffective` or `not_tested` → no reduction
+
+The dashboard calculates residual automatically:
+```js
+const reductionFactor = controlIds.reduce(
+  (f, id) => f * (1 - ((CTRL_EFF[id] ?? 50) / 100) * 0.5), 1
+);
+residualScore = Math.max(2, Math.round(inherentScore * reductionFactor));
+```
+
+> **Note:** Thresholds represent defaults aligned to this framework. Organizations adjust based on risk appetite, regulatory context, and industry sector.
 
 ## Output
 
 ```json
 {
-  "inherent": { "likelihood": 4, "impact": 5, "score": 20, "notes": "..." },
-  "residual":  { "likelihood": 2, "impact": 4, "score": 8,  "notes": "..." }
+  "inherent": { "likelihood": 4, "impact": 5, "score": 20, "notes": "Likelihood=4 driven by Frequency dimension (annual occurrence observed)." },
+  "residual":  { "likelihood": 2, "impact": 4, "score": 8,  "notes": "MFA control (92% effective) reduces likelihood by 2 points." }
 }
 ```

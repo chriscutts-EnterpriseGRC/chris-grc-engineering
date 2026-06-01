@@ -159,25 +159,31 @@ const teams = [
 ];
 
 // ─── Risk Register Data ───────────────────────────────────────────────────────
-const RISK_APPETITE = { medium: 11, high: 19 };
-const getRiskRating = s => s >= 20 ? 'Critical' : s >= 12 ? 'High' : s >= 6 ? 'Medium' : 'Low';
-const getRiskColor  = s => s >= 20 ? '#EF4444' : s >= 12 ? '#F97316' : s >= 6 ? '#EAB308' : '#22C55E';
-const getAppetite   = s => s > RISK_APPETITE.high ? 'Significantly Exceeds' : s > RISK_APPETITE.medium ? 'Exceeds' : 'Within';
+// Risk bands per Risk Management Framework v1.0 (doc/Risk-Management-Framework.docx)
+// Critical=25, Severe=16-24, High=10-15, Moderate=5-9, Low=1-4
+const RISK_APPETITE = { moderate: 9, high: 15, severe: 24 };
+const getRiskRating = s => s === 25 ? 'Critical' : s >= 16 ? 'Severe' : s >= 10 ? 'High' : s >= 5 ? 'Moderate' : 'Low';
+const getRiskColor  = s => s === 25 ? '#7F1D1D' : s >= 16 ? '#EF4444' : s >= 10 ? '#F97316' : s >= 5 ? '#EAB308' : '#22C55E';
+const getAppetite   = s => s > RISK_APPETITE.severe ? 'Significantly Exceeds' : s > RISK_APPETITE.high ? 'Exceeds' : s > RISK_APPETITE.moderate ? 'Approaches' : 'Within';
+// Response Decision SLAs (doc §6, Step 3)
+const RESPONSE_SLA  = { Critical:'7 days', Severe:'30 days', High:'60 days', Moderate:'90 days', Low:'180 days' };
+// Approval authority for risk acceptance (doc §6, Step 5)
+const ACCEPT_AUTH   = { Critical:'C-Suite / SVP+', Severe:'VP+', High:'Director+', Moderate:'Sr Manager+', Low:'Manager+' };
 const CTRL_EFF = {'UCF.01.01':92,'UCF.01.02':38,'UCF.02.02':45,'UCF.03.02':41,'UCF.AI.02':33,'UCF.AI.03':0,'UCF.AI.04':51,'UCF.AI.05':0,'UCF.04.01':87,'UCF.05.01':71,'UCF.06.01':63,'UCF.06.02':62,'UCF.07.01':74,'UCF.09.01':69,'UCF.AI.01':29};
 
 const _rawRisks = [
-  { id:'RSK-001', title:'Privileged accounts without MFA',               category:'Access Control', asset:'Identity Platform',       owner:'J. Martinez', likelihood:4, impact:5, controlIds:['UCF.01.01','UCF.01.02'], treatment:'Mitigate', treatmentPlan:'Enforce Okta MFA for all admin accounts by 2026-06-15',              status:'Open',        reviewDate:'2026-06-15', linkedModule:'vulns',      ai:false },
-  { id:'RSK-002', title:'AI model training data exfiltration risk',      category:'AI Governance',  asset:'ML Training Environment', owner:'A. Patel',    likelihood:3, impact:5, controlIds:['UCF.AI.02','UCF.AI.03'], treatment:'Mitigate', treatmentPlan:'Implement strict access controls on ML environments',                status:'Open',        reviewDate:'2026-06-30', linkedModule:'incidents',  ai:true  },
-  { id:'RSK-003', title:'Critical vulnerabilities unpatched >30 days',   category:'Vuln Mgmt',      asset:'Production Systems',      owner:'T. Williams', likelihood:4, impact:4, controlIds:['UCF.03.02'],             treatment:'Mitigate', treatmentPlan:'Deploy automated patch pipeline and enforce 14-day SLA',            status:'Open',        reviewDate:'2026-06-20', linkedModule:'vulns',      ai:false },
-  { id:'RSK-004', title:'OpenAI vendor — no contract or DPA',            category:'Third Party',    asset:'AI Chat Features',        owner:'S. Chen',     likelihood:3, impact:4, controlIds:['UCF.AI.04','UCF.06.01'], treatment:'Mitigate', treatmentPlan:'Execute DPA and security addendum with OpenAI by 2026-07-01',      status:'In Treatment',reviewDate:'2026-07-01', linkedModule:'thirdparty', ai:true  },
+  { id:'RSK-001', title:'Privileged accounts without MFA',               category:'Access Control', asset:'Identity Platform',       owner:'J. Martinez', likelihood:4, impact:5, controlIds:['UCF.01.01','UCF.01.02'], treatment:'Mitigate', treatmentPlan:'Enforce Okta MFA for all admin accounts by 2026-06-15',              status:'Mitigating',  reviewDate:'2026-06-15', linkedModule:'vulns',      ai:false },
+  { id:'RSK-002', title:'AI model training data exfiltration risk',      category:'AI Governance',  asset:'ML Training Environment', owner:'A. Patel',    likelihood:3, impact:5, controlIds:['UCF.AI.02','UCF.AI.03'], treatment:'Mitigate', treatmentPlan:'Implement strict access controls on ML environments',                status:'In Review',   reviewDate:'2026-06-30', linkedModule:'incidents',  ai:true  },
+  { id:'RSK-003', title:'Critical vulnerabilities unpatched >30 days',   category:'Vuln Mgmt',      asset:'Production Systems',      owner:'T. Williams', likelihood:4, impact:4, controlIds:['UCF.03.02'],             treatment:'Mitigate', treatmentPlan:'Deploy automated patch pipeline and enforce 14-day SLA',            status:'Mitigating',  reviewDate:'2026-06-20', linkedModule:'vulns',      ai:false },
+  { id:'RSK-004', title:'OpenAI vendor — no contract or DPA',            category:'Third Party',    asset:'AI Chat Features',        owner:'S. Chen',     likelihood:3, impact:4, controlIds:['UCF.AI.04','UCF.06.01'], treatment:'Mitigate', treatmentPlan:'Execute DPA and security addendum with OpenAI by 2026-07-01',      status:'Mitigating',  reviewDate:'2026-07-01', linkedModule:'thirdparty', ai:true  },
   { id:'RSK-005', title:'DLP controls ineffective — cloud storage gaps', category:'Data Protection', asset:'AWS S3 / GCS Buckets',   owner:'A. Patel',    likelihood:3, impact:4, controlIds:['UCF.02.02'],             treatment:'Mitigate', treatmentPlan:'Deploy cloud DLP scanning across all storage tiers',               status:'Open',        reviewDate:'2026-07-15', linkedModule:'vulns',      ai:false },
   { id:'RSK-006', title:'No AI usage or governance policy in place',     category:'AI Governance',  asset:'All AI Systems',          owner:'A. Patel',    likelihood:4, impact:3, controlIds:['UCF.AI.01'],             treatment:'Mitigate', treatmentPlan:'Draft, ratify and publish AI Usage and Ethics Policies',           status:'Open',        reviewDate:'2026-06-30', linkedModule:'policy',     ai:true  },
   { id:'RSK-007', title:'AI incident response plan never tested',        category:'AI Security',    asset:'AI Systems',              owner:'K. Thompson', likelihood:3, impact:4, controlIds:['UCF.AI.05','UCF.04.01'], treatment:'Mitigate', treatmentPlan:'Run AI-specific tabletop exercise Q3 2026',                        status:'Open',        reviewDate:'2026-08-30', linkedModule:'incidents',  ai:true  },
   { id:'RSK-008', title:'Vendor questionnaire backlog — 18 vendors',    category:'Third Party',    asset:'18 Vendor Relationships', owner:'S. Chen',     likelihood:3, impact:3, controlIds:['UCF.06.02'],             treatment:'Mitigate', treatmentPlan:'Automate questionnaire distribution via Vanta integration',        status:'In Treatment',reviewDate:'2026-08-01', linkedModule:'thirdparty', ai:false },
   { id:'RSK-009', title:'Prompt injection in public AI endpoint',        category:'AI Security',    asset:'AI Assistant API',        owner:'T. Williams', likelihood:4, impact:4, controlIds:['UCF.AI.03'],             treatment:'Mitigate', treatmentPlan:'Implement input validation and OWASP LLM Top 10 controls',         status:'Open',        reviewDate:'2026-06-15', linkedModule:'vulns',      ai:true  },
-  { id:'RSK-010', title:'Password policy — 4 outstanding exceptions',   category:'Access Control', asset:'Employee Accounts',       owner:'J. Martinez', likelihood:2, impact:3, controlIds:['UCF.01.01'],             treatment:'Accept',   treatmentPlan:'Review all 4 exceptions for documented business justification',    status:'Accepted',    reviewDate:'2026-09-30', linkedModule:'policy',     ai:false },
+  { id:'RSK-010', title:'Password policy — 4 outstanding exceptions',   category:'Access Control', asset:'Employee Accounts',       owner:'J. Martinez', likelihood:2, impact:3, controlIds:['UCF.01.01'],             treatment:'Accept',   treatmentPlan:'Review all 4 exceptions for documented business justification',    status:'Accepting/Monitoring', reviewDate:'2026-09-30', linkedModule:'policy',     ai:false },
   { id:'RSK-011', title:'Business continuity plan not validated',        category:'BCM',            asset:'Critical Systems',        owner:'K. Thompson', likelihood:2, impact:4, controlIds:['UCF.09.01'],             treatment:'Mitigate', treatmentPlan:'Conduct DR test and tabletop exercise by end Q3 2026',            status:'Open',        reviewDate:'2026-09-01', linkedModule:'policy',     ai:false },
-  { id:'RSK-012', title:'Employee offboarding access revocation lag',    category:'Access Control', asset:'All Systems',             owner:'J. Martinez', likelihood:2, impact:2, controlIds:['UCF.01.01','UCF.01.02'], treatment:'Accept',   treatmentPlan:'Current 24h SLA acceptable — review quarterly',                   status:'Accepted',    reviewDate:'2026-10-01', linkedModule:'incidents',  ai:false },
+  { id:'RSK-012', title:'Employee offboarding access revocation lag',    category:'Access Control', asset:'All Systems',             owner:'J. Martinez', likelihood:2, impact:2, controlIds:['UCF.01.01','UCF.01.02'], treatment:'Accept',   treatmentPlan:'Current 24h SLA acceptable — review quarterly',                   status:'Accepting/Monitoring', reviewDate:'2026-10-01', linkedModule:'incidents',  ai:false },
 ];
 const risks = _rawRisks.map(r => {
   const inherentScore = r.likelihood * r.impact;
@@ -274,12 +280,55 @@ function KPICard({ title, value, delta, deltaType, icon: Icon, color, subtitle }
 }
 
 function SeverityBadge({ severity }) {
-  const s = { Critical:'bg-red-50 text-red-700 border border-red-200', High:'bg-orange-50 text-orange-700 border border-orange-200', Medium:'bg-yellow-50 text-yellow-700 border border-yellow-200', Low:'bg-green-50 text-green-700 border border-green-200' };
+  const s = {
+    Critical:  'bg-red-100 text-red-800 border border-red-300',
+    Severe:    'bg-red-50 text-red-700 border border-red-200',
+    High:      'bg-orange-50 text-orange-700 border border-orange-200',
+    Moderate:  'bg-yellow-50 text-yellow-700 border border-yellow-200',
+    Medium:    'bg-yellow-50 text-yellow-700 border border-yellow-200',
+    Low:       'bg-green-50 text-green-700 border border-green-200',
+  };
   return <span className={`px-2 py-0.5 rounded-md text-xs font-semibold ${s[severity]||s.Low}`}>{severity}</span>;
 }
 
 function StatusBadge({ status }) {
-  const s = { 'Open':'bg-red-50 text-red-600', 'In Progress':'bg-blue-50 text-blue-600', 'Investigating':'bg-blue-50 text-blue-600', 'Contained':'bg-orange-50 text-orange-700', 'Mitigating':'bg-amber-50 text-amber-700', 'Resolved':'bg-green-50 text-green-600', 'Patched':'bg-green-50 text-green-600', 'Current':'bg-green-50 text-green-600', 'Due for Review':'bg-amber-50 text-amber-700', 'Overdue':'bg-red-50 text-red-600', 'Missing':'bg-red-50 text-red-600', 'Compliant':'bg-green-50 text-green-600', 'SLA Breach':'bg-red-50 text-red-600', 'No Contract':'bg-red-50 text-red-600', 'Review Pending':'bg-amber-50 text-amber-700', 'Questionnaire Overdue':'bg-orange-50 text-orange-700' };
+  const s = {
+    // Risk register workflow states (Risk Management Framework v1.0)
+    'Submitted':           'bg-slate-100 text-slate-600',
+    'In Review':           'bg-blue-50 text-blue-600',
+    'Risk Assessment':     'bg-indigo-50 text-indigo-600',
+    'Mitigating':          'bg-amber-50 text-amber-700',
+    'Avoiding':            'bg-orange-50 text-orange-700',
+    'Transferring':        'bg-purple-50 text-purple-700',
+    'Accepting/Monitoring':'bg-teal-50 text-teal-700',
+    'Done':                'bg-green-50 text-green-600',
+    // Vuln / incident states
+    'Open':                'bg-red-50 text-red-600',
+    'In Progress':         'bg-blue-50 text-blue-600',
+    'Investigating':       'bg-blue-50 text-blue-600',
+    'Contained':           'bg-orange-50 text-orange-700',
+    'In Treatment':        'bg-amber-50 text-amber-700',
+    'Resolved':            'bg-green-50 text-green-600',
+    'Patched':             'bg-green-50 text-green-600',
+    // Policy states
+    'Current':             'bg-green-50 text-green-600',
+    'Due for Review':      'bg-amber-50 text-amber-700',
+    'Overdue':             'bg-red-50 text-red-600',
+    'Missing':             'bg-red-50 text-red-600',
+    // Vendor states
+    'Compliant':           'bg-green-50 text-green-600',
+    'SLA Breach':          'bg-red-50 text-red-600',
+    'No Contract':         'bg-red-50 text-red-600',
+    'Review Pending':      'bg-amber-50 text-amber-700',
+    'Questionnaire Overdue':'bg-orange-50 text-orange-700',
+    // Audit / finding
+    'Accepted':            'bg-teal-50 text-teal-700',
+    'In Remediation':      'bg-amber-50 text-amber-700',
+    'Scheduled':           'bg-blue-50 text-blue-600',
+    'In Preparation':      'bg-indigo-50 text-indigo-600',
+    'Planning':            'bg-slate-100 text-slate-600',
+    'Completed':           'bg-green-50 text-green-600',
+  };
   return <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${s[status]||'bg-gray-50 text-gray-600'}`}>{status}</span>;
 }
 
@@ -382,9 +431,9 @@ function Overview({ navigate }) {
     { id: 'thirdparty',label: 'Third Party',      icon: Building2, color: '#0891B2', count: vendors.filter(v=>v.riskScore>=60).length,                            unit: 'high risk', ctrlId: 'UCF.06.01' },
   ];
 
-  const riskScoreColor = (s) => s >= 20 ? 'text-red-600' : s >= 12 ? 'text-orange-500' : s >= 6 ? 'text-amber-500' : 'text-green-600';
-  const riskBand = (s) => s >= 20 ? 'Critical' : s >= 12 ? 'High' : s >= 6 ? 'Medium' : 'Low';
-  const riskBandBg = (s) => s >= 20 ? 'bg-red-50 text-red-700' : s >= 12 ? 'bg-orange-50 text-orange-700' : s >= 6 ? 'bg-amber-50 text-amber-700' : 'bg-green-50 text-green-700';
+  const riskScoreColor = (s) => s === 25 ? 'text-red-900' : s >= 16 ? 'text-red-600' : s >= 10 ? 'text-orange-500' : s >= 5 ? 'text-amber-500' : 'text-green-600';
+  const riskBand    = (s) => getRiskRating(s);
+  const riskBandBg  = (s) => s === 25 ? 'bg-red-100 text-red-900' : s >= 16 ? 'bg-red-50 text-red-700' : s >= 10 ? 'bg-orange-50 text-orange-700' : s >= 5 ? 'bg-amber-50 text-amber-700' : 'bg-green-50 text-green-700';
 
   return (
     <div className="space-y-5">
@@ -584,7 +633,7 @@ function Vulnerabilities() {
         <ModuleHeader title="Vulnerability Register" subtitle={`${data.length} vulnerabilities`} search={search} setSearch={setSearch}
           filters={<>
             <select value={sevFilter} onChange={e => setSevFilter(e.target.value)} className="px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none">
-              {['All','Critical','High','Medium','Low'].map(s => <option key={s}>{s}</option>)}
+              {['All','Critical','Severe','High','Moderate','Low'].map(s => <option key={s}>{s}</option>)}
             </select>
             <button onClick={() => setShowAI(a => !a)} className={`px-3 py-2 text-sm font-medium rounded-lg border transition-colors flex items-center gap-1.5 ${showAI ? 'bg-purple-600 text-white border-purple-600' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'}`}>
               <Cpu size={13} /> AI Only
@@ -2200,10 +2249,10 @@ function RiskRegister() {
     return a[sortKey]>b[sortKey]?v:-v;
   });
 
-  const critical = risks.filter(r=>r.inherentScore>=20).length;
+  const critical = risks.filter(r=>r.inherentScore>=16).length;
   const exceedsAppetite = risks.filter(r=>getAppetite(r.residualScore)!=='Within').length;
   const aiRisks = risks.filter(r=>r.ai).length;
-  const open = risks.filter(r=>r.status==='Open'||r.status==='In Treatment').length;
+  const open = risks.filter(r=>!['Done','Accepting/Monitoring'].includes(r.status)).length;
 
   const HeatMatrix = () => (
     <div className="bg-white rounded-xl border border-gray-100 p-5 shadow-sm">
@@ -2218,7 +2267,7 @@ function RiskRegister() {
             <div key={l} className="flex gap-1" style={{height:40}}>
               {[1,2,3,4,5].map(i=>{
                 const score=l*i;
-                const bg=score>=20?'#FEE2E2':score>=12?'#FFEDD5':score>=6?'#FEF9C3':'#DCFCE7';
+                const bg=score===25?'#FCA5A5':score>=16?'#FEE2E2':score>=10?'#FFEDD5':score>=5?'#FEF9C3':'#DCFCE7';
                 const cellRisks=risks.filter(r=>r.likelihood===l&&r.impact===i);
                 return (
                   <div key={i} className="flex-1 rounded flex items-center justify-center flex-wrap gap-0.5 p-0.5" style={{background:bg}}>
@@ -2242,7 +2291,7 @@ function RiskRegister() {
         </div>
       </div>
       <div className="flex gap-3 mt-3 flex-wrap">
-        {[['Critical (≥20)','#FEE2E2'],['High (12-19)','#FFEDD5'],['Medium (6-11)','#FEF9C3'],['Low (1-5)','#DCFCE7']].map(([l,c])=>(
+        {[['Critical (25)','#FCA5A5'],['Severe (16–24)','#FEE2E2'],['High (10–15)','#FFEDD5'],['Moderate (5–9)','#FEF9C3'],['Low (1–4)','#DCFCE7']].map(([l,c])=>(
           <div key={l} className="flex items-center gap-1"><span className="w-3 h-3 rounded" style={{background:c}}/><span className="text-xs text-gray-500">{l}</span></div>
         ))}
       </div>
@@ -2259,9 +2308,10 @@ function RiskRegister() {
         <div className="bg-white rounded-xl border border-gray-100 p-4 shadow-sm">
           <p className="text-xs text-gray-400 mb-2">Risk Appetite Thresholds</p>
           <div className="space-y-1.5">
-            <div className="flex justify-between text-xs"><span className="text-green-600 font-medium">Within</span><span className="text-gray-500">Residual ≤ {RISK_APPETITE.medium}</span></div>
-            <div className="flex justify-between text-xs"><span className="text-amber-600 font-medium">Exceeds</span><span className="text-gray-500">{RISK_APPETITE.medium+1}–{RISK_APPETITE.high}</span></div>
-            <div className="flex justify-between text-xs"><span className="text-red-600 font-medium">Sig. Exceeds</span><span className="text-gray-500">&gt; {RISK_APPETITE.high}</span></div>
+            <div className="flex justify-between text-xs"><span className="text-green-600 font-medium">Within</span><span className="text-gray-500">Residual ≤ {RISK_APPETITE.moderate}</span></div>
+            <div className="flex justify-between text-xs"><span className="text-amber-600 font-medium">Approaches</span><span className="text-gray-500">{RISK_APPETITE.moderate+1}–{RISK_APPETITE.high}</span></div>
+            <div className="flex justify-between text-xs"><span className="text-orange-600 font-medium">Exceeds</span><span className="text-gray-500">{RISK_APPETITE.high+1}–{RISK_APPETITE.severe}</span></div>
+            <div className="flex justify-between text-xs"><span className="text-red-600 font-medium">Sig. Exceeds</span><span className="text-gray-500">&gt; {RISK_APPETITE.severe}</span></div>
           </div>
         </div>
       </div>
@@ -2285,7 +2335,7 @@ function RiskRegister() {
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead><tr className="bg-gray-50 text-left">
-                {['ID','Risk','Category','Inherent','Residual','Appetite','Treatment','Controls','Status',''].map(h=>(
+                {['ID','Risk','Category','Inherent','Residual','Appetite','Treatment','Controls','Status','Response SLA','Acceptance Auth',''].map(h=>(
                   <th key={h} className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">{h}</th>
                 ))}
               </tr></thead>
@@ -2326,6 +2376,12 @@ function RiskRegister() {
                       </div>
                     </td>
                     <td className="px-4 py-3.5"><StatusBadge status={r.status}/></td>
+                    <td className="px-4 py-3.5">
+                      <span className="text-xs text-gray-500 whitespace-nowrap">{RESPONSE_SLA[getRiskRating(r.inherentScore)]}</span>
+                    </td>
+                    <td className="px-4 py-3.5">
+                      <span className="text-xs text-gray-500 whitespace-nowrap">{ACCEPT_AUTH[getRiskRating(r.inherentScore)]}</span>
+                    </td>
                     <td className="px-4 py-3.5">
                       <button onClick={()=>setWorkflow(r)} className="px-3 py-1 text-xs font-medium bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors">Actions</button>
                     </td>
