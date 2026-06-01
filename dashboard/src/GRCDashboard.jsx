@@ -502,11 +502,36 @@ function Overview({ navigate }) {
     <div className="space-y-5">
       {/* KPI row */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <KPICard title="Open Vulnerabilities" value={vulns.filter(v=>v.status!=='Patched').length} delta="3" deltaType="up" icon={Bug} color="#EF4444" subtitle="2 critical unpatched" />
+        <KPICard title="Open Vulnerabilities" value={vulns.filter(v=>v.status!=='Patched').length} delta="3" deltaType="up" icon={Bug} color="#EF4444"
+          subtitle={(() => { const p0=vulns.filter(v=>v.priority==='P0'&&v.status!=='Patched').length; const p1=vulns.filter(v=>v.priority==='P1'&&v.status!=='Patched').length; return (p0||p1) ? `${p0} P0 · ${p1} P1 SLA breached` : 'within SLA'; })()} />
         <KPICard title="Active Incidents"     value={incidents.filter(i=>i.status!=='Resolved').length} delta="2" deltaType="up" icon={Flame} color="#F97316" subtitle="2 unresolved critical" />
         <KPICard title="Policy Gaps"          value={policies.filter(p=>p.status==='Overdue'||p.status==='Missing').length} delta="2" deltaType="up" icon={BookOpen} color="#7C3AED" subtitle={`${policies.filter(p=>p.status==='Missing').length} missing`} />
         <KPICard title="Control Gaps"         value={allGaps.length} delta="1" deltaType="up" icon={AlertTriangle} color="#DC2626" subtitle={`${allGaps.filter(c=>!c.ai).length} core · ${allGaps.filter(c=>c.ai).length} AI`} />
       </div>
+
+      {/* Urgent SLA breach banner */}
+      {(() => {
+        const breached = vulns.filter(v => (v.priority==='P0'||v.priority==='P1') && v.status!=='Patched' && v.dueDate && daysFromToday(v.dueDate) < 0);
+        if (!breached.length) return null;
+        return (
+          <div className="bg-red-50 border border-red-200 rounded-xl p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <AlertTriangle size={14} className="text-red-600 flex-shrink-0" />
+              <p className="text-sm font-semibold text-red-800">Action Required Today — {breached.length} SLA Breach{breached.length > 1 ? 'es' : ''}</p>
+            </div>
+            <div className="space-y-2">
+              {breached.map(v => (
+                <div key={v.id} className="flex items-center gap-3 flex-wrap">
+                  <PriorityBadge priority={v.priority} />
+                  <span className="text-xs font-medium text-gray-800">{v.title}</span>
+                  <SLACountdown dueDate={v.dueDate} status={v.status} />
+                  {v.assignedTo && <span className="text-xs text-gray-400">· {v.assignedTo}</span>}
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Resilience score + module cards */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
@@ -1278,6 +1303,31 @@ function Scorecard({ onViewReport }) {
         <KPICard title="High Risk Exposure" value={risks.filter(r=>r.inherentScore>=15).length} icon={BarChart2} color="#7C3AED" subtitle="critical + high risks" />
       </div>
 
+      {/* Crisis alert — teams below 30% health */}
+      {teamStats.filter(t => t.health < 30).length > 0 && (
+        <div className="bg-red-50 border border-red-300 rounded-xl p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <AlertTriangle size={14} className="text-red-600 flex-shrink-0" />
+            <p className="text-sm font-semibold text-red-800">Teams in Crisis — Immediate Attention Required</p>
+          </div>
+          <div className="space-y-2">
+            {teamStats.filter(t => t.health < 30).map(t => {
+              const Icon = t.icon;
+              return (
+                <div key={t.id} className="flex items-center gap-3 bg-white rounded-lg border border-red-100 px-3 py-2.5 flex-wrap">
+                  <div className="p-1 rounded" style={{ background: t.color + '18' }}><Icon size={13} style={{ color: t.color }} /></div>
+                  <span className="text-sm font-semibold text-gray-800">{t.name}</span>
+                  <span className="text-sm font-bold text-red-600">{t.health}%</span>
+                  {t.delta < 0 && <span className="text-xs text-red-500 font-semibold flex items-center gap-0.5"><TrendingDown size={11}/>{t.delta}% MoM</span>}
+                  <span className="text-xs text-gray-400 ml-1">{t.gaps} control gap{t.gaps !== 1 ? 's' : ''} · {t.openVulns} open vuln{t.openVulns !== 1 ? 's' : ''}</span>
+                  <button onClick={() => onViewReport(t.id)} className="ml-auto text-xs text-blue-600 font-semibold hover:underline">View Report →</button>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* Leaderboard */}
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm">
         <div className="p-5 border-b border-gray-100">
@@ -1670,13 +1720,14 @@ function LeaderReport({ teamId: initialTeamId, onBack }) {
             <div className="bg-white rounded-xl border border-red-100 shadow-sm p-5">
               <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2"><Bug size={14} className="text-red-500" /> Open Vulnerabilities ({myVulns.length})</h3>
               <div className="space-y-2">
-                {myVulns.map(v => (
-                  <div key={v.id} className="flex items-center justify-between gap-2">
-                    <div className="min-w-0">
+                {[...myVulns].sort((a,b) => ['P0','P1','P2','P3','P4'].indexOf(a.priority??'P4') - ['P0','P1','P2','P3','P4'].indexOf(b.priority??'P4')).map(v => (
+                  <div key={v.id} className={`flex items-center gap-3 p-2 rounded-lg ${v.priority==='P0'?'bg-red-50 border border-red-100':v.priority==='P1'?'bg-orange-50 border border-orange-100':'border border-gray-50'}`}>
+                    <PriorityBadge priority={v.priority} />
+                    <div className="min-w-0 flex-1">
                       <p className="text-xs font-mono text-blue-600">{v.cve}</p>
                       <p className="text-xs text-gray-700 truncate">{v.title}</p>
                     </div>
-                    <SeverityBadge severity={v.severity} />
+                    <SLACountdown dueDate={v.dueDate} status={v.status} />
                   </div>
                 ))}
               </div>
