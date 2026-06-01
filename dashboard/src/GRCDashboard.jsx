@@ -2603,11 +2603,101 @@ const navGroups = [
 // ─── Architecture (unchanged from previous) ───────────────────────────────────
 
 const flowSteps = [
-  { id:'ingest',     label:'Signal Ingestion',    icon:Database, color:'#2563EB', status:'healthy',  stats:[{label:'Sources',value:'14'},{label:'Events/day',value:'2.4K'}], actions:[{label:'View Sources'},{label:'Add Source'}] },
-  { id:'orchestrate',label:'Orchestrator',        icon:Zap,      color:'#7C3AED', status:'healthy',  stats:[{label:'Routed today',value:'187'},{label:'Avg latency',value:'1.2s'}], actions:[{label:'View Queue'},{label:'Run Now'}] },
-  { id:'review',     label:'Domain Reviewers',    icon:Shield,   color:'#0891B2', status:'warning',  stats:[{label:'Domains',value:'12'},{label:'Pending',value:'23'}], actions:[{label:'View Domains'},{label:'Run Review'}] },
-  { id:'score',      label:'Health Scoring',      icon:Activity, color:'#059669', status:'healthy',  stats:[{label:'Current score',value:'71'},{label:'Last run',value:'2h ago'}], actions:[{label:'Score Breakdown'},{label:'Recalculate'}] },
-  { id:'report',     label:'Dashboard & Reports', icon:Eye,      color:'#D97706', status:'healthy',  stats:[{label:'Active views',value:'7'},{label:'Reports/wk',value:'12'}], actions:[{label:'View Reports'},{label:'Schedule'}] },
+  {
+    id:'ingest', label:'Signal Ingestion', icon:Database, color:'#2563EB', status:'healthy',
+    stats:[{label:'Active sources',value:'4/6'},{label:'Events today',value:'1,731'}],
+    detail:{
+      what:'Adapters pull raw events from connected tools and normalise them into a common schema before passing to the Orchestrator.',
+      numbers:[
+        { label:'4 of 6 sources active', desc:'Splunk, AWS Security Hub, Jira, Okta are connected. Qualys is degraded (0 events, last sync 3h ago). Azure Sentinel is disconnected.' },
+        { label:'1,731 events today', desc:'Splunk: 1,204 (SIEM alerts) | AWS Security Hub: 389 (cloud findings) | Jira: 47 (incident tickets) | Okta: 91 (identity events). Qualys: 0 (degraded).' },
+      ],
+      sources:[
+        { name:'Splunk SIEM',        events:1204, status:'connected',    type:'Incidents / Detections' },
+        { name:'AWS Security Hub',   events:389,  status:'connected',    type:'Vulnerabilities / Posture' },
+        { name:'Okta',               events:91,   status:'connected',    type:'Identity / Access events' },
+        { name:'Jira',               events:47,   status:'connected',    type:'Incident tickets' },
+        { name:'Qualys',             events:0,    status:'warning',      type:'Vulnerability scans' },
+        { name:'Azure Sentinel',     events:0,    status:'disconnected', type:'SIEM (not configured)' },
+      ],
+      note:'8 additional connectors available but not yet credentialed: Docker Scout, Wiz, Tenable, CrowdStrike, Datadog, GitHub, Snowflake, Drata.',
+    },
+  },
+  {
+    id:'orchestrate', label:'Orchestrator', icon:Zap, color:'#7C3AED', status:'healthy',
+    stats:[{label:'Routed today',value:'187'},{label:'Avg latency',value:'1.2s'}],
+    detail:{
+      what:'Deduplicates, enriches, and routes normalised signals to the correct risk domain based on signal type, source, and severity.',
+      numbers:[
+        { label:'187 signals routed today', desc:'Out of 1,731 raw events, 1,544 were duplicates or below severity threshold. 187 unique, actionable signals passed to domain reviewers.' },
+        { label:'1.2s avg latency', desc:'Time from adapter ingestion to domain assignment. Target is <5s. Spikes during batch Qualys imports.' },
+      ],
+      routing:[
+        { signal:'CVE / vulnerability findings',    domain:'Vulnerability Mgmt',  count:89  },
+        { signal:'Auth anomalies / access events',  domain:'Access Control',       count:34  },
+        { signal:'SIEM detections',                 domain:'Incident Response',    count:28  },
+        { signal:'Cloud posture findings',          domain:'Cloud Security',       count:21  },
+        { signal:'AI-related events',              domain:'AI Governance',        count:15  },
+      ],
+      note:'Deduplication removed 1,544 repeat events. Cross-source correlation linked 23 Splunk alerts to existing open incidents.',
+    },
+  },
+  {
+    id:'review', label:'Domain Reviewers', icon:Shield, color:'#0891B2', status:'warning',
+    stats:[{label:'Domains',value:'12'},{label:'Pending review',value:'23'}],
+    detail:{
+      what:'Assigned domain experts evaluate each routed signal, confirm risk rating, and decide on treatment. The warning status reflects the AI Governance backlog.',
+      numbers:[
+        { label:'12 risk domains', desc:'Access Control, Data Privacy, Third Party, Cloud Security, Identity, Endpoint, Network, Incident Response, Compliance, Vulnerability, Governance, AI Governance.' },
+        { label:'23 pending review', desc:'Signals routed but not yet reviewed by a domain expert. Review SLA: Critical <4h, High <24h, others <72h.' },
+      ],
+      pending:[
+        { domain:'AI Governance',   pending:8,  sla:'<24h', overdue:3 },
+        { domain:'Data Privacy',    pending:5,  sla:'<24h', overdue:1 },
+        { domain:'Access Control',  pending:4,  sla:'<4h',  overdue:1 },
+        { domain:'Cloud Security',  pending:3,  sla:'<24h', overdue:0 },
+        { domain:'Vulnerability',   pending:2,  sla:'<24h', overdue:0 },
+        { domain:'Other (7)',       pending:1,  sla:'<72h', overdue:0 },
+      ],
+      note:'AI Governance has the highest backlog — 3 items are overdue. Driven by the EU AI Act gap (22% coverage) and 8 untested AI controls.',
+    },
+  },
+  {
+    id:'score', label:'Health Scoring', icon:Activity, color:'#059669', status:'healthy',
+    stats:[{label:'Resilience score',value:'71 / 100'},{label:'Last run',value:'2h ago'}],
+    detail:{
+      what:'Composite score calculated from four weighted components. Recalculates automatically every 2 hours or on-demand after a domain review completes.',
+      numbers:[
+        { label:'71 / 100 composite score', desc:'Weighted average of the four components below. Was 68 last week — improving trend driven by MFA control progress.' },
+        { label:'Last run 2h ago', desc:'Score recalculates on a 2-hour schedule or immediately when a domain reviewer closes a pending signal.' },
+      ],
+      components:[
+        { name:'Risk Posture',          weight:'40%', score:68, contribution:27.2, note:'Dragged down by 12 open Critical/Severe risks and 3 untested AI controls' },
+        { name:'Compliance Adherence',  weight:'30%', score:76, contribution:22.8, note:'EU AI Act (22%) and ISO 42001 (18%) gaps are the main detractors' },
+        { name:'Operational Maturity',  weight:'20%', score:74, contribution:14.8, note:'Evidence Locker has 3 expiring items; Qualys sync degraded' },
+        { name:'Security Posture',      weight:'10%', score:62, contribution:6.2,  note:'AI incident response plan untested; PAM control at 38%' },
+      ],
+      note:'Target score for Platinum program health is 85. Current gap: 14 points. Closing AI Governance gaps would have the highest single impact.',
+    },
+  },
+  {
+    id:'report', label:'Dashboard & Reports', icon:Eye, color:'#D97706', status:'healthy',
+    stats:[{label:'Active modules',value:'13'},{label:'Reports/wk',value:'12'}],
+    detail:{
+      what:'Processed, scored signals surface across 13 dashboard modules. Reports are generated on demand or scheduled for leadership delivery.',
+      numbers:[
+        { label:'13 active modules', desc:'Overview, Risk Register, Vulnerabilities, Incidents, Policy, Third Party, Control Alignment, Compliance, Audit Management, Evidence Locker, Scorecard, Monthly Report, Architecture.' },
+        { label:'12 reports/week', desc:'6 leader monthly reports (one per team), 3 framework compliance summaries, 2 audit readiness reports, 1 executive risk brief.' },
+      ],
+      outputs:[
+        { type:'Leader Monthly Reports',        count:6,  format:'Web (shareable URL) + PDF',  audience:'Directors / VPs' },
+        { type:'Framework Compliance Reports',  count:3,  format:'Dashboard + OSCAL export',   audience:'GRC team / Auditors' },
+        { type:'Audit Readiness Reports',       count:2,  format:'PDF',                        audience:'External auditors' },
+        { type:'Executive Risk Brief',          count:1,  format:'Dashboard scorecard',         audience:'C-Suite' },
+      ],
+      note:'OSCAL SSP export available in Control Alignment - downloads a NIST-compliant JSON of all 25 UCF controls for audit submission.',
+    },
+  },
 ];
 
 const domainCards = [
@@ -2639,9 +2729,10 @@ function Architecture() {
       </div>
       {archView === 'flow' && (
         <div className="space-y-4">
+          {/* Pipeline strip */}
           <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6">
             <h3 className="font-semibold text-gray-900 mb-1">Risk Signal Pipeline</h3>
-            <p className="text-xs text-gray-400 mb-6">Click any stage to inspect and act</p>
+            <p className="text-xs text-gray-400 mb-6">Click any stage to see a detailed breakdown</p>
             <div className="flex items-start gap-2 overflow-x-auto pb-2">
               {flowSteps.map((step, i) => {
                 const Icon = step.icon;
@@ -2656,35 +2747,184 @@ function Architecture() {
                         <span className={`w-2 h-2 rounded-full ${statusDot(step.status)}`} />
                       </div>
                       <p className="text-xs font-semibold text-gray-800 leading-tight mb-2">{step.label}</p>
-                      <div className="flex gap-2">
+                      <div className="flex flex-col gap-1.5">
                         {step.stats.map(s => (
-                          <div key={s.label} className="flex-1 text-center">
+                          <div key={s.label}>
                             <p className="text-sm font-bold text-gray-900">{s.value}</p>
                             <p className="text-xs text-gray-400 leading-tight">{s.label}</p>
                           </div>
                         ))}
                       </div>
                     </div>
-                    {i < flowSteps.length-1 && <div className="flex-shrink-0 flex items-center pt-8"><ChevronRight size={18} className="text-gray-300" /></div>}
+                    {i < flowSteps.length-1 && <div className="flex-shrink-0 flex items-center pt-10"><ChevronRight size={18} className="text-gray-300" /></div>}
                   </React.Fragment>
                 );
               })}
             </div>
           </div>
-          {selectedStep && (
-            <div className="bg-white rounded-xl border shadow-sm p-5" style={{ borderColor: selectedStep.color+'40' }}>
-              <h4 className="font-semibold text-gray-900 mb-1">{selectedStep.label}</h4>
-              <div className="flex gap-2 mt-3">
-                {selectedStep.actions.map(({label}) => (
-                  <button key={label} className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium border border-gray-200 bg-gray-50 hover:bg-gray-100 text-gray-700 transition-colors">{label}</button>
-                ))}
+
+          {/* Detailed breakdown panel */}
+          {selectedStep && (() => {
+            const d = selectedStep.detail;
+            const color = selectedStep.color;
+            return (
+              <div className="bg-white rounded-xl border-2 shadow-sm" style={{ borderColor: color+'30' }}>
+                <div className="p-5 border-b" style={{ borderColor: color+'20', background: color+'06' }}>
+                  <div className="flex items-center gap-2 mb-1">
+                    <div className="p-1.5 rounded-lg" style={{ background: color+'18' }}>
+                      {React.createElement(selectedStep.icon, { size:14, style:{ color } })}
+                    </div>
+                    <h4 className="font-semibold text-gray-900">{selectedStep.label} — Breakdown</h4>
+                  </div>
+                  <p className="text-xs text-gray-500">{d.what}</p>
+                </div>
+
+                <div className="p-5 space-y-5">
+                  {/* What each number means */}
+                  <div>
+                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">What the numbers mean</p>
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+                      {d.numbers.map(n => (
+                        <div key={n.label} className="p-3 rounded-lg bg-gray-50 border border-gray-100">
+                          <p className="text-xs font-semibold text-gray-800 mb-1">{n.label}</p>
+                          <p className="text-xs text-gray-500 leading-relaxed">{n.desc}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Stage-specific detail tables */}
+                  {d.sources && (
+                    <div>
+                      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Connected sources</p>
+                      <div className="divide-y divide-gray-50 border border-gray-100 rounded-lg overflow-hidden">
+                        {d.sources.map(s => (
+                          <div key={s.name} className="flex items-center justify-between px-4 py-2.5 hover:bg-gray-50">
+                            <div className="flex items-center gap-2.5">
+                              <span className={`w-2 h-2 rounded-full flex-shrink-0 ${statusDot(s.status)}`} />
+                              <span className="text-sm font-medium text-gray-800">{s.name}</span>
+                            </div>
+                            <div className="flex items-center gap-6 text-xs text-gray-500">
+                              <span>{s.type}</span>
+                              <span className="font-semibold text-gray-700 w-12 text-right">{s.events.toLocaleString()} events</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {d.routing && (
+                    <div>
+                      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Routing breakdown</p>
+                      <div className="space-y-2">
+                        {d.routing.map(r => (
+                          <div key={r.domain} className="flex items-center gap-3">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex justify-between text-xs mb-0.5">
+                                <span className="text-gray-700 font-medium">{r.signal}</span>
+                                <span className="text-gray-500">{r.count} signals</span>
+                              </div>
+                              <div className="text-xs text-gray-400">→ {r.domain}</div>
+                            </div>
+                            <div className="w-24 bg-gray-100 rounded-full h-1.5 flex-shrink-0">
+                              <div className="h-1.5 rounded-full" style={{ width:`${(r.count/187)*100}%`, background: color }} />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {d.pending && (
+                    <div>
+                      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Pending by domain</p>
+                      <div className="divide-y divide-gray-50 border border-gray-100 rounded-lg overflow-hidden">
+                        {d.pending.map(p => (
+                          <div key={p.domain} className="flex items-center justify-between px-4 py-2.5 hover:bg-gray-50">
+                            <span className="text-sm font-medium text-gray-800">{p.domain}</span>
+                            <div className="flex items-center gap-4 text-xs">
+                              <span className="text-gray-400">SLA {p.sla}</span>
+                              <span className="font-semibold text-gray-700">{p.pending} pending</span>
+                              {p.overdue > 0 && <span className="text-red-600 font-semibold">{p.overdue} overdue</span>}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {d.components && (
+                    <div>
+                      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Score components</p>
+                      <div className="space-y-3">
+                        {d.components.map(c => (
+                          <div key={c.name} className="p-3 rounded-lg border border-gray-100 bg-gray-50">
+                            <div className="flex items-center justify-between mb-1.5">
+                              <div className="flex items-center gap-2">
+                                <span className="text-sm font-semibold text-gray-800">{c.name}</span>
+                                <span className="text-xs text-gray-400">{c.weight}</span>
+                              </div>
+                              <div className="flex items-center gap-3">
+                                <span className="text-xs text-gray-400">contributes {c.contribution.toFixed(1)}</span>
+                                <span className={`text-sm font-bold ${c.score >= 75 ? 'text-emerald-600' : c.score >= 65 ? 'text-amber-500' : 'text-red-500'}`}>{c.score}</span>
+                              </div>
+                            </div>
+                            <div className="w-full bg-gray-200 rounded-full h-1.5 mb-1.5">
+                              <div className="h-1.5 rounded-full" style={{ width:`${c.score}%`, background: c.score>=75?'#22C55E':c.score>=65?'#F59E0B':'#EF4444' }} />
+                            </div>
+                            <p className="text-xs text-gray-400">{c.note}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {d.outputs && (
+                    <div>
+                      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Report outputs</p>
+                      <div className="divide-y divide-gray-50 border border-gray-100 rounded-lg overflow-hidden">
+                        {d.outputs.map(o => (
+                          <div key={o.type} className="flex items-center justify-between px-4 py-2.5 hover:bg-gray-50">
+                            <div>
+                              <p className="text-sm font-medium text-gray-800">{o.type}</p>
+                              <p className="text-xs text-gray-400">{o.format} · {o.audience}</p>
+                            </div>
+                            <span className="text-sm font-bold text-gray-700">{o.count}/wk</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {d.note && (
+                    <div className="flex items-start gap-2 p-3 rounded-lg border text-xs" style={{ borderColor: color+'30', background: color+'06' }}>
+                      <AlertTriangle size={12} style={{ color }} className="flex-shrink-0 mt-0.5" />
+                      <p style={{ color }}>{d.note}</p>
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
-          )}
+            );
+          })()}
+
+          {/* Pipeline summary strip */}
           <div className="grid grid-cols-3 gap-4">
-            <div className="bg-white rounded-xl border border-gray-100 p-4 shadow-sm text-center"><p className="text-2xl font-bold text-emerald-600">4/5</p><p className="text-xs text-gray-500 mt-0.5">Stages healthy</p></div>
-            <div className="bg-white rounded-xl border border-gray-100 p-4 shadow-sm text-center"><p className="text-2xl font-bold text-gray-900">187</p><p className="text-xs text-gray-500 mt-0.5">Signals processed today</p></div>
-            <div className="bg-white rounded-xl border border-gray-100 p-4 shadow-sm text-center"><p className="text-2xl font-bold text-amber-500">23</p><p className="text-xs text-gray-500 mt-0.5">Pending review</p></div>
+            <div className="bg-white rounded-xl border border-gray-100 p-4 shadow-sm text-center">
+              <p className="text-2xl font-bold text-emerald-600">4/5</p>
+              <p className="text-xs text-gray-500 mt-0.5">Stages healthy</p>
+              <p className="text-xs text-gray-400 mt-0.5">Domain Reviewers: warning</p>
+            </div>
+            <div className="bg-white rounded-xl border border-gray-100 p-4 shadow-sm text-center">
+              <p className="text-2xl font-bold text-gray-900">187</p>
+              <p className="text-xs text-gray-500 mt-0.5">Signals routed today</p>
+              <p className="text-xs text-gray-400 mt-0.5">from 1,731 raw events</p>
+            </div>
+            <div className="bg-white rounded-xl border border-gray-100 p-4 shadow-sm text-center">
+              <p className="text-2xl font-bold text-amber-500">23</p>
+              <p className="text-xs text-gray-500 mt-0.5">Pending domain review</p>
+              <p className="text-xs text-red-400 mt-0.5">4 overdue (SLA breach)</p>
+            </div>
           </div>
         </div>
       )}
