@@ -14,6 +14,20 @@ const mapVuln = (r) => ({
   cvss: r.cvss, status: r.status, asset: r.asset,
   controlId: r.control_id, discovered: r.discovered,
   source: r.source, ai: r.is_ai ?? false,
+  // VSRM fields
+  priority: r.priority,
+  secTier: r.sec_tier,
+  environment: r.environment,
+  exposure: r.exposure,
+  exploitability: r.exploitability,
+  isCisaKev: r.is_cisa_kev ?? false,
+  assignedTo: r.assigned_to,
+  dueDate: r.due_date,
+  extendedDueDate: r.extended_due_date,
+  extensionApprover: r.extension_approver,
+  extensionCount: r.extension_count ?? 0,
+  closedReason: r.closed_reason,
+  relatedRiskId: r.related_risk_id,
 });
 
 const mapIncident = (r) => ({
