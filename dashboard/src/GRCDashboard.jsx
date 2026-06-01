@@ -1229,6 +1229,249 @@ function Scorecard({ onViewReport }) {
   );
 }
 
+// ─── Leader Monthly Report ────────────────────────────────────────────────────
+
+function LeaderReport({ teamId, onBack }) {
+  const { controls, vulns, incidents, policies, vendors } = useGRCData();
+  const ctrlMap  = Object.fromEntries(controls.map(c => [c.id, c]));
+  const team     = teams.find(t => t.id === teamId);
+  if (!team) return <div className="p-8 text-gray-400">Team not found.</div>;
+
+  const owned     = team.controls.map(id => ctrlMap[id]).filter(Boolean);
+  const effective = owned.filter(c => c.effectiveness === 'effective').length;
+  const partial   = owned.filter(c => c.effectiveness === 'partial').length;
+  const gaps      = owned.filter(c => c.effectiveness === 'ineffective' || c.effectiveness === 'not_tested').length;
+  const health    = owned.length ? Math.round(((effective + partial * 0.5) / owned.length) * 100) : 0;
+  const hist      = monthlyHistory[team.id] ?? [];
+  const level     = getLevel(health);
+  const badges    = computeBadges(team.id, { gaps, openInc: incidents.filter(i => owned.some(c => c.id === i.controlId) && i.status !== 'Resolved').length, owned }, hist);
+  const prevHealth = hist[hist.length - 2]?.health ?? health;
+  const delta      = health - prevHealth;
+
+  const myVulns     = vulns.filter(v => owned.some(c => c.id === v.controlId) && v.status !== 'Patched');
+  const myIncidents = incidents.filter(i => owned.some(c => c.id === i.controlId) && i.status !== 'Resolved');
+  const myPolicies  = policies.filter(p => p.owner === team.lead);
+  const myVendors   = vendors.filter(v => owned.some(c => c.id === v.controlId));
+  const myRisks     = risks.filter(r => r.owner === team.lead || owned.some(c => r.controlIds.includes(c.id)));
+
+  const actions = [
+    ...owned.filter(c => c.effectiveness === 'not_tested').map(c => ({ priority:'High',   action:`Test and document effectiveness of ${c.name}`,  due:'Jun 30, 2026' })),
+    ...owned.filter(c => c.effectiveness === 'ineffective').map(c => ({ priority:'High',   action:`Remediate ineffective control: ${c.name}`,        due:'Jun 30, 2026' })),
+    ...myPolicies.filter(p => p.status === 'Missing').map(p => ({ priority:'High',   action:`Create missing policy: ${p.title}`,              due:'Jun 15, 2026' })),
+    ...myPolicies.filter(p => p.status === 'Overdue').map(p => ({ priority:'Medium', action:`Review overdue policy: ${p.title}`,             due:'Jun 20, 2026' })),
+    ...myRisks.filter(r => r.status === 'Open' && r.inherentScore >= 15).map(r => ({ priority:'High', action:`Progress risk treatment: ${r.title}`, due: r.reviewDate || 'Jul 1, 2026' })),
+  ].slice(0, 6);
+
+  const shareUrl = () => {
+    const url = `${window.location.href.split('?')[0]}?leader=${teamId}`;
+    navigator.clipboard.writeText(url).then(() => alert('Link copied to clipboard'));
+  };
+
+  const Icon = team.icon;
+
+  return (
+    <div className="space-y-5 max-w-4xl mx-auto">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <button onClick={onBack} className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-800 transition-colors">
+          <ChevronRight size={14} className="rotate-180" /> Back to Scorecard
+        </button>
+        <div className="flex items-center gap-2">
+          <button onClick={shareUrl} className="flex items-center gap-1.5 text-xs text-gray-500 border border-gray-200 rounded-lg px-3 py-1.5 hover:bg-gray-50 transition-colors">
+            <Globe size={12} /> Copy Share Link
+          </button>
+          <button onClick={() => window.print()} className="flex items-center gap-1.5 text-xs text-white bg-blue-600 rounded-lg px-3 py-1.5 hover:bg-blue-700 transition-colors">
+            <Download size={12} /> Print / Export PDF
+          </button>
+        </div>
+      </div>
+
+      {/* Leader header card */}
+      <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6">
+        <div className="flex items-start justify-between">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 rounded-xl flex items-center justify-center" style={{ background: team.color + '20' }}>
+              <Icon size={22} style={{ color: team.color }} />
+            </div>
+            <div>
+              <h2 className="text-xl font-bold text-gray-900">{team.name}</h2>
+              <p className="text-sm text-gray-500">{team.dept} · {team.lead}</p>
+              <p className="text-xs text-gray-400 mt-0.5">Monthly Report — May 2026</p>
+            </div>
+          </div>
+          <div className="text-right">
+            <p className={`text-4xl font-bold ${health >= 70 ? 'text-emerald-600' : health >= 50 ? 'text-amber-500' : 'text-red-500'}`}>{health}%</p>
+            <span className={`text-sm font-bold px-2 py-1 rounded ${level.bg} ${level.text}`}>{level.icon} {level.name}</span>
+            <p className="text-xs text-gray-400 mt-1">
+              {delta > 0 ? <span className="text-emerald-600">▲ +{delta}% vs last month</span>
+               : delta < 0 ? <span className="text-red-500">▼ {delta}% vs last month</span>
+               : '— No change'}
+            </p>
+          </div>
+        </div>
+
+        {/* Badges */}
+        {badges.length > 0 && (
+          <div className="flex flex-wrap gap-2 mt-4 pt-4 border-t border-gray-50">
+            <span className="text-xs text-gray-400 self-center">May badges:</span>
+            {badges.map(b => (
+              <span key={b.label} className="flex items-center gap-1.5 text-sm bg-slate-50 border border-slate-200 px-3 py-1 rounded-full text-slate-700 font-medium">
+                {b.icon} {b.label} <span className="text-xs text-gray-400 font-normal">· {b.desc}</span>
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* 3-month trend */}
+      <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
+        <h3 className="font-semibold text-gray-900 mb-4">Health Score Trend — Q2 2026</h3>
+        <div className="flex items-end gap-6">
+          {hist.map((h, i) => (
+            <div key={i} className="flex-1 flex flex-col items-center gap-2">
+              <span className={`text-lg font-bold ${h.health >= 70 ? 'text-emerald-600' : h.health >= 50 ? 'text-amber-500' : 'text-red-500'}`}>{h.health}%</span>
+              <div className="w-full rounded-t-lg" style={{ height: `${(h.health / 100) * 80}px`, background: h.health >= 70 ? '#22C55E' : h.health >= 50 ? '#F59E0B' : '#EF4444', opacity: i === hist.length - 1 ? 1 : 0.5 }} />
+              <div className="text-center">
+                <p className="text-xs font-semibold text-gray-700">{h.month}</p>
+                <p className="text-xs text-gray-400">{h.gaps} gaps · {h.vulns + h.incidents} issues</p>
+              </div>
+            </div>
+          ))}
+        </div>
+        <div className="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-100">
+          <p className="text-xs text-blue-800">
+            <strong>Level goal:</strong> Reach {level.next}% to advance from {level.name} to {LEVELS[Math.min(LEVELS.indexOf(level)+1,LEVELS.length-1)].name}.
+            Need {Math.max(0, level.next - health)}% improvement — address {Math.ceil((level.next - health) * owned.length / 100)} control{Math.ceil((level.next - health) * owned.length / 100) !== 1 ? 's' : ''}.
+          </p>
+        </div>
+      </div>
+
+      {/* Controls */}
+      <div className="bg-white rounded-xl border border-gray-100 shadow-sm">
+        <div className="p-5 border-b border-gray-100 flex items-center justify-between">
+          <h3 className="font-semibold text-gray-900">Your Controls ({owned.length})</h3>
+          <div className="flex gap-2 text-xs">
+            <span className="text-emerald-600 font-semibold">{effective} effective</span>
+            <span className="text-gray-300">·</span>
+            <span className="text-amber-500 font-semibold">{partial} partial</span>
+            <span className="text-gray-300">·</span>
+            <span className="text-red-500 font-semibold">{gaps} gaps</span>
+          </div>
+        </div>
+        <div className="divide-y divide-gray-50">
+          {owned.map(c => (
+            <div key={c.id} className="flex items-center justify-between px-5 py-3 hover:bg-gray-50">
+              <div className="flex items-center gap-3 min-w-0">
+                {c.ai && <Cpu size={13} className="text-purple-400 flex-shrink-0" />}
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono text-xs text-gray-400">{c.id}</span>
+                    <span className="text-sm font-medium text-gray-800">{c.name}</span>
+                  </div>
+                  <p className="text-xs text-gray-400 truncate">{c.frameworks.slice(0,3).join(' · ')}</p>
+                </div>
+              </div>
+              <EffectivenessBadge effectiveness={c.effectiveness} score={c.score} />
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Open issues */}
+      {(myVulns.length > 0 || myIncidents.length > 0) && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          {myVulns.length > 0 && (
+            <div className="bg-white rounded-xl border border-red-100 shadow-sm p-5">
+              <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2"><Bug size={14} className="text-red-500" /> Open Vulnerabilities ({myVulns.length})</h3>
+              <div className="space-y-2">
+                {myVulns.map(v => (
+                  <div key={v.id} className="flex items-center justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="text-xs font-mono text-blue-600">{v.cve}</p>
+                      <p className="text-xs text-gray-700 truncate">{v.title}</p>
+                    </div>
+                    <SeverityBadge severity={v.severity} />
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          {myIncidents.length > 0 && (
+            <div className="bg-white rounded-xl border border-orange-100 shadow-sm p-5">
+              <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2"><Flame size={14} className="text-orange-500" /> Active Incidents ({myIncidents.length})</h3>
+              <div className="space-y-2">
+                {myIncidents.map(i => (
+                  <div key={i.id} className="flex items-center justify-between gap-2">
+                    <div className="min-w-0"><p className="text-xs text-gray-700 truncate">{i.title}</p><p className="text-xs text-gray-400">{i.type}</p></div>
+                    <StatusBadge status={i.status} />
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Policies */}
+      {myPolicies.length > 0 && (
+        <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
+          <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2"><BookOpen size={14} className="text-purple-500" /> Policies You Own ({myPolicies.length})</h3>
+          <div className="space-y-2">
+            {myPolicies.map(p => (
+              <div key={p.id} className="flex items-center justify-between gap-2">
+                <div className="min-w-0"><p className="text-sm text-gray-800">{p.title}</p><p className="text-xs text-gray-400">{p.category} · v{p.version || 'draft'}</p></div>
+                <StatusBadge status={p.status} />
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Risks */}
+      {myRisks.length > 0 && (
+        <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
+          <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2"><AlertTriangle size={14} className="text-amber-500" /> Risk Register — Your Items ({myRisks.length})</h3>
+          <div className="space-y-2">
+            {myRisks.map(r => (
+              <div key={r.id} className="flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-bold" style={{ color: r.inherentScore >= 20 ? '#EF4444' : r.inherentScore >= 12 ? '#F97316' : '#EAB308' }}>{r.inherentScore}</span>
+                    <span className="text-xs font-medium text-gray-800 truncate">{r.title}</span>
+                  </div>
+                  <p className="text-xs text-gray-400">{r.category} · residual: {r.residualScore}</p>
+                </div>
+                <StatusBadge status={r.status} />
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Actions for next month */}
+      <div className="bg-white rounded-xl border border-blue-100 shadow-sm p-5">
+        <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2"><Play size={14} className="text-blue-600" /> Recommended Actions — June 2026</h3>
+        {actions.length === 0
+          ? <p className="text-sm text-emerald-600">No critical actions — maintain current momentum and target Platinum level.</p>
+          : (
+            <div className="space-y-2">
+              {actions.map((a, i) => (
+                <div key={i} className="flex items-start gap-3 p-3 rounded-lg bg-gray-50 border border-gray-100">
+                  <span className={`text-xs font-bold px-1.5 py-0.5 rounded flex-shrink-0 mt-0.5 ${a.priority === 'High' ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'}`}>{a.priority}</span>
+                  <div className="min-w-0">
+                    <p className="text-sm text-gray-800">{a.action}</p>
+                    <p className="text-xs text-gray-400 mt-0.5">Due: {a.due}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )
+        }
+      </div>
+    </div>
+  );
+}
+
 function ControlAlignment() {
   const { controls } = useGRCData();
   const ctrlMap = Object.fromEntries(controls.map(c => [c.id, c]));
@@ -2245,6 +2488,13 @@ const navGroups = [
       { id: 'architecture',label: 'Architecture',      icon: Activity },
     ],
   },
+  {
+    label: 'LEADERSHIP',
+    items: [
+      { id: 'scorecard',     label: 'Scorecard',       icon: Award },
+      { id: 'leader-report', label: 'Monthly Report',  icon: Users },
+    ],
+  },
 ];
 
 // ─── Architecture (unchanged from previous) ───────────────────────────────────
@@ -2392,10 +2642,12 @@ function Architecture() {
 // ─── App Shell ────────────────────────────────────────────────────────────────
 
 export default function GRCDashboard() {
-  const [page, setPage] = useState('overview');
-  const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [liveData, setLiveData] = useState(null);
-  const [dataLoading, setDataLoading] = useState(isLive);
+  const urlParam       = new URLSearchParams(window.location.search).get('leader');
+  const [page, setPage]           = useState(urlParam ? 'leader-report' : 'overview');
+  const [leaderTeamId, setLeaderTeamId] = useState(urlParam ?? null);
+  const [sidebarOpen, setSidebarOpen]   = useState(true);
+  const [liveData, setLiveData]         = useState(null);
+  const [dataLoading, setDataLoading]   = useState(isLive);
 
   useEffect(() => {
     if (!isLive) return;
@@ -2404,21 +2656,45 @@ export default function GRCDashboard() {
     }).finally(() => setDataLoading(false));
   }, []);
 
+  const navigateToReport = (teamId) => {
+    setLeaderTeamId(teamId);
+    setPage('leader-report');
+    window.history.replaceState(null, '', `?leader=${teamId}`);
+  };
+
+  const navigateBack = () => {
+    setPage('scorecard');
+    setLeaderTeamId(null);
+    window.history.replaceState(null, '', window.location.pathname);
+  };
+
+  const handleNavClick = (id) => {
+    setPage(id);
+    if (id !== 'leader-report') {
+      setLeaderTeamId(null);
+      window.history.replaceState(null, '', window.location.pathname);
+    }
+  };
+
   const allNavItems = navGroups.flatMap(g => g.items);
-  const currentNav = allNavItems.find(n => n.id === page);
+  const currentNav  = page === 'leader-report'
+    ? { label: `${teams.find(t => t.id === leaderTeamId)?.name ?? 'Leader'} — Monthly Report` }
+    : allNavItems.find(n => n.id === page);
 
   const pageMap = {
-    overview:     <Overview navigate={setPage} />,
-    risks:        <RiskRegister />,
-    vulns:        <Vulnerabilities />,
-    incidents:    <Incidents />,
-    policy:       <PolicyModule />,
-    thirdparty:   <ThirdParty />,
-    alignment:    <ControlAlignment />,
-    compliance:   <Compliance />,
-    audits:       <AuditManagement />,
-    evidence:     <EvidenceLocker />,
-    architecture: <Architecture />,
+    overview:       <Overview navigate={handleNavClick} />,
+    risks:          <RiskRegister />,
+    vulns:          <Vulnerabilities />,
+    incidents:      <Incidents />,
+    policy:         <PolicyModule />,
+    thirdparty:     <ThirdParty />,
+    alignment:      <ControlAlignment />,
+    compliance:     <Compliance />,
+    audits:         <AuditManagement />,
+    evidence:       <EvidenceLocker />,
+    architecture:   <Architecture />,
+    scorecard:      <Scorecard onViewReport={navigateToReport} />,
+    'leader-report':<LeaderReport teamId={leaderTeamId} onBack={navigateBack} />,
   };
 
   return (
@@ -2435,7 +2711,7 @@ export default function GRCDashboard() {
               {sidebarOpen && <p className="px-3 py-1 text-xs font-semibold text-slate-500 uppercase tracking-wider">{group.label}</p>}
               <div className="space-y-0.5">
                 {group.items.map(({ id, label, icon: Icon }) => (
-                  <button key={id} onClick={() => setPage(id)}
+                  <button key={id} onClick={() => handleNavClick(id)}
                     className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${page===id?'bg-blue-600 text-white':'text-slate-400 hover:bg-slate-800 hover:text-white'}`}>
                     <Icon size={15} className="flex-shrink-0" />
                     {sidebarOpen && <span>{label}</span>}
