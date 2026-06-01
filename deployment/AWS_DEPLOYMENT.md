@@ -1,8 +1,18 @@
-# AWS Deployment
+# AWS Deployment Architecture
 
-## Architecture overview
+## Overview
 
-The Resilience Operations Platform runs on three core AWS services: RDS for persistent risk and compliance data, ECS for the containerised application tier, and Lambda for event-driven integration adapters.
+This dashboard runs on AWS using managed services:
+
+- RDS PostgreSQL (data layer)
+- ECS Fargate (React frontend)
+- Lambda + EventBridge (integrations)
+- Secrets Manager (credentials)
+- CloudWatch (monitoring)
+
+---
+
+## Architecture Diagram
 
 ```
 Internet
@@ -13,11 +23,11 @@ CloudFront (CDN + WAF)
    ▼
 ALB (Application Load Balancer)
    │
-   ├──► ECS Fargate — Dashboard (React, served via Nginx)
+   ├──► ECS Fargate — Dashboard (React SPA via Nginx)
    │
    └──► ECS Fargate — API Service (Node.js)
             │
-            ├──► RDS PostgreSQL (Supabase-compatible schema)
+            ├──► RDS PostgreSQL (private subnet)
             │       ├── controls
             │       ├── vulnerabilities
             │       ├── incidents
@@ -25,135 +35,105 @@ ALB (Application Load Balancer)
             │       ├── vendors
             │       └── risks
             │
-            └──► Lambda adapters (event-driven, runs on schedule)
-                    ├── jira-sync
-                    ├── qualys-sync
-                    ├── splunk-sync
-                    ├── aws-security-hub-sync
-                    ├── docker-scout-sync     (Phase 2)
-                    ├── registry-sync         (Phase 3)
-                    └── runtime-scan-sync     (Phase 4)
+            └──► Lambda adapters (EventBridge-triggered)
+                    ├── jira-adapter       (every 4 hours)
+                    ├── qualys-adapter     (daily)
+                    └── splunk-adapter     (daily)
+
+Secrets Manager ──► Lambda / ECS (IAM role injection)
+CloudWatch      ──► Logs, Metrics, Alarms (all services)
 ```
 
 ---
 
-## Services
+## Services Breakdown
 
-### RDS PostgreSQL
+### 1. RDS PostgreSQL
 
-- **Instance**: `db.t3.medium` (production), `db.t3.micro` (staging)
-- **Multi-AZ**: Enabled in production
-- **Storage**: 100GB gp3, auto-scaling to 500GB
-- **Backups**: Daily snapshots, 30-day retention
-- **Schema**: Applied via `supabase/migrations/` — compatible with both Supabase cloud and self-hosted PostgreSQL
-- **RLS**: Row Level Security enforced at database level — anon read, authenticated write
+- **Database**: PostgreSQL 14+
+- **Instance class**: `db.t4g.small` (dev), `db.t4g.large` (prod)
+- **Multi-AZ**: Enabled for high availability in production
+- **Automated backups**: 7-day retention
+- **Credentials**: Stored and rotated via Secrets Manager
 
-### ECS Fargate
+### 2. ECS Fargate
 
-- **Dashboard service**: React app served by Nginx, 2 tasks minimum, auto-scales to 10
-- **API service**: Node.js, 2 tasks minimum, auto-scales to 20
-- **Task CPU/memory**: 512 CPU / 1GB RAM (dashboard), 1024 CPU / 2GB RAM (API)
-- **Networking**: Private subnets, egress via NAT gateway
-- **Image registry**: Amazon ECR — images scanned by Docker Scout on push (Phase 2+)
+- **Task**: React SPA served in a Docker container via Nginx
+- **CPU**: 0.25 vCPU (dev), 0.5–1 vCPU (prod)
+- **Memory**: 512 MB (dev), 1–2 GB (prod)
+- **Auto-scaling**: Based on CloudWatch CPU and memory metrics
 
-### Lambda
+### 3. Lambda Functions
 
-Each integration adapter runs as a standalone Lambda function on a scheduled EventBridge rule.
+| Function | Trigger | Schedule |
+|---|---|---|
+| `jira-adapter` | EventBridge | Every 4 hours |
+| `qualys-adapter` | EventBridge | Daily |
+| `splunk-adapter` | EventBridge | Daily |
 
-| Function | Schedule | Source | Target table |
-|----------|----------|--------|-------------|
-| `jira-sync` | Every 15 min | Jira Cloud | incidents |
-| `qualys-sync` | Every hour | Qualys VMDR | vulnerabilities |
-| `splunk-sync` | Every 15 min | Splunk | incidents |
-| `aws-security-hub-sync` | Every hour | AWS Security Hub | vulnerabilities |
-| `docker-scout-sync` | On image push | Docker Scout | vulnerabilities |
-| `registry-sync` | On image push | Docker Registry | controls |
-| `runtime-scan-sync` | Every 5 min | Snyk / Wiz / Falco | vulnerabilities, incidents |
+- Runtime: Node.js 20
+- Secrets injected at runtime via IAM role + Secrets Manager
 
-- **Runtime**: Node.js 20
-- **Memory**: 512MB per function
-- **Timeout**: 5 minutes
-- **Secrets**: Stored in AWS Secrets Manager, injected at runtime via environment variables
+### 4. Secrets Manager
 
----
+| Secret | Rotation |
+|---|---|
+| Jira API key | 90 days |
+| Qualys API key | 90 days |
+| Splunk API key | 90 days |
+| RDS master password | Automated via RDS rotation |
 
-## Networking
+- Access granted via IAM roles — no hardcoded secrets in code or config
 
-```
-VPC (10.0.0.0/16)
-├── Public subnets (10.0.1.0/24, 10.0.2.0/24)   - ALB, NAT gateway
-└── Private subnets (10.0.10.0/24, 10.0.11.0/24) - ECS tasks, RDS, Lambda
-```
+### 5. CloudWatch
 
-- All inter-service traffic stays within the VPC
-- RDS accessible only from private subnets
-- Lambda functions run inside the VPC for RDS access
-- Secrets never passed as CLI arguments — always via Secrets Manager or environment injection
+- **Logs**: All ECS tasks and Lambda functions ship logs here
+- **Metrics**: CPU, memory, invocation count, error rate
+- **Alarms**: SNS notifications on Lambda errors, ECS failures, RDS CPU > 80%
 
 ---
 
-## Scaling targets
+## Security
 
-| Metric | Target |
-|--------|--------|
-| Risks managed | Designed for 14K+ active records |
-| Assessments per year | 300+ automated assessments |
-| Dashboard p95 response | <200ms |
-| Lambda sync latency | <60s from source event to dashboard |
-| RDS connection pool | 50 max connections per service |
+- VPC segmentation — RDS in private subnet, no public endpoint
+- IAM least-privilege policies per service
+- Row-level security (RLS) enforced in PostgreSQL
+- Okta SAML for user authentication
+- Secrets Manager for all credential storage — no secrets in environment files or CLI args
 
 ---
 
-## Infrastructure as code
+## Cost Estimation
 
-Infrastructure is defined in Terraform. OPA policies enforce compliance rules before `terraform apply` runs:
+| Service | Dev (monthly est.) | Prod (monthly est.) |
+|---|---|---|
+| RDS `db.t4g.small` | ~$25 | — |
+| RDS `db.t4g.large` | — | ~$100 |
+| ECS Fargate (0.25 vCPU / 512 MB) | ~$10 | — |
+| ECS Fargate (1 vCPU / 2 GB) | — | ~$70 |
+| Lambda (3 functions, low frequency) | <$1 | <$5 |
+| Secrets Manager (4 secrets) | ~$2 | ~$2 |
+| CloudWatch (logs + metrics) | ~$5 | ~$15 |
+| **Total estimate** | **~$43/mo** | **~$192/mo** |
 
-```
-terraform plan
-   └──► OPA validation (circleci-aws-opa-lab)
-           ├── Encryption at rest required (UCF.02.01)
-           ├── Versioning / backup enabled (UCF.09.01)
-           ├── Public access blocked (UCF.05.01)
-           └── Asset tagging enforced (UCF.08.02)
-```
-
-See [ARCHITECTURE.md](../docs/ARCHITECTURE.md) for the full preventive control layer.
-
----
-
-## Secrets management
-
-| Secret | Storage | Rotation |
-|--------|---------|----------|
-| `SUPABASE_SERVICE_ROLE_KEY` | AWS Secrets Manager | Manual, on breach |
-| `JIRA_API_TOKEN` | AWS Secrets Manager | 90 days |
-| `QUALYS_PASSWORD` | AWS Secrets Manager | 90 days |
-| `DOCKER_SCOUT_TOKEN` | AWS Secrets Manager | 90 days |
-| `SNYK_TOKEN` | AWS Secrets Manager | 90 days |
-| RDS master password | AWS Secrets Manager | Automated via RDS rotation |
+Costs vary with data volume, request rate, and log retention settings.
 
 ---
 
-## Deployment pipeline
+## Deployment Steps
 
-```
-git push main
-   │
-   ├──► GitHub Actions: lint + test
-   ├──► OPA: infrastructure policy validation
-   ├──► Docker Build Cloud: build + sign + SBOM
-   ├──► Docker Scout: image vulnerability scan
-   ├──► ECR: push signed image
-   └──► ECS: rolling deployment (zero downtime)
-```
-
-Images are blocked from deployment if Docker Scout detects a Critical CVE or if the image is unsigned. See [DOCKER-INTEGRATION-ROADMAP.md](../docs/DOCKER-INTEGRATION-ROADMAP.md) for the full enforcement model.
+1. Provision RDS with Terraform (apply VPC, subnets, security groups first)
+2. Create ECS task definition (reference ECR image, inject secrets via IAM role)
+3. Deploy Lambda functions (zip + upload or via SAM/Terraform)
+4. Configure EventBridge rules (schedule expressions per adapter)
+5. Set up Okta SAML (configure app integration, map user attributes)
+6. Verify security groups (RDS only reachable from ECS/Lambda SGs) and RLS policies
 
 ---
 
-## Monitoring
+## Monitoring & Alerts
 
-- **CloudWatch**: ECS task metrics, Lambda duration/errors, RDS connections
-- **ALB access logs**: All requests logged to S3
-- **RDS Performance Insights**: Query-level monitoring
-- **Alerts**: SNS notifications for Lambda errors, ECS task failures, RDS CPU >80%
+- **CloudWatch Dashboards**: ECS task health, Lambda invocation metrics, RDS connections
+- **SNS Alerts**: Triggered on Lambda errors, ECS task failures, RDS CPU threshold breaches
+- **Lambda error tracking**: CloudWatch Logs Insights queries on ERROR log lines
+- **RDS Performance Insights**: Query-level latency and wait event monitoring
