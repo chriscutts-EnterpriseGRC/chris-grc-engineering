@@ -114,7 +114,7 @@ INSERT INTO vendors (id, name, category, tier, risk_score, status, contract_expi
 ('TP-001','Salesforce', 'SaaS — CRM',           1,72,'Questionnaire Overdue','2026-12-31','Customer PII',    'UCF.06.02','2025-11-20',false),
 ('TP-002','AWS',        'Cloud Infrastructure',  1,35,'Compliant',           '2027-03-15','All Prod Data',   'UCF.06.01','2026-03-10',false),
 ('TP-003','Accenture',  'Professional Services', 2,58,'Review Pending',      '2026-09-30','Project Data',    'UCF.06.01','2026-01-15',false),
-('TP-004','Twilio',     'Communications',        1,71,'SLA Breach',          '2026-08-15','Contact Data',    'UCF.06.01','2026-02-28',false),
+('TP-004','CommsCo',    'Communications',        1,71,'SLA Breach',          '2026-08-15','Contact Data',    'UCF.06.01','2026-02-28',false),
 ('TP-005','Okta',       'Identity Provider',     1,42,'Compliant',           '2027-01-01','Identity Data',   'UCF.01.01','2026-05-01',false),
 ('TP-006','Snowflake',  'Data Warehouse',        1,61,'Review Pending',      '2026-07-20','Analytics Data',  'UCF.02.01','2026-01-30',false),
 ('TP-007','OpenAI',     'AI — LLM Provider',     1,81,'No Contract',          null,        'Prompts & Data', 'UCF.AI.04', null,        true),
