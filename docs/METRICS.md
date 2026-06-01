@@ -1,223 +1,177 @@
-# Metrics Documentation
+# Metrics
 
-## Overview
+Key metrics tracked across the Resilience Operations Dashboard. Risk rating bands, SLAs, and review frequencies align with [RISK-METHODOLOGY.md](RISK-METHODOLOGY.md).
 
-This document defines the key metrics used to measure the effectiveness and performance of the GRC Engineering system.
+---
 
-## Categories of Metrics
+## Risk metrics
 
-### 1. Risk Metrics
+### Risk score distribution
 
-#### Risk Score Distribution
-- **Definition**: Distribution of risk scores across all identified risks
-- **Measurement**: Count of risks in each category (Critical, High, Medium, Low)
-- **Target**: <5% Critical, <15% High, <50% Medium, >30% Low
-- **Frequency**: Daily
+| Band | Score | Target |
+|------|-------|--------|
+| Critical | 25 | 0 open — immediate escalation |
+| Severe | 16–24 | <5% of total register |
+| High | 10–15 | <15% of total register |
+| Moderate | 5–9 | Managed through normal cadence |
+| Low | 1–4 | Accepted or monitored |
 
-#### Mean Time to Mitigate (MTTM)
-- **Definition**: Average time from risk identification to mitigation implementation
-- **Measurement**: Days between risk detection and control implementation
-- **Target**: <30 days for High/Critical risks
-- **Frequency**: Monthly
+### Response Decision SLA compliance
 
-#### Risk Exposure Trend
-- **Definition**: Change in overall risk exposure over time
-- **Measurement**: Percentage change in total risk score
-- **Target**: Decreasing trend (>10% reduction quarterly)
-- **Frequency**: Quarterly
+Percentage of risks where a treatment decision is documented within the required window:
 
-#### Vulnerability Remediation Rate
-- **Definition**: Percentage of vulnerabilities remediated within SLA
-- **Measurement**: (Vulnerabilities fixed on time / Total vulnerabilities) × 100
-- **Target**: >95% for Critical/High severity
-- **Frequency**: Weekly
+| Band | SLA | Target |
+|------|-----|--------|
+| Critical | 7 days | 100% |
+| Severe | 30 days | 100% |
+| High | 60 days | >95% |
+| Moderate | 90 days | >90% |
+| Low | 180 days | >85% |
 
-### 2. Compliance Metrics
+### Risk exposure trend
 
-#### Control Effectiveness
-- **Definition**: Percentage of controls operating as designed
-- **Measurement**: (Effective controls / Total controls) × 100
+- **Definition**: Change in total residual risk score over time
+- **Measurement**: Sum of all residual scores month-over-month
+- **Target**: Decreasing trend, >10% reduction quarterly
+
+### Residual vs. inherent gap
+
+- **Definition**: Average reduction between inherent and residual scores
+- **Measurement**: `(inherentScore - residualScore) / inherentScore × 100`
+- **Target**: >40% reduction — indicates controls are materially effective
+
+---
+
+## Control metrics
+
+### UCF control effectiveness rate
+
+- **Definition**: Percentage of controls rated effective or partial
+- **Measurement**: `(effective + partial × 0.5) / total × 100`
+- **Target**: >80% overall; >70% per team
+- **Frequency**: Monthly (drives team health score and Scorecard levels)
+
+### Control gap by category
+
+Tracked per domain — Access Control, Data Protection, Vulnerability Mgmt, etc. — visible on the Overview page. Target: zero domains with >50% gap rate.
+
+### Evidence freshness
+
+- **Definition**: Percentage of linked evidence not past expiry date
+- **Measurement**: `current evidence / total evidence × 100`
 - **Target**: >95%
-- **Frequency**: Monthly
+- **Frequency**: Weekly (Evidence Locker module)
 
-#### Compliance Adherence Rate
-- **Definition**: Percentage of policies and procedures being followed
-- **Measurement**: (Compliant activities / Total activities) × 100
-- **Target**: >98%
-- **Frequency**: Monthly
+---
 
-#### Audit Findings Trend
-- **Definition**: Change in number of audit findings over time
-- **Measurement**: Percentage change in audit findings
-- **Target**: Decreasing trend (>15% reduction year-over-year)
-- **Frequency**: Per audit cycle
+## Vulnerability metrics
 
-#### Evidence Collection Efficiency
-- **Definition**: Time required to gather evidence for audits
-- **Measurement**: Hours spent per audit
-- **Target**: <40 hours per standard audit
-- **Frequency**: Per audit
+### Vulnerability remediation SLA
 
-### 3. Operational Metrics
+| Severity | SLA | Target |
+|----------|-----|--------|
+| Critical | 7 days | 100% |
+| Severe | 14 days | 100% |
+| High | 30 days | >95% |
+| Moderate | 60 days | >90% |
+| Low | 90 days | >85% |
 
-#### System Availability
-- **Definition**: Percentage of time the system is operational
-- **Measurement**: (Uptime / Total time) × 100
-- **Target**: >99.9%
-- **Frequency**: Continuous
+### Mean time to patch (MTTP)
 
-#### Mean Time to Detect (MTTD)
-- **Definition**: Average time to detect security incidents or compliance issues
-- **Measurement**: Hours from incident occurrence to detection
-- **Target**: <4 hours
-- **Frequency**: Monthly
+- **Measurement**: Days from discovery to Patched status
+- **Target**: <14 days for Critical/Severe
 
-#### Mean Time to Respond (MTTR)
-- **Definition**: Average time to respond to detected issues
-- **Measurement**: Hours from detection to response initiation
-- **Target**: <8 hours
-- **Frequency**: Monthly
+### Average CVSS score (open vulnerabilities)
 
-#### Automation Coverage
-- **Definition**: Percentage of GRC processes automated
-- **Measurement**: (Automated processes / Total processes) × 100
-- **Target**: >70%
-- **Frequency**: Quarterly
+- **Target**: Trending down month-over-month
+- **Dashboard**: Vulnerabilities module KPI strip
 
-### 4. Health Score Metrics
+---
 
-#### Overall Health Score
-- **Definition**: Composite score of organizational GRC health
-- **Measurement**: Weighted average of component scores (0-100)
-- **Target**: >80
-- **Frequency**: Daily
+## Incident metrics
 
-#### Risk Posture Score
-- **Definition**: Score component for risk management effectiveness
-- **Measurement**: Risk metrics weighted calculation (0-100)
-- **Target**: >85
-- **Frequency**: Daily
+### Mean time to detect (MTTD)
 
-#### Compliance Score
-- **Definition**: Score component for compliance adherence
-- **Measurement**: Compliance metrics weighted calculation (0-100)
-- **Target**: >90
-- **Frequency**: Daily
+- **Target**: <4 hours for Critical/Severe incidents
 
-#### Maturity Score
-- **Definition**: Score component for operational maturity
-- **Measurement**: Maturity assessment (0-100)
-- **Target**: >75
-- **Frequency**: Quarterly
+### Mean time to respond (MTTR)
 
-### 5. User Metrics
+- **Target**: <8 hours for Critical, <24 hours for Severe
+- **Dashboard**: Incidents module — displayed per incident and as a KPI average
 
-#### User Adoption Rate
-- **Definition**: Percentage of target users actively using the system
-- **Measurement**: (Active users / Total target users) × 100
-- **Target**: >90%
-- **Frequency**: Monthly
+### AI-related incident rate
 
-#### User Satisfaction Score
-- **Definition**: Average user satisfaction rating
-- **Measurement**: Survey results (1-5 scale)
-- **Target**: >4.5
-- **Frequency**: Quarterly
+- **Measurement**: AI incidents as % of total open incidents
+- **Target**: Decreasing as AI controls mature (current: AI controls 0% tested)
 
-#### Training Completion Rate
-- **Definition**: Percentage of users completing required training
-- **Measurement**: (Users completed / Users assigned) × 100
-- **Target**: >95%
-- **Frequency**: Per training cycle
+---
 
-#### Feature Utilization
-- **Definition**: Percentage of available features being used
-- **Measurement**: (Used features / Total features) × 100
-- **Target**: >60%
-- **Frequency**: Monthly
+## Compliance metrics
 
-### 6. Financial Metrics
+### Framework coverage
 
-#### Cost of Compliance
-- **Definition**: Total cost to maintain compliance
-- **Measurement**: Annual spend on compliance activities
-- **Target**: <15% reduction year-over-year
-- **Frequency**: Annual
+| Framework | Current | Target |
+|-----------|---------|--------|
+| SOC 2 Type II | 94% | >95% |
+| ISO 27001 | 87% | >90% |
+| GDPR | 91% | >95% |
+| NIST CSF | 88% | >90% |
+| PCI DSS | 83% | >90% |
+| HIPAA | 78% | >85% |
+| EU AI Act | 22% | >80% by Aug 2026 |
+| ISO/IEC 42001 | 18% | >70% by Dec 2026 |
 
-#### ROI Calculation
-- **Definition**: Return on investment for GRC initiatives
-- **Measurement**: (Benefits - Costs) / Costs × 100
-- **Target**: >25%
-- **Frequency**: Annual
+### Audit readiness score
 
-#### Audit Cost Reduction
-- **Definition**: Reduction in external audit costs
-- **Measurement**: Percentage decrease in audit fees
-- **Target**: >20% reduction
-- **Frequency**: Per audit cycle
+- **Measurement**: % of controls with current evidence and effective status
+- **Target**: >90% before scheduled audits
 
-#### Risk Cost Avoidance
-- **Definition**: Estimated cost of risks avoided through mitigation
-- **Measurement**: Potential loss × risk reduction percentage
-- **Target**: >$1M annually
-- **Frequency**: Annual
+### Open audit findings
 
-## Data Collection Methods
+- **Target**: Zero findings past due date; Critical/Severe findings closed within 30 days
 
-### Automated Collection
-- System logs and metrics
-- API integrations with tools
-- Scheduled scans and assessments
-- Continuous monitoring
+---
 
-### Manual Collection
-- User surveys
-- Stakeholder interviews
-- Process observations
-- Document reviews
+## Key Risk Indicators (KRIs)
 
-### Third-Party Data
-- Industry benchmarks
-- Regulatory updates
-- Threat intelligence feeds
-- Best practice frameworks
+Per the Risk Management Framework v1.0 §9:
 
-## Reporting
+| KRI | Description | Monitoring frequency |
+|-----|-------------|---------------------|
+| Risk Exposure Trends | Open risks by severity over time | Monthly |
+| Treatment Timeliness | % risks treated within SLA | Monthly |
+| Risk Acceptance Rate | % accepted vs. mitigated | Quarterly |
+| Third-Party Risk Exposure | Vendor risks by impact level | Monthly |
+| Regulatory Compliance Risks | Risks linked to non-compliance | Monthly |
+| Unassigned Risks | Risks lacking an owner | Weekly |
+| Open Critical / Severe Risks | Current critical exposure | Monthly |
+| Overdue Risk Actions | Treatment plans past due | Weekly |
 
-### Dashboards
-- Real-time metrics visualization
-- Drill-down capabilities
-- Customizable views
-- Alert thresholds
+---
 
-### Reports
-- Executive summary (monthly)
-- Detailed analysis (quarterly)
-- Trend reports (annual)
-- Ad-hoc analysis (as needed)
+## Team health metrics (Scorecard)
 
-### Alerts
-- Threshold-based notifications
-- Anomaly detection
-- Escalation procedures
-- Incident response triggers
+Per-team health scores drive the gamification layer. Thresholds:
 
-## Continuous Improvement
+| Level | Health % | Target for all teams |
+|-------|----------|---------------------|
+| Platinum | 85–100% | Program goal |
+| Gold | 70–84% | Acceptable |
+| Silver | 50–69% | Improvement required |
+| Bronze | 0–49% | Urgent remediation |
 
-### Metric Review
-- Quarterly metric relevance assessment
-- Target adjustment based on performance
-- New metric identification
-- Retired metric removal
+Monthly improvement target: +5% health score per Bronze/Silver team per quarter.
 
-### Benchmarking
-- Industry comparison
-- Peer organization analysis
-- Best practice alignment
-- Competitive positioning
+---
 
-### Feedback Integration
-- Stakeholder input on metrics
-- User feedback on dashboards
-- Auditor recommendations
-- Regulatory requirement changes
+## Risk monitoring cadence
+
+Per Risk Management Framework v1.0 §8:
+
+| Rating | Review frequency | Reporting |
+|--------|-----------------|-----------|
+| Critical | Monthly | Dashboard + report |
+| Severe | Monthly | Dashboard + report |
+| High | Quarterly | Dashboard + report |
+| Moderate | Bi-annually | Dashboard + report |
+| Low | Annually | Dashboard + report |

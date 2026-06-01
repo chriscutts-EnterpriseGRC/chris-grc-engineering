@@ -1,225 +1,157 @@
-# Frequently Asked Questions
+# FAQ
 
-## General Questions
+## General
 
-### What is GRC Engineering?
-GRC Engineering is the systematic application of engineering principles to Governance, Risk, and Compliance. It involves building automated, scalable systems to manage organizational governance, assess and mitigate risks, and ensure regulatory compliance.
+### What is this system?
 
-### Who should use this system?
-This system is designed for:
-- Security and compliance teams
-- Risk managers
-- Audit professionals
-- C-suite executives requiring GRC visibility
-- IT operations teams
+A full-stack GRC operations platform that turns compliance data into operational intelligence. It connects framework controls, live risk scoring, team accountability, and leadership reporting in a single dashboard. Built on React, Supabase, and a plugin architecture for connector and framework extensions.
 
-### What standards does this system support?
-The system supports multiple compliance standards including:
-- SOC 2 Type II
-- ISO 27001
-- GDPR
-- HIPAA
-- PCI DSS
-- NIST frameworks
+### Who is it for?
 
-## Technical Questions
+- Security and GRC teams managing controls, risks, and audit readiness
+- Risk owners who need a clear view of their exposure and treatment status
+- Leaders who receive monthly reports filtered to their team's domain
+- Auditors who need evidence traceability and framework coverage data
+
+### What compliance frameworks does it support?
+
+**In the dashboard (tracked with live scores):**
+SOC 2 Type II, ISO 27001, NIST CSF 2.0, GDPR, PCI DSS, HIPAA, EU AI Act, ISO/IEC 42001
+
+**Available via framework plugins (`plugins/frameworks/`):**
+NIST AI RMF, NIST 800-53, CMMC, FedRAMP Rev5, FedRAMP 20x, HITRUST, DORA, CIS Controls, CSA CCM, GLBA, NYDFS, SOX, CCPA, HIPAA Security, NERC-CIP, PBM, StateRAMP, and 15+ international frameworks
+
+---
+
+## Technical
 
 ### What are the system requirements?
-- **Node.js**: 18+ (for integration adapters)
-- **Frontend**: Modern web browser (Chrome, Firefox, Safari, Edge)
-- **Database**: Supabase account (free tier sufficient for demo)
-- **Minimum RAM**: 4GB for local development
 
-### How do I install the system?
-See the [Quick Start Guide](QUICKSTART.md) for detailed installation instructions. The basic steps are:
-1. Clone the repository
-2. Install dependencies
-3. Configure environment variables
-4. Run database migrations
-5. Start the services
+- **Node.js**: 18+ (for integration adapters and seed scripts)
+- **Browser**: Any modern browser (Chrome, Firefox, Safari, Edge)
+- **Database**: Supabase free tier is sufficient for demo and small deployments
+- **RAM**: 4GB minimum for local development
 
-### Can I integrate with existing tools?
-Yes, the system provides:
-- REST API for custom integrations
-- Pre-built connectors for common tools (SIEM, vulnerability scanners, cloud providers)
-- Webhook support for event notifications
-- Batch import/export capabilities
+### Does it work without Supabase?
 
-### How is data secured?
-- Encryption at rest (AES-256)
-- Encryption in transit (TLS 1.3)
-- Role-based access control
-- Multi-factor authentication
-- Regular security audits
-- Penetration testing
+Yes. With no credentials set, the dashboard runs entirely on inline demo data. The header shows **○ Demo**. Add credentials and it switches to **● Live** automatically — no code change required.
 
-## Usage Questions
+### How do I connect integrations?
 
-### How do I create a risk assessment?
-1. Navigate to the Risk Management section
-2. Click "New Risk Assessment"
-3. Select the assets or processes to assess
-4. Answer the risk questionnaire
-5. Review the calculated risk scores
-6. Define mitigation strategies
-7. Save and assign owners
+Add the relevant credentials to `dashboard/.env` and run:
+```bash
+cd dashboard && node integrations/sync.js
+```
 
-### How are health scores calculated?
-Health scores are composite metrics based on:
-- Risk Posture (40%)
-- Compliance Adherence (30%)
-- Operational Maturity (20%)
-- Security Posture (10%)
+Each adapter (Jira, Qualys, Splunk, AWS Security Hub, ServiceNow, Notion, Vanta) checks for its required env vars and skips itself silently if they're absent.
 
-See the [Methodology document](METHODOLOGY.md) for detailed calculation methods.
+See [QUICKSTART.md](QUICKSTART.md) for the full credential reference.
 
-### Can I customize the dashboards?
-Yes, dashboards are fully customizable:
-- Add/remove widgets
-- Configure data sources
-- Set custom time ranges
-- Create saved views
-- Export to PDF or CSV
+### Is the OSCAL export real?
 
-### How do I generate audit reports?
-1. Navigate to the Reporting section
-2. Select the compliance standard
-3. Choose the reporting period
-4. Select required controls
-5. Click "Generate Report"
-6. Review and export
+Yes. The Export OSCAL button in Control Alignment downloads a JSON file conforming to the NIST OSCAL System Security Plan schema, with all UCF controls, their effectiveness status, and framework mappings. It can be submitted to FedRAMP reviewers or imported into OSCAL-compatible tools.
 
-## Integration Questions
+---
 
-### Which SIEM platforms are supported?
-- Splunk
-- ELK Stack (Elasticsearch, Logstash, Kibana)
-- Sumo Logic
-- LogRhythm
-- Custom integration via API
+## Risk methodology
 
-### Which cloud providers are supported?
-- AWS
-- Azure
-- Google Cloud Platform
-- Oracle Cloud
-- IBM Cloud
+### How are risk scores calculated?
 
-### Can I connect to vulnerability scanners?
-Yes, supported scanners include:
-- Nessus
-- Qualys
-- Rapid7
-- Tenable
-- OpenVAS
+`Risk Score = Likelihood × Impact` (range 1–25).
 
-## Troubleshooting
+**Likelihood** uses a high water mark rule across three dimensions — Frequency, Technical Feasibility, and Likelihood Precursor. The final likelihood score is the highest of the three.
 
-### The system is running slowly
-- Check system resources (CPU, memory, disk)
-- Review database query performance
-- Verify cache is functioning
-- Check network connectivity
-- Review error logs
+**Impact** is a single 1–5 scale.
 
-### I can't see my data
-- Verify you have the correct permissions
-- Check date range filters
-- Ensure data sources are connected
-- Refresh the page
-- Check for system notifications
+See [RISK-METHODOLOGY.md](RISK-METHODOLOGY.md) for the full tables.
 
-### Health scores seem incorrect
-- Verify data sources are up to date
-- Check score calculation weights
-- Review component scores
-- Ensure all required metrics are collected
-- Contact support if issue persists
+### What are the risk rating bands?
 
-### Integration is not working
-- Verify API credentials
-- Check network connectivity
-- Review integration logs
-- Test API endpoints manually
-- Verify data format compatibility
+| Band | Score |
+|------|-------|
+| Critical | 25 |
+| Severe | 16–24 |
+| High | 10–15 |
+| Moderate | 5–9 |
+| Low | 1–4 |
 
-## Maintenance
+### What are the response SLAs?
 
-### How often should I update the system?
-- Security patches: Immediately upon release
-- Feature updates: Monthly or as needed
-- Major version upgrades: Quarterly planning
-- Database maintenance: Monthly
+| Band | Decision SLA | Acceptance authority |
+|------|-------------|---------------------|
+| Critical | 7 days | C-Suite / SVP+ |
+| Severe | 30 days | VP+ |
+| High | 60 days | Director+ |
+| Moderate | 90 days | Sr Manager+ |
+| Low | 180 days | Manager+ |
 
-### What is the backup strategy?
-- Database backups: Daily (retained 30 days)
-- Configuration backups: Weekly
-- Document backups: Per change
-- Disaster recovery: Multi-region replication
+Any risk that breaches its SLA without a documented decision is deemed accepted by default.
 
-### How do I monitor system health?
-- Built-in health check endpoints
-- Prometheus metrics integration
-- Grafana dashboards
-- Alert notifications
-- Log aggregation
+### How often are risks reviewed?
 
-## Licensing and Support
+| Band | Monitoring frequency |
+|------|---------------------|
+| Critical | Monthly |
+| Severe | Monthly |
+| High | Quarterly |
+| Moderate | Bi-annually |
+| Low | Annually |
 
-### What license is this software under?
-This software is licensed under the MIT License. See the [LICENSE](../LICENSE) file for details.
+### What is the difference between inherent and residual risk?
 
-### Is commercial support available?
-Contact the project maintainers for information about commercial support options.
+**Inherent** is the risk score with zero controls applied. **Residual** is recalculated after accounting for the effectiveness of linked UCF controls — a control rated 92% effective reduces residual risk more than one rated 38%. The dashboard shows both scores and flags where residual still exceeds the risk appetite threshold.
 
-### How do I report bugs or request features?
-- GitHub Issues: https://github.com/9snxz8htcw-netizen/chris-grc-engineering/issues
-- Include detailed reproduction steps
-- Provide system information
-- Attach relevant logs
+---
 
-### How can I contribute?
-See the project repository for contribution guidelines. We welcome:
-- Bug fixes
-- Feature implementations
-- Documentation improvements
-- Test cases
+## Leadership and reporting
+
+### How does the monthly report work?
+
+Navigate to LEADERSHIP → Monthly Report, select a team, and the report auto-generates — filtered to that leader's controls, open vulnerabilities, active incidents, policies they own, risk items, and recommended actions for the coming month. Use the Print button for PDF or copy the share link (`?leader=<teamId>`) to send directly to the leader.
+
+### What is the Scorecard?
+
+The Scorecard ranks all 6 teams (Identity & Access, Data Protection, Infrastructure Security, Security Operations, GRC & Vendor Risk, R&D / Product) by health score with Bronze/Silver/Gold/Platinum levels, 3-month trend sparklines, and achievement badges. It makes security posture visible and competitive rather than a compliance checkbox.
+
+### Can I share reports without giving access to the full dashboard?
+
+Yes — each leader report has a shareable URL (`?leader=identity`, `?leader=data`, etc.) that opens directly to their filtered view. The dashboard currently runs in open demo mode; restrict access by enabling Supabase Auth before connecting real data.
+
+---
 
 ## Security
 
-### Is this system compliant with security standards?
-The system is designed to support compliance with major security standards. However, proper implementation and configuration are required to achieve actual compliance.
+### How is data protected?
 
-### How do I handle sensitive data?
-- Classify data according to sensitivity
-- Apply appropriate access controls
-- Use data masking for display
-- Encrypt sensitive fields
-- Follow data retention policies
+- Supabase anon key is read-only — Row Level Security enforces this at the database level
+- Write credentials (`SUPABASE_SERVICE_ROLE_KEY`) are server-side only, never in the browser
+- Preventive controls via OPA block non-compliant infrastructure before it reaches production
 
-### What happens during a security incident?
-1. Incident is automatically detected
-2. Alert is sent to security team
-3. Incident response workflow is triggered
-4. Evidence is automatically collected
-5. Post-incident review is conducted
+### What needs to happen before connecting real data?
 
-## Best Practices
+Two things are required before production use:
 
-### How often should I review risks?
-- Critical risks: Weekly
-- High risks: Monthly
-- Medium risks: Quarterly
-- Low risks: Semi-annually
+1. **Auth** — Enable Supabase Auth or Okta SSO. Currently `anon_read` is open to any visitor.
+2. **RLS hardening** — Scope the `anon_read` policy to authenticated users or specific roles.
 
-### What is the recommended audit frequency?
-- Internal audits: Quarterly
-- External audits: Annually
-- Continuous monitoring: Ongoing
+Both are documented as P0 items in [ARCHITECTURE.md](ARCHITECTURE.md).
 
-### How do I ensure user adoption?
-- Provide comprehensive training
-- Assign champions in each department
-- Gather and act on feedback
-- Demonstrate value early
-- Make it part of daily workflows
+---
+
+## Troubleshooting
+
+### Dashboard shows Demo but I set the env vars
+
+Restart the dev server after adding `.env`. React reads env vars at build time for `REACT_APP_*` variables — a hot reload isn't enough.
+
+### An integration isn't syncing
+
+Check that all required env vars for that adapter are set (see [QUICKSTART.md](QUICKSTART.md)), then run:
+```bash
+cd dashboard && node integrations/sync.js
+```
+Errors are logged per adapter. A missing var skips the adapter silently — confirm the var names match `.env.example` exactly.
+
+### Health scores seem wrong
+
+The team health score is `(effective + partial × 0.5) / total_controls × 100`. If a control is `not_tested` it counts as a gap (zero). Run `/risk-agent:triage-risks` to surface which controls are pulling scores down.

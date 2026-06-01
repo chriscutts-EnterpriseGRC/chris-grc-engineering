@@ -1,221 +1,142 @@
 # Methodology
 
-## Approach to GRC Engineering
+## GRC engineering approach
 
-This document outlines the systematic approach used to design and implement the GRC (Governance, Risk, and Compliance) engineering solution.
+This system applies engineering principles to Governance, Risk, and Compliance — building automated, measurable, and repeatable processes rather than point-in-time assessments. The approach is aligned with ISO 31000:2018 and ISO 27005:2022.
 
-## Core Principles
+---
 
-### 1. Risk-Based Approach
-- Prioritize risks based on likelihood and impact
-- Focus resources on highest-risk areas
-- Continuous risk assessment and reassessment
-- Quantitative risk scoring where possible
+## Core principles
 
-### 2. Compliance by Design
-- Build compliance requirements into system architecture
-- Automated compliance checks throughout development lifecycle
-- Evidence collection as a byproduct of normal operations
-- Regulatory alignment from project inception
+### 1. Risk-based prioritisation
+Decisions are driven by inherent and residual risk scores rather than checklist completion. Every vulnerability, incident, policy gap, and vendor relationship links back to a UCF control ID so risk is traceable end-to-end.
 
-### 3. Data-Driven Decision Making
-- Collect comprehensive metrics across all GRC domains
-- Use analytics to identify trends and patterns
-- Establish baseline measurements for improvement
-- Enable predictive capabilities for risk forecasting
+### 2. UCF control layer — one ID, many frameworks
+All controls are assigned a Universal Control Framework (UCF) ID. A single control can satisfy requirements across SOC 2, ISO 27001, NIST CSF, GDPR, PCI DSS, EU AI Act, and ISO 42001 simultaneously. This eliminates duplicate effort across audits and compliance programs.
 
-### 4. Continuous Improvement
-- Regular review and update of controls
-- Feedback loops from audit findings
-- Industry best practice adoption
-- Stakeholder input integration
+### 3. Preventive, detective, and corrective controls
+- **Preventive** — Open Policy Agent blocks non-compliant infrastructure before deployment (CI/CD pipeline)
+- **Detective** — SIEM, vulnerability scanning, and log monitoring surfaced in the dashboard
+- **Corrective** — Remediation tracked through the Incidents and Vulnerabilities modules with MTTR metrics
 
-## Implementation Phases
+### 4. Evidence as a byproduct
+The Evidence Locker ties artefacts (screenshots, policy documents, test results, configurations) directly to UCF controls, with expiry tracking. Evidence is collected continuously rather than assembled at audit time.
 
-### Phase 1: Foundation (Weeks 1-4)
-**Objectives:**
-- Establish governance framework
-- Define risk taxonomy
-- Set up basic infrastructure
-- Implement core data collection
+---
 
-**Deliverables:**
-- Governance policies documented
-- Risk assessment framework defined
-- Infrastructure provisioned
-- Initial data pipelines operational
+## Risk assessment methodology
 
-### Phase 2: Integration (Weeks 5-8)
-**Objectives:**
-- Connect to existing systems
-- Implement compliance checks
-- Build health score calculation
-- Create initial dashboards
+For the full scoring model see [RISK-METHODOLOGY.md](RISK-METHODOLOGY.md). Summary:
 
-**Deliverables:**
-- System integrations complete
-- Compliance automation active
-- Health scoring operational
-- Basic dashboards available
+### Scoring
 
-### Phase 3: Enhancement (Weeks 9-12)
-**Objectives:**
-- Advanced analytics implementation
-- Machine learning model integration
-- Custom report generation
-- User training and adoption
+`Risk Score = Likelihood × Impact` (range: 1–25)
 
-**Deliverables:**
-- Predictive analytics operational
-- ML models deployed
-- Custom reporting available
-- User training completed
+**Likelihood** is scored across three independent dimensions (Frequency, Technical Feasibility, Likelihood Precursor). The final score is the **highest of the three** (high water mark rule).
 
-### Phase 4: Optimization (Weeks 13-16)
-**Objectives:**
-- Performance tuning
-- Security hardening
-- Documentation completion
-- Production readiness
+**Impact** is a single 1–5 scale from Low (operational noise) to Critical (total service loss or >$100M).
 
-**Deliverables:**
-- System optimized
-- Security validated
-- Documentation complete
-- Production deployment
+### Risk rating bands
 
-## Risk Assessment Methodology
+| Rating | Score | Response SLA | Acceptance Authority |
+|--------|-------|-------------|----------------------|
+| Critical | 25 | 7 days | C-Suite / SVP+ |
+| Severe | 16–24 | 30 days | VP+ |
+| High | 10–15 | 60 days | Director+ |
+| Moderate | 5–9 | 90 days | Sr Manager+ |
+| Low | 1–4 | 180 days | Manager+ |
 
-### Risk Identification
-- Asset inventory and classification
-- Threat modeling
-- Vulnerability assessment
-- Business process analysis
+### Inherent vs. residual risk
 
-### Risk Analysis
-- Likelihood assessment (1-5 scale)
-- Impact assessment (1-5 scale)
-- Risk score calculation (Likelihood × Impact)
-- Risk categorization (Critical, High, Medium, Low)
+- **Inherent** — exposure with zero controls applied
+- **Residual** — exposure after accounting for control effectiveness
 
-### Risk Response
-- Accept: For low-risk items with cost-effective mitigation
-- Mitigate: Implement controls to reduce risk
-- Transfer: Use insurance or outsourcing
-- Avoid: Eliminate activities that create risk
+The dashboard calculates residual programmatically from each linked control's effectiveness score:
 
-### Risk Monitoring
-- Continuous monitoring of risk indicators
-- Regular risk review cycles
-- Trend analysis and forecasting
-- Escalation procedures for emerging risks
-
-## Compliance Framework
-
-### Standards Mapping
-- Identify applicable regulations and standards: SOC 2, ISO 27001, NIST CSF, GDPR, PCI DSS 4.0, EU AI Act, ISO/IEC 42001
-- Map requirements to UCF control IDs — one control satisfies multiple frameworks simultaneously
-- Establish control testing procedures
-- Document evidence collection methods
-
-### Control Implementation
-- **Preventive controls**: Stop incidents before they occur — enforced at the pipeline level using Open Policy Agent (OPA) in the [circleci-aws-opa-lab](https://github.com/9snxz8htcw-netizen/circleci-aws-opa-lab); blocks non-compliant IaC before deployment
-- **Detective controls**: Identify incidents when they occur — SIEM integration, vulnerability scanning, log monitoring surfaced in the dashboard
-- **Corrective controls**: Remediate incidents after they occur — tracked through the Incidents and Vulnerabilities modules with MTTR metrics
-- **Compensating controls**: Alternative measures when primary controls aren't feasible — documented via risk acceptance workflow in the Policy module
-
-### Evidence Management
-- Automated evidence collection
-- Evidence linkage to controls
-- Evidence retention policies
-- Audit trail maintenance
-
-### Audit Readiness
-- Pre-audit assessments
-- Gap identification and remediation
-- Auditor access preparation
-- Findings tracking and closure
-
-## Health Score Calculation
-
-### Score Components
-1. **Risk Posture (40%)**
-   - Unmitigated critical risks
-   - Risk trend over time
-   - Vulnerability exposure
-
-2. **Compliance Adherence (30%)**
-   - Control effectiveness
-   - Policy compliance rate
-   - Audit findings
-
-3. **Operational Maturity (20%)**
-   - Process automation
-   - Tool coverage
-   - Staff training
-
-4. **Security Posture (10%)**
-   - Security configuration
-   - Incident response
-   - Security awareness
-
-### Calculation Method
-```
-Health Score = (Risk Score × 0.40) + 
-               (Compliance Score × 0.30) + 
-               (Maturity Score × 0.20) + 
-               (Security Score × 0.10)
+```js
+const reductionFactor = controlIds.reduce(
+  (f, id) => f * (1 - ((CTRL_EFF[id] ?? 50) / 100) * 0.5), 1
+);
+residualScore = Math.max(2, Math.round(inherentScore * reductionFactor));
 ```
 
-### Score Interpretation
-- **90-100**: Excellent - Industry leading
-- **80-89**: Good - Meeting expectations
-- **70-79**: Fair - Needs improvement
-- **60-69**: Poor - Significant gaps
-- **Below 60**: Critical - Immediate action required
+### Risk treatment options
 
-## Development Methodology
+| Treatment | When to use |
+|-----------|-------------|
+| Mitigate | Implement controls to reduce likelihood or impact |
+| Avoid | Cease the activity or move to a safer environment |
+| Transfer | Insurance or outsourcing — shifts accountability |
+| Accept / Monitor | Acknowledge and monitor — requires approval authority |
 
-### Agile Approach
-- 2-week sprints
-- Daily stand-ups
-- Sprint planning and retrospectives
-- Continuous integration and deployment
+### Risk register workflow
 
-### Quality Assurance
-- Unit testing (80%+ coverage)
-- Integration testing
-- Security testing (SAST, DAST)
-- Performance testing
+```
+Submitted → In Review → Risk Assessment
+                      → Mitigating → Done
+                      → Avoiding   → Done
+                      → Transferring → Done
+                      → Accepting/Monitoring
+```
 
-### Documentation
-- Code documentation
-- API documentation
-- User guides
-- Architecture diagrams
+---
 
-### Change Management
-- Feature flags for gradual rollout
-- Rollback procedures
-- Impact analysis
-- Stakeholder communication
+## Compliance framework coverage
 
-## Success Metrics
+The dashboard tracks 8 frameworks in the Control Alignment and Compliance modules:
 
-### Technical Metrics
-- System uptime (>99.9%)
-- Response time (<200ms p95)
-- Error rate (<0.1%)
-- Data accuracy (>99%)
+| Framework | Type | Current posture |
+|-----------|------|----------------|
+| SOC 2 Type II | Audit standard | 94% — Certified |
+| ISO 27001 | ISMS standard | 87% — In Progress |
+| GDPR | Regulation | 91% — Compliant |
+| NIST CSF 2.0 | Framework | 88% — Compliant |
+| PCI DSS | Payment standard | 83% — Compliant |
+| HIPAA | Healthcare regulation | 78% — In Progress |
+| EU AI Act | AI regulation | 22% — Gap (enforcement Aug 2026) |
+| ISO/IEC 42001 | AI management system | 18% — Gap |
 
-### Business Metrics
-- Risk reduction (>25% year-over-year)
-- Compliance improvement (>20% year-over-year)
-- Audit efficiency (>30% time reduction)
-- User satisfaction (>4.5/5)
+Additionally 25+ frameworks are supported via the plugin layer (`plugins/frameworks/`) for assessment, evidence checklists, and gap reporting.
 
-### Operational Metrics
-- Mean time to detect (MTTD)
-- Mean time to respond (MTTR)
-- Control effectiveness rate
-- Training completion rate
+---
+
+## Health score calculation
+
+The **Resilience Score** shown on the Overview page is a composite 0–100 metric:
+
+| Component | Weight | What it measures |
+|-----------|--------|-----------------|
+| Risk Posture | 40% | Unmitigated risks, vulnerability exposure, residual scores |
+| Compliance Adherence | 30% | UCF control effectiveness rate, policy compliance |
+| Operational Maturity | 20% | Process automation, tool coverage, evidence freshness |
+| Security Posture | 10% | Incident MTTR, IR plan effectiveness, security awareness |
+
+Score interpretation:
+
+| Range | Status |
+|-------|--------|
+| 85–100 | Platinum — leading posture |
+| 70–84 | Gold — meeting expectations |
+| 50–69 | Silver — needs focused improvement |
+| 0–49 | Bronze — significant gaps, immediate action required |
+
+The team-level health score in the Scorecard uses:
+```js
+health = ((effective + partial × 0.5) / total_controls) × 100
+```
+Partial controls count at 50% — they're not fully mitigating risk.
+
+---
+
+## Leadership reporting
+
+### Monthly scorecard
+Per-team health scores with 3-month trend, Bronze/Silver/Gold/Platinum levels, achievement badges, and a leaderboard. Accessible under the LEADERSHIP nav group.
+
+### Monthly report
+Per-leader filtered view showing their controls, open vulnerabilities, active incidents, policy ownership, risk register items, and auto-generated recommended actions. Shareable via `?leader=<teamId>` URL or exportable via browser print to PDF.
+
+### Governance forums (per Risk Management Framework)
+- Monthly Risk Review meetings — Critical and Severe risks
+- Quarterly Leadership Risk Briefings — High and above
+- Weekly operational risk stand-ups — active treatment tracking
