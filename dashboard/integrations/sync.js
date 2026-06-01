@@ -15,9 +15,13 @@ const { createClient } = require('@supabase/supabase-js');
 require('dotenv').config();
 
 const INTEGRATIONS = {
-  jira:   { module: './jira.js',   requires: ['JIRA_HOST','JIRA_API_TOKEN'] },
-  qualys: { module: './qualys.js', requires: ['QUALYS_API_URL','QUALYS_USERNAME'] },
-  splunk: { module: './splunk.js', requires: ['SPLUNK_HOST','SPLUNK_TOKEN'] },
+  jira:               { module: './jira.js',             requires: ['JIRA_HOST','JIRA_API_TOKEN','JIRA_PROJECT_KEY'] },
+  qualys:             { module: './qualys.js',           requires: ['QUALYS_API_URL','QUALYS_USERNAME','QUALYS_PASSWORD'] },
+  splunk:             { module: './splunk.js',           requires: ['SPLUNK_HOST','SPLUNK_TOKEN'] },
+  notion:             { module: './notion.js',           requires: ['NOTION_TOKEN','NOTION_POLICY_DB_ID'] },
+  servicenow:         { module: './servicenow.js',       requires: ['SERVICENOW_INSTANCE','SERVICENOW_USER','SERVICENOW_PASSWORD'] },
+  'aws-security-hub': { module: './aws-security-hub.js', requires: ['AWS_REGION','AWS_ACCESS_KEY_ID','AWS_SECRET_ACCESS_KEY'] },
+  vanta:              { module: './vanta.js',            requires: ['VANTA_API_TOKEN'] },
 };
 
 function isEnabled(cfg) {

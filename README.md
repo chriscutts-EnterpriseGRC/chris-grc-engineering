@@ -81,11 +81,11 @@ Pull real data into the dashboard by adding credentials to `.env` and running th
 
 | Integration | Module | Activate by adding to `.env` |
 |---|---|---|
-| **Jira** | Incidents | `JIRA_HOST`, `JIRA_EMAIL`, `JIRA_API_TOKEN` |
+| **Jira** | Incidents | `JIRA_HOST`, `JIRA_EMAIL`, `JIRA_API_TOKEN`, `JIRA_PROJECT_KEY` |
 | **Qualys VMDR** | Vulnerabilities | `QUALYS_API_URL`, `QUALYS_USERNAME`, `QUALYS_PASSWORD` |
 | **Splunk** | Incidents | `SPLUNK_HOST`, `SPLUNK_TOKEN` |
 | **Notion** | Policy | `NOTION_TOKEN`, `NOTION_POLICY_DB_ID` |
-| **ServiceNow** | Incidents / Policy | `SERVICENOW_INSTANCE`, `SERVICENOW_USER`, `SERVICENOW_PASSWORD` |
+| **ServiceNow** | Incidents + Policy | `SERVICENOW_INSTANCE`, `SERVICENOW_USER`, `SERVICENOW_PASSWORD` |
 | **AWS Security Hub** | Vulnerabilities | `AWS_REGION`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` |
 | **Vanta** | Compliance / Controls | `VANTA_API_TOKEN` |
 
