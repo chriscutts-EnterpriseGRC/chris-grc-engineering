@@ -2468,6 +2468,17 @@ function WorkflowPanel({ item, itemType, onClose }) {
   );
 }
 
+// ─── Risk Category colours ────────────────────────────────────────────────────
+const RISK_CAT_COLOR = {
+  'Access Control':  'bg-blue-50 text-blue-700',
+  'AI Governance':   'bg-purple-50 text-purple-700',
+  'AI Security':     'bg-violet-50 text-violet-700',
+  'Vuln Mgmt':       'bg-orange-50 text-orange-700',
+  'Data Protection': 'bg-cyan-50 text-cyan-700',
+  'Third Party':     'bg-amber-50 text-amber-700',
+  'BCM':             'bg-green-50 text-green-700',
+};
+
 // ─── Risk Register ────────────────────────────────────────────────────────────
 function RiskRegister() {
   const { controls } = useGRCData();
@@ -2595,7 +2606,8 @@ function RiskRegister() {
                   const appetite = getAppetite(r.residualScore);
                   const aptColor = appetite==='Within'?'bg-green-50 text-green-700':appetite==='Approaches'?'bg-amber-50 text-amber-700':appetite==='Exceeds'?'bg-orange-50 text-orange-700':'bg-red-50 text-red-700';
                   const avgEff = r.controlIds.length ? Math.round(r.controlIds.reduce((s,id)=>s+(CTRL_EFF[id]??50),0)/r.controlIds.length) : null;
-                  const effColor = avgEff===null?'text-gray-400':avgEff>=70?'text-green-600':avgEff>=40?'text-amber-600':'text-red-600';
+                  const effBarColor = avgEff===null?'#94A3B8':avgEff>=70?'#22C55E':avgEff>=40?'#EAB308':'#EF4444';
+                  const catClass = RISK_CAT_COLOR[r.category] ?? 'bg-slate-100 text-slate-600';
                   return (
                     <tr key={r.id} className="hover:bg-gray-50 transition-colors">
                       <td className="px-4 py-3.5 max-w-sm">
@@ -2607,7 +2619,7 @@ function RiskRegister() {
                         <p className="text-xs text-gray-400 mt-0.5">{r.asset}</p>
                       </td>
                       <td className="px-4 py-3.5 whitespace-nowrap">
-                        <span className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded">{r.category}</span>
+                        <span className={"text-xs font-medium px-2 py-0.5 rounded-full "+catClass}>{r.category}</span>
                       </td>
                       <td className="px-4 py-3.5 whitespace-nowrap">
                         <div className="flex items-center gap-1">
@@ -2622,11 +2634,22 @@ function RiskRegister() {
                       <td className="px-4 py-3.5 whitespace-nowrap">
                         <span className={"px-2 py-0.5 rounded-full text-xs font-semibold "+aptColor}>{appetite}</span>
                       </td>
-                      <td className="px-4 py-3.5 whitespace-nowrap">
-                        {avgEff !== null ? (
+                      <td className="px-4 py-3.5" style={{minWidth:'140px'}}>
+                        {r.controlIds.length > 0 ? (
                           <div>
-                            <span className={"text-sm font-bold "+effColor}>{avgEff}%</span>
-                            <p className="text-[10px] text-gray-400">{r.controlIds.length} control{r.controlIds.length!==1?'s':''}</p>
+                            <div className="flex flex-wrap gap-1 mb-1.5">
+                              {r.controlIds.map(id => {
+                                const eff = CTRL_EFF[id] ?? 50;
+                                const chipColor = eff >= 70 ? 'bg-green-50 text-green-700' : eff >= 40 ? 'bg-amber-50 text-amber-700' : 'bg-red-50 text-red-700';
+                                return <span key={id} className={"font-mono text-[10px] px-1.5 py-0.5 rounded "+chipColor} title={eff+"% effective"}>{id}</span>;
+                              })}
+                            </div>
+                            <div className="flex items-center gap-1.5">
+                              <div className="flex-1 bg-gray-100 rounded-full h-1.5">
+                                <div className="h-1.5 rounded-full transition-all" style={{width:avgEff+'%',background:effBarColor}}/>
+                              </div>
+                              <span className="text-[10px] font-semibold" style={{color:effBarColor}}>{avgEff}%</span>
+                            </div>
                           </div>
                         ) : <span className="text-xs text-gray-400">—</span>}
                       </td>
@@ -3300,7 +3323,7 @@ export default function GRCDashboard() {
       <aside className={`${sidebarOpen?'w-56':'w-16'} flex-shrink-0 bg-slate-900 flex flex-col transition-all duration-200`}>
         <div className="flex items-center gap-3 px-4 py-5 border-b border-slate-800">
           <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center flex-shrink-0"><Shield size={16} className="text-white" /></div>
-          {sidebarOpen && <div className="min-w-0"><p className="text-white font-semibold text-sm leading-tight truncate">Resilience Ops</p><p className="text-slate-400 text-xs truncate">Chris Cutts</p></div>}
+          {sidebarOpen && <div className="min-w-0"><p className="text-white font-semibold text-sm leading-tight truncate">Docker Resilience Ops</p><p className="text-slate-400 text-xs truncate">GRC Platform</p></div>}
         </div>
         <nav className="flex-1 px-2 py-4 overflow-y-auto">
           {navGroups.map(group => (
