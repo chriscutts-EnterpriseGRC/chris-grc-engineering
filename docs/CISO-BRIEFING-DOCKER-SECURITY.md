@@ -9,7 +9,7 @@
 
 ## Executive Summary
 
-Every service we ship is a container. That makes our attack surface not just our code, but the entire path from a developer's commit to a running workload in production — six distinct trust boundaries, 30+ mapped threats, and a growing set of EOL runtime risks with no patch path. We have built a production-grade GRC platform to manage this exposure, and we are mid-execution on a Docker-specific integration roadmap that will give us image-level supply chain visibility. This briefing covers current posture, active risks requiring your decision, and the roadmap ahead.
+Every service we ship is a container. That makes our attack surface not just our code, but the entire path from a developer's commit to a running workload in production — six distinct trust boundaries, 30+ mapped threats, and a growing set of EOL runtime risks with no patch path. We have built a production-grade GRC platform to manage this exposure and are mid-execution on a four-phase roadmap: Docker Scout integration (Phase 2), SBOM and continuous monitoring (Phase 3), and AI-assisted GRC workflows using MCP (Phase 4) — where agents auto-triage findings, draft treatment plans, monitor SLA clocks, and generate OSCAL evidence packages continuously. This briefing covers current posture, active risks requiring your decision, and the full roadmap.
 
 ---
 
@@ -168,7 +168,23 @@ The following items are surfaced automatically when they require explicit leader
 - Alert fires the moment a new CVE matches any component in any production image
 - EOL date tracking via endoflife.date API — new EOL finding auto-opens within 24 hours of EOL date
 
-> **Full roadmap with integration architecture:** [DOCKER-INTEGRATION-ROADMAP.md](./DOCKER-INTEGRATION-ROADMAP.md)
+**Phase 4 — AI-Assisted GRC (Strategic):**
+
+This is where the platform shifts from instrumented to intelligent. Using MCP (Model Context Protocol), Claude agents connect directly to the live Supabase data layer and automate the cognitive work that today sits between data existing and a human acting on it.
+
+| Workflow | What it does | What it replaces |
+|---|---|---|
+| **VSRM Auto-Triage** | Scores every new CVE automatically using VSRM, assigns owner, sets SLA | 15–30 min manual triage per finding |
+| **Treatment Plan Drafter** | Drafts risk treatment plans with steps, similar past cases, owner suggestion | 30–60 min per plan |
+| **SLA Breach Monitor** | Drafts escalation messages when SLA breaches, holds for human approval | Manual SLA watching |
+| **OSCAL Continuous Export** | Commits updated OSCAL SSP to `/evidence/oscal/` on every control change | Pre-audit manual export |
+| **Compliance Gap Analyst** | Ranks which controls to fix next for maximum framework coverage gain | Manual gap analysis sessions |
+| **CISO Briefing Generator** | Regenerates this document with live KRI data on demand | Manual doc updates before meetings |
+
+Every AI decision is logged with full reasoning, inputs, and agent version. No agent writes to production without human review. This is auditable AI deployment — it satisfies EU AI Act Art. 13 transparency requirements by design.
+
+> **Full architecture and implementation plan:** [AI-GRC-ROADMAP.md](./AI-GRC-ROADMAP.md)  
+> **Full Docker roadmap:** [DOCKER-INTEGRATION-ROADMAP.md](./DOCKER-INTEGRATION-ROADMAP.md)
 
 ---
 
@@ -200,6 +216,7 @@ The shift-left posture means that by Phase 3, a CVE in a base image will be caug
 | 3 | **Resource allocation decision** for Data Protection team (29% health) — additional headcount or formal risk acceptance | This week | CISO + Engineering VP |
 | 4 | **Legal directive** to initiate DPA process for 3 AI vendors or offboard | This week | CISO + Legal |
 | 5 | **Endorse Docker Scout + SBOM roadmap** (Phase 2/3) for engineering sprint prioritization | This month | CISO + CTO |
+| 6 | **Endorse Phase 4 AI-assisted GRC roadmap** — MCP server build, VSRM auto-triage, OSCAL continuous export | This quarter | CISO + CTO |
 
 ---
 
@@ -207,6 +224,7 @@ The shift-left posture means that by Phase 3, a CVE in a base image will be caug
 
 | Document | Purpose |
 |---|---|
+| [AI-GRC-ROADMAP.md](./AI-GRC-ROADMAP.md) | Phase 4: MCP architecture, 7 AI workflows, OSCAL automation, implementation plan |
 | [VULNERABILITY-MANAGEMENT-PROGRAM.md](./VULNERABILITY-MANAGEMENT-PROGRAM.md) | Full VM program: VSRM, SLA policy, EOL management, tool stack |
 | [THREAT-MODEL-DOCKER-SUPPLY-CHAIN.md](./THREAT-MODEL-DOCKER-SUPPLY-CHAIN.md) | STRIDE analysis across all 6 Docker trust boundaries |
 | [DOCKER-INTEGRATION-ROADMAP.md](./DOCKER-INTEGRATION-ROADMAP.md) | Phase 2/3 Scout + SBOM integration architecture |

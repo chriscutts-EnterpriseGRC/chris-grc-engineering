@@ -277,6 +277,17 @@ See [AWS_DEPLOYMENT.md](../deployment/AWS_DEPLOYMENT.md) for the full infrastruc
 - New CVEs detected and alerted <1 hour
 - Behavioral anomalies logged and investigated
 
+**Phase 5 (Compliance):**
+- OSCAL SSP export live and versioned
+- Hard enforcement gates blocking non-compliant deploys
+- Exemption workflow tracked in risk register
+
+**Phase 6 (AI-Native):**
+- VSRM auto-triage agent: 0 manual triage hours for P1/P2 findings
+- SLA breach escalations drafted and sent without human intervention
+- OSCAL SSP continuously maintained — no manual export before audits
+- CISO briefing generated from live KRI data on demand
+
 **Phase 5 (Enforcement):**
 - Deployment blocked if non-compliant
 - >95% compliance rate across org
