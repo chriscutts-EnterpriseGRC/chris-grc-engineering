@@ -767,6 +767,32 @@ function SLACountdown({ dueDate, status }) {
   return <span className="text-xs text-gray-500">{days}d left</span>;
 }
 
+function SectionContext({ what, why, ask, askUrgency = 'normal' }) {
+  const askColors = {
+    critical: 'bg-red-50 border-red-200 text-red-800',
+    high:     'bg-amber-50 border-amber-200 text-amber-800',
+    normal:   'bg-blue-50 border-blue-200 text-blue-800',
+  };
+  return (
+    <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+      <div className="grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-gray-100">
+        <div className="px-5 py-4">
+          <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1">What this tracks</p>
+          <p className="text-xs text-gray-700 leading-relaxed">{what}</p>
+        </div>
+        <div className="px-5 py-4">
+          <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1">Why it matters</p>
+          <p className="text-xs text-gray-700 leading-relaxed">{why}</p>
+        </div>
+        <div className="px-5 py-4">
+          <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1">What we need from you</p>
+          <p className={`text-xs leading-relaxed font-medium px-3 py-2 rounded-lg border ${askColors[askUrgency]}`}>{ask}</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function Vulnerabilities() {
   const { vulns, controls } = useGRCData();
   const ctrlMap = Object.fromEntries(controls.map(c => [c.id, c]));
@@ -806,8 +832,23 @@ function Vulnerabilities() {
      (v.cve && v.cve.toLowerCase().includes(search.toLowerCase())))
   );
 
+  const p0OverdueCount = open.filter(v => v.priority === 'P0' && v.dueDate && daysFromToday(v.dueDate) < 0).length;
+  const eolUnassigned  = open.filter(v => v.eol && !v.assignedTo).length;
+  const vulnAsk = p0OverdueCount > 0
+    ? `P0 SLA breach: declare incident or escalate today. ${eolUnassigned > 0 ? `${eolUnassigned} EOL component${eolUnassigned>1?'s':''} need upgrade owners assigned.` : ''}`
+    : eolUnassigned > 0
+      ? `Assign upgrade owners to ${eolUnassigned} EOL component${eolUnassigned>1?'s':''} — these cannot be patched, only migrated.`
+      : 'No critical blockers. Review P1/P2 SLA compliance and confirm upgrade timelines.';
+  const vulnUrgency = p0OverdueCount > 0 ? 'critical' : eolUnassigned > 0 ? 'high' : 'normal';
+
   return (
     <div className="space-y-4">
+      <SectionContext
+        what="Real-time tracking of CVEs, EOL components, and CISA KEV threats across all production assets. Every finding is scored through the VSRM — 4 dimensions of contextual risk, not raw CVSS."
+        why="Unpatched vulnerabilities are the most common breach vector. EOL runtimes create permanent exposure that no security patch can ever close — only migration eliminates the risk."
+        ask={vulnAsk}
+        askUrgency={vulnUrgency}
+      />
 
       {/* KRI panel */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -869,6 +910,8 @@ function Vulnerabilities() {
           { label: 'VSRM Methodology', href: 'docs/VULNERABILITY-MANAGEMENT-PROGRAM.md#vulnerability-severity-rating-matrix-vsrm' },
           { label: 'SDLC Security Guardrails', href: 'docs/SDLC-SECURITY-GUARDRAILS.md' },
           { label: 'PDLC Security Guardrails', href: 'docs/PDLC-SECURITY-GUARDRAILS.md' },
+          { label: 'NPM Supply Chain Policy', href: 'docs/NPM-SUPPLY-CHAIN-SECURITY.md' },
+          { label: 'AI-GRC Roadmap', href: 'docs/AI-GRC-ROADMAP.md' },
         ].map(({ label, href }) => (
           <a key={href} href={`https://github.com/9snxz8htcw-netizen/chris-grc-engineering/blob/main/${href}`}
              target="_blank" rel="noopener noreferrer"
@@ -1062,9 +1105,19 @@ function Incidents() {
 
   const active = incidents.filter(i => i.status !== 'Resolved');
   const mttrAvg = '3.2h';
+  const aiIncOpen = incidents.filter(i => i.ai && i.status !== 'Resolved').length;
+  const incAsk = active.length > 0
+    ? `${active.length} incident${active.length>1?'s':''} unresolved.${aiIncOpen > 0 ? ` ${aiIncOpen} AI-related ${aiIncOpen>1?'incidents require':'incident requires'} dedicated IR playbook coverage under EU AI Act Art. 9 — assign a Security Lead.` : ' Confirm IR control is tested and playbook is current.'}`
+    : 'No active incidents. Validate IR playbook and schedule a tabletop exercise for AI-related scenarios.';
 
   return (
     <div className="space-y-4">
+      <SectionContext
+        what="Active and historical security events tracked from initial detection through full resolution. Every incident links back to a UCF control and drives MTTR measurement."
+        why="Fast containment limits blast radius. AI-related incidents carry regulatory weight — EU AI Act Art. 9 requires documented risk management and logging for every AI failure in production."
+        ask={incAsk}
+        askUrgency={active.length > 0 ? 'high' : 'normal'}
+      />
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <KPICard title="Active Incidents"  value={active.length}  icon={Flame}         color="#F97316" subtitle="2 critical unresolved" />
         <KPICard title="Avg MTTR"          value={mttrAvg}        icon={RefreshCw}      color="#2563EB" subtitle="last 30 days" />
@@ -1205,9 +1258,21 @@ function ThirdParty() {
   const noContract = vendors.filter(v => v.status === 'No Contract').length;
   const highRisk = vendors.filter(v => v.riskScore >= 60).length;
   const aiVendors = vendors.filter(v => v.ai).length;
+  const aiNoDpa = vendors.filter(v => v.ai && v.status !== 'Active').length;
+  const tpAsk = aiNoDpa > 0
+    ? `${aiNoDpa} AI vendor${aiNoDpa>1?'s':''} operating without a Data Processing Agreement — GDPR Art. 28 exposure (fine up to 2% of global revenue). Legal must initiate DPAs or offboard these vendors this week.`
+    : noContract > 0
+      ? `${noContract} vendor${noContract>1?'s':''} without active contracts. Procurement sign-off required before these vendors process any company data.`
+      : 'Vendor contracts in order. Schedule annual risk re-assessments for high-risk vendors.';
 
   return (
     <div className="space-y-4">
+      <SectionContext
+        what="All vendor relationships scored for security posture, contract status, and data processing compliance. AI vendors receive enhanced scrutiny due to data transfer and model governance obligations."
+        why="Third-party integrations extend your attack surface. A vendor breach becomes your breach. Missing DPAs create direct GDPR Art. 28 liability — not a supplier problem, your problem."
+        ask={tpAsk}
+        askUrgency={aiNoDpa > 0 ? 'critical' : noContract > 0 ? 'high' : 'normal'}
+      />
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <KPICard title="High-Risk Vendors"  value={highRisk}    icon={Building2}     color="#EF4444" subtitle="risk score ≥ 60" />
         <KPICard title="No Contract"        value={noContract}  icon={AlertTriangle} color="#F97316" subtitle="uncontracted AI vendors" />
@@ -1276,9 +1341,20 @@ function Compliance() {
   const aiCoverage = Math.round(aiFrames.reduce((s,f) => s+f.progress, 0) / aiFrames.length);
   const certified  = frameworks.filter(f => f.status === 'Certified' || f.status === 'Compliant').length;
   const gapCount   = frameworks.filter(f => f.status === 'Gap').length;
+  const compAsk = aiCoverage < 30
+    ? `EU AI Act enforcement is live. At ${aiCoverage}% coverage every AI feature we ship carries unmitigated regulatory exposure. Board decision required this week: approve remediation budget or formally accept the risk on the register.`
+    : gapCount > 0
+      ? `${gapCount} framework${gapCount>1?'s':''} at Gap status. Review blockers and assign remediation owners before the next audit cycle.`
+      : 'Compliance posture is healthy. Maintain cadence and prepare evidence packages for upcoming audit windows.';
 
   return (
     <div className="space-y-4">
+      <SectionContext
+        what="Coverage across all active regulatory frameworks: SOC 2, ISO 27001, ISO 42001, EU AI Act, NIST CSF, and NIST AI RMF. Each framework maps to UCF controls with live effectiveness scores."
+        why="Compliance gaps are not just audit findings — they are unmitigated legal and regulatory exposure. EU AI Act enforcement is live in 2026 with fines up to 3% of global annual turnover."
+        ask={compAsk}
+        askUrgency={aiCoverage < 30 ? 'critical' : gapCount > 0 ? 'high' : 'normal'}
+      />
 
       {/* KPI row */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -1540,8 +1616,18 @@ function Scorecard({ onViewReport }) {
     }] : []),
   ].slice(0, 4);
 
+  const scorecardAsk = leadershipDecisions.length > 0
+    ? `${leadershipDecisions.length} item${leadershipDecisions.length>1?'s':''} need your sign-off. ${leadershipDecisions[0]?.ask ? `Start with: ${leadershipDecisions[0].title}.` : ''} Each item below lists the exact decision required.`
+    : 'No decisions pending. Program is tracking positively — review team health trends and upcoming review dates.';
+
   return (
     <div className="space-y-5">
+      <SectionContext
+        what="Program-level health across all security domains, team control ownership, and open decisions requiring leadership sign-off. Aggregates signals from every module into a single executive view."
+        why="Security outcomes are determined by decisions made at leadership level — resource allocation, risk acceptance, incident escalation, regulatory investment. This module surfaces exactly those decisions."
+        ask={scorecardAsk}
+        askUrgency={leadershipDecisions.length > 0 ? (p0Breach.length > 0 ? 'critical' : 'high') : 'normal'}
+      />
       {/* Program KPIs */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <KPICard title="Program Health"     value={`${avgHealth}%`}  icon={Award}         color="#2563EB"
@@ -2105,8 +2191,22 @@ function ControlAlignment() {
     URL.revokeObjectURL(url);
   };
 
+  const untestedControls = controls.filter(c => c.effectiveness === 'not_tested').length;
+  const untestedAI = controls.filter(c => c.ai && c.effectiveness === 'not_tested').length;
+  const ctrlAsk = untestedAI > 0
+    ? `${untestedAI} AI control${untestedAI>1?'s':''} untested. Auditors will treat untested controls as automatic findings in SOC 2 and EU AI Act assessments. Schedule effectiveness tests before the next audit window.`
+    : untestedControls > 0
+      ? `${untestedControls} control${untestedControls>1?'s':''} not yet tested. Assign owners and schedule test dates to close evidence gaps before the next audit cycle.`
+      : 'All controls tested. Maintain cadence — export OSCAL SSP for audit evidence packages.';
+
   return (
     <div className="space-y-5">
+      <SectionContext
+        what="UCF control effectiveness scores mapped across every active framework. Shows which controls are tested and effective, which are partial, and which are gaps — with OSCAL export for audit submissions."
+        why="Controls are the mechanism that turns policy into evidence. Untested controls fail audits automatically. Gaps in AI controls create direct EU AI Act Art. 9 and ISO 42001 findings."
+        ask={ctrlAsk}
+        askUrgency={untestedAI > 0 ? 'high' : untestedControls > 0 ? 'high' : 'normal'}
+      />
 
       {/* Top summary strip */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -2863,8 +2963,20 @@ function RiskRegister() {
 
   const withinAppetite = risks.filter(r=>getAppetite(r.residualScore)==='Within').length;
 
+  const riskAsk = exceedsAppetite > 0
+    ? `${exceedsAppetite} risk${exceedsAppetite>1?'s':''} exceed appetite. Treatment plans need Engineering VP or CISO approval depending on severity band. Review open risks with no owner assigned first.`
+    : open > 0
+      ? `${open} risks in active treatment. Confirm each has an assigned owner and a next review date. AI risks require a tested control before the next audit.`
+      : 'All risks within appetite or accepted. Maintain review cadence and refresh threat models on material changes.';
+
   return (
     <div className="space-y-4">
+      <SectionContext
+        what="All identified risks in formal treatment — each with a VSRM-style inherent and residual score, owner, treatment plan, and review date. Heat matrix shows likelihood × impact across the full portfolio."
+        why="Untreated high-impact risks compound over time. The risk register is the source of truth for audit evidence, insurance underwriting, and budget justification for security investment."
+        ask={riskAsk}
+        askUrgency={exceedsAppetite > 0 ? 'high' : 'normal'}
+      />
       {workflow && <WorkflowPanel item={workflow} itemType="Risk" onClose={()=>setWorkflow(null)} />}
       {/* KPI Row · 4 uniform cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
