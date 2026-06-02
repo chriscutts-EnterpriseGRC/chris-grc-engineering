@@ -780,7 +780,7 @@ function SectionContext({ what, why, ask, askUrgency = 'normal' }) {
     <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
       <div className="flex flex-col md:flex-row">
         <div className={`${askBg[askUrgency]} px-5 py-4 md:w-2/5 flex-shrink-0`}>
-          <p className="text-[10px] font-bold text-white/70 uppercase tracking-wider mb-1.5">Action required</p>
+          <p className="text-[10px] font-bold text-white/70 uppercase tracking-wider mb-1.5">What we need from you</p>
           <p className="text-sm font-semibold text-white leading-snug">{ask}</p>
         </div>
         <div className="flex-1 grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-gray-100">
