@@ -582,7 +582,7 @@ function Overview({ navigate }) {
         return (
           <div className="bg-white border border-gray-100 rounded-xl px-4 py-3 shadow-sm">
             <div className="flex items-center gap-1 overflow-x-auto">
-              <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider whitespace-nowrap mr-2">Demo path</span>
+              <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider whitespace-nowrap mr-2">Platform Tour</span>
               {steps.map((s, i) => (
                 <React.Fragment key={s.id}>
                   <button onClick={() => navigate(s.id)}
@@ -754,6 +754,12 @@ function PriorityBadge({ priority }) {
       <span className={`text-xs ${c.text} opacity-70`}>{PRIORITY_NAMES[priority]}</span>
     </div>
   );
+}
+
+function fmtDate(str) {
+  if (!str) return '—';
+  const d = new Date(str + 'T00:00:00');
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
 function SLACountdown({ dueDate, status }) {
@@ -1156,7 +1162,7 @@ function Incidents() {
             { key: 'type',     label: 'Type',    render: r => <span className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded">{r.type}</span> },
             { key: 'severity', label: 'Severity',render: r => <SeverityBadge severity={r.severity} /> },
             { key: 'status',   label: 'Status',  render: r => <StatusBadge status={r.status} /> },
-            { key: 'detected', label: 'Detected',render: r => <span className="text-xs text-gray-500">{r.detected}</span> },
+            { key: 'detected', label: 'Detected',render: r => <span className="text-xs text-gray-500">{fmtDate(r.detected)}</span> },
             { key: 'mttr',     label: 'MTTR',    render: r => <span className="text-xs text-gray-500">{r.mttr || '-'}</span> },
             { key: 'systems',  label: 'Systems', render: r => <span className="text-xs font-semibold text-gray-600">{r.systems}</span> },
             { key: 'ctrl',     label: 'Linked Control', render: r => <ControlCell controlId={r.controlId} /> },
@@ -1227,7 +1233,7 @@ function PolicyModule() {
             { key: 'category',    label: 'Category',   render: r => <span className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded">{r.category}</span> },
             { key: 'status',      label: 'Status',     render: r => <StatusBadge status={r.status} /> },
             { key: 'version',     label: 'Version',    render: r => <span className="text-xs font-mono text-gray-500">{r.version || '-'}</span> },
-            { key: 'reviewDate',  label: 'Review Due', render: r => <span className={`text-xs ${!r.reviewDate||r.reviewDate<'2026-06-01'?'text-red-500 font-medium':'text-gray-500'}`}>{r.reviewDate || 'Not set'}</span> },
+            { key: 'reviewDate',  label: 'Review Due', render: r => <span className={`text-xs ${!r.reviewDate||r.reviewDate<'2026-06-01'?'text-red-500 font-medium':'text-gray-500'}`}>{r.reviewDate ? fmtDate(r.reviewDate) : 'Not set'}</span> },
             { key: 'exceptions',  label: 'Exceptions', render: r => <span className={`text-sm font-semibold ${r.exceptions>0?'text-amber-600':'text-gray-400'}`}>{r.exceptions}</span> },
             { key: 'owner',       label: 'Owner',      render: r => <span className="text-xs text-gray-500">{r.owner}</span> },
             { key: 'ctrl',        label: 'Linked Control', render: r => <ControlCell controlId={r.controlId} /> },
@@ -1319,8 +1325,8 @@ function ThirdParty() {
             },
             { key: 'status',       label: 'Status',     render: r => <StatusBadge status={r.status} /> },
             { key: 'dataShared',   label: 'Data Shared',render: r => <span className="text-xs text-gray-500">{r.dataShared}</span> },
-            { key: 'contractExpiry',label:'Contract',   render: r => <span className={`text-xs ${!r.contractExpiry?'text-red-500 font-semibold':r.contractExpiry<'2026-09-01'?'text-amber-600':'text-gray-500'}`}>{r.contractExpiry||'None'}</span> },
-            { key: 'lastAssessed', label: 'Last Assessed', render: r => <span className={`text-xs ${!r.lastAssessed?'text-red-500 font-semibold':'text-gray-500'}`}>{r.lastAssessed||'Never'}</span> },
+            { key: 'contractExpiry',label:'Contract',   render: r => <span className={`text-xs ${!r.contractExpiry?'text-red-500 font-semibold':r.contractExpiry<'2026-09-01'?'text-amber-600':'text-gray-500'}`}>{r.contractExpiry ? fmtDate(r.contractExpiry) : 'None'}</span> },
+            { key: 'lastAssessed', label: 'Last Assessed', render: r => <span className={`text-xs ${!r.lastAssessed?'text-red-500 font-semibold':'text-gray-500'}`}>{r.lastAssessed ? fmtDate(r.lastAssessed) : 'Never'}</span> },
             { key: 'ctrl',         label: 'Linked Control', render: r => <ControlCell controlId={r.controlId} /> },
             { key: 'eff',          label: 'Control Effectiveness', render: r => { const c = ctrlMap[r.controlId]; return c ? <EffectivenessBadge effectiveness={c.effectiveness} score={c.score} /> : null; } },
           ]}
@@ -3266,31 +3272,31 @@ function EvidenceLocker() {
 
 const navGroups = [
   {
-    label: 'SECURITY OPERATIONS',
+    label: 'EXECUTIVE',
     items: [
-      { id: 'overview',    label: 'Overview',        icon: Grid },
-      { id: 'risks',       label: 'Risk Register',   icon: AlertTriangle },
-      { id: 'vulns',       label: 'Vulnerabilities', icon: Bug },
-      { id: 'incidents',   label: 'Incidents',       icon: Flame },
-      { id: 'policy',      label: 'Policy',          icon: BookOpen },
-      { id: 'thirdparty',  label: 'Third Party',     icon: Building2 },
-    ],
-  },
-  {
-    label: 'GRC',
-    items: [
-      { id: 'alignment',   label: 'Control Alignment', icon: CheckSquare },
-      { id: 'compliance',  label: 'Compliance',        icon: Shield },
-      { id: 'audits',      label: 'Audit Management',  icon: FileText },
-      { id: 'evidence',    label: 'Evidence Locker',   icon: Eye },
-      { id: 'architecture',label: 'Architecture',      icon: Activity },
-    ],
-  },
-  {
-    label: 'LEADERSHIP',
-    items: [
+      { id: 'overview',      label: 'Overview',        icon: Grid },
       { id: 'scorecard',     label: 'Scorecard',       icon: Award },
+      { id: 'compliance',    label: 'Compliance',      icon: Shield },
       { id: 'leader-report', label: 'Monthly Report',  icon: Users },
+    ],
+  },
+  {
+    label: 'OPERATIONS',
+    items: [
+      { id: 'risks',      label: 'Risk Register',   icon: AlertTriangle },
+      { id: 'vulns',      label: 'Vulnerabilities', icon: Bug },
+      { id: 'incidents',  label: 'Incidents',       icon: Flame },
+      { id: 'thirdparty', label: 'Third Party',     icon: Building2 },
+      { id: 'policy',     label: 'Policy',          icon: BookOpen },
+    ],
+  },
+  {
+    label: 'GOVERNANCE',
+    items: [
+      { id: 'alignment',    label: 'Control Alignment', icon: CheckSquare },
+      { id: 'audits',       label: 'Audit Management',  icon: FileText },
+      { id: 'evidence',     label: 'Evidence Locker',   icon: Eye },
+      { id: 'architecture', label: 'Architecture',      icon: Activity },
     ],
   },
 ];
@@ -3774,7 +3780,7 @@ export default function GRCDashboard() {
           <div className="flex items-center gap-3">
             {dataLoading
               ? <span className="text-xs text-gray-400 animate-pulse">Connecting…</span>
-              : <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${liveData ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>{liveData ? '● Live' : '○ Demo'}</span>
+              : <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${liveData ? 'bg-emerald-50 text-emerald-700' : 'bg-blue-50 text-blue-600'}`}>{liveData ? '● Live' : '◉ Sample Data'}</span>
             }
             <button className="relative p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-50 rounded-lg transition-colors"><Bell size={18} /><span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full" /></button>
             <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center"><User size={14} className="text-white" /></div>
