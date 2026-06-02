@@ -551,6 +551,7 @@ function Overview({ navigate }) {
               <span className="text-xl font-bold text-gray-900">{score} / 100</span>
               <span className={`text-xs font-bold px-2.5 py-0.5 rounded-full ${posture.bg} ${posture.color}`}>{posture.label}</span>
               <span className="text-xs text-gray-400 ml-1">+3 vs last week</span>
+              <span title="Weighted composite score: Control Effectiveness 40% · Vulnerability Posture 30% · Incident Response 20% · Operational Maturity 10%" className="text-xs text-blue-500 hover:text-blue-700 cursor-help ml-1 underline decoration-dotted select-none">How scored?</span>
             </div>
             <p className="text-sm text-gray-600 leading-snug">{postureText}</p>
             <div className="flex gap-4 mt-3 flex-wrap">
@@ -774,25 +775,23 @@ function SLACountdown({ dueDate, status }) {
 }
 
 function SectionContext({ what, why, ask, askUrgency = 'normal' }) {
-  const askColors = {
-    critical: 'bg-red-50 border-red-200 text-red-800',
-    high:     'bg-amber-50 border-amber-200 text-amber-800',
-    normal:   'bg-blue-50 border-blue-200 text-blue-800',
-  };
+  const askBg = { critical: 'bg-red-600', high: 'bg-amber-500', normal: 'bg-blue-600' };
   return (
     <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
-      <div className="grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-gray-100">
-        <div className="px-5 py-4">
-          <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1">What this tracks</p>
-          <p className="text-xs text-gray-700 leading-relaxed">{what}</p>
+      <div className="flex flex-col md:flex-row">
+        <div className={`${askBg[askUrgency]} px-5 py-4 md:w-2/5 flex-shrink-0`}>
+          <p className="text-[10px] font-bold text-white/70 uppercase tracking-wider mb-1.5">Action required</p>
+          <p className="text-sm font-semibold text-white leading-snug">{ask}</p>
         </div>
-        <div className="px-5 py-4">
-          <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1">Why it matters</p>
-          <p className="text-xs text-gray-700 leading-relaxed">{why}</p>
-        </div>
-        <div className="px-5 py-4">
-          <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1">What we need from you</p>
-          <p className={`text-xs leading-relaxed font-medium px-3 py-2 rounded-lg border ${askColors[askUrgency]}`}>{ask}</p>
+        <div className="flex-1 grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-gray-100">
+          <div className="px-5 py-4">
+            <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1">What this tracks</p>
+            <p className="text-xs text-gray-600 leading-relaxed">{what}</p>
+          </div>
+          <div className="px-5 py-4">
+            <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1">Why it matters</p>
+            <p className="text-xs text-gray-600 leading-relaxed">{why}</p>
+          </div>
         </div>
       </div>
     </div>
@@ -871,6 +870,7 @@ function Vulnerabilities() {
         <div className={`rounded-xl border p-5 shadow-sm ${slaCompliance < 90 ? 'bg-amber-50 border-amber-300' : 'bg-white border-gray-100'}`}>
           <p className="text-xs text-gray-400 mb-1">SLA Compliance (P1/P2)</p>
           <p className={`text-3xl font-bold mb-1 ${slaCompliance < 90 ? 'text-amber-600' : 'text-emerald-600'}`}>{slaCompliance}%</p>
+          <p className="text-xs text-gray-400">{p1p2InSLA} of {p1p2Open.length} within SLA</p>
           <p className="text-xs text-gray-400">Target: &gt;90%</p>
         </div>
         <div className={`rounded-xl border p-5 shadow-sm ${unassignedCritical > 0 ? 'bg-red-50 border-red-300' : 'bg-white border-gray-100'}`}>
@@ -995,7 +995,7 @@ function Vulnerabilities() {
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm">
         <ModuleHeader
           title="Vulnerability Register"
-          subtitle={`${data.length} vulnerabilities · VSRM P0–P4`}
+          subtitle={`${data.length} vulnerabilities · Priority scored P0–P4 (VSRM)`}
           search={search}
           setSearch={setSearch}
           filters={<>
@@ -1343,8 +1343,12 @@ function Compliance() {
   const { frameworks } = useGRCData();
 
   const overall    = Math.round(frameworks.reduce((s,f) => s+f.progress, 0) / frameworks.length);
-  const aiFrames   = frameworks.filter(f => f.name.includes('AI') || f.name.includes('42001'));
-  const aiCoverage = Math.round(aiFrames.reduce((s,f) => s+f.progress, 0) / aiFrames.length);
+  const aiFrames    = frameworks.filter(f => f.name.includes('AI') || f.name.includes('42001'));
+  const aiCoverage  = Math.round(aiFrames.reduce((s,f) => s+f.progress, 0) / aiFrames.length);
+  const aiPassing   = aiFrames.reduce((s,f) => s + (f.passing ?? 0), 0);
+  const aiTotal     = aiFrames.reduce((s,f) => s + (f.controls ?? 0), 0);
+  const euAiActFw   = aiFrames.find(f => f.name.includes('EU AI'));
+  const iso42001Fw  = aiFrames.find(f => f.name.includes('42001'));
   const certified  = frameworks.filter(f => f.status === 'Certified' || f.status === 'Compliant').length;
   const gapCount   = frameworks.filter(f => f.status === 'Gap').length;
   const compAsk = aiCoverage < 30
@@ -1365,7 +1369,7 @@ function Compliance() {
       {/* KPI row */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <KPICard title="Overall Coverage"      value={`${overall}%`}   icon={Shield}        color="#2563EB" subtitle={`avg across ${frameworks.length} frameworks`} />
-        <KPICard title="AI Compliance"         value={`${aiCoverage}%`} icon={Cpu}          color="#9333EA" subtitle="EU AI Act + ISO 42001" />
+        <KPICard title="AI Compliance"         value={`${aiCoverage}%`} icon={Cpu}          color="#9333EA" subtitle={aiTotal > 0 ? `${aiPassing} of ${aiTotal} controls · EU AI Act ${euAiActFw?.progress ?? '—'}% · ISO 42001 ${iso42001Fw?.progress ?? '—'}%` : 'EU AI Act + ISO 42001'} />
         <KPICard title="Certified / Compliant" value={certified}       icon={CheckCircle}   color="#22C55E" subtitle={`of ${frameworks.length} total frameworks`} />
         <KPICard title="Frameworks at Gap"     value={gapCount}        icon={AlertTriangle} color="#EF4444" subtitle="immediate remediation required" />
       </div>
@@ -2786,11 +2790,11 @@ function ControlChip({ controlId }) {
     return () => document.removeEventListener('click', close);
   }, [open]);
 
-  if (!ctrl) return <span className="font-mono text-[10px] px-1.5 py-0.5 rounded bg-gray-100 text-gray-400">{controlId}</span>;
+  if (!ctrl) return <span className="font-mono text-[10px] px-1.5 py-0.5 rounded bg-gray-100 text-gray-400" title={controlId}>{controlId}</span>;
 
   return (
     <>
-      <button ref={btnRef} onClick={toggle}
+      <button ref={btnRef} onClick={toggle} title={`${ctrl.name} · ${eff?.label ?? ''} · Click for details`}
         className={"font-mono text-[10px] px-1.5 py-0.5 rounded whitespace-nowrap flex-shrink-0 transition-colors "+chipCls}>
         {controlId}
       </button>
@@ -3025,7 +3029,7 @@ function RiskRegister() {
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead><tr className="bg-gray-50 text-left">
-                {['Risk','Category','Score','Appetite','Controls','Status','Owner',''].map(h=>(
+                {['Risk','Category','Score (Inherent → Residual)','Appetite','Controls','Status','Owner',''].map(h=>(
                   <th key={h} className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">{h}</th>
                 ))}
               </tr></thead>
@@ -3053,7 +3057,7 @@ function RiskRegister() {
                         <div className="flex items-center gap-1">
                           <span className="w-2 h-2 rounded-full flex-shrink-0" style={{background:getRiskColor(r.inherentScore)}}/>
                           <span className="font-bold text-gray-700">{r.inherentScore}</span>
-                          <span className="text-gray-300 mx-0.5">→</span>
+                          <span className="text-gray-300 mx-0.5" title="Inherent score → Residual score after controls applied">→</span>
                           <span className="w-2 h-2 rounded-full flex-shrink-0" style={{background:getRiskColor(r.residualScore)}}/>
                           <span className="font-semibold text-gray-600">{r.residualScore}</span>
                         </div>
