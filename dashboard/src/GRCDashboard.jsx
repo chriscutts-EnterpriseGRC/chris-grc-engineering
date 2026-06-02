@@ -92,7 +92,7 @@ const vulns = [
   // VSRM: Production + Public + CVSS 6.5 + POC → P3 (Patched)
   { id: 'V-004', cve: 'CVE-2024-3456', title: 'nginx path traversal',
     severity: 'Medium', cvss: 6.5, status: 'Patched', asset: 'web-proxy',
-    controlId: 'UCF.03.01', discovered: '2026-05-15',
+    controlId: 'UCF.03.01', discovered: '2026-05-15', patchedDate: '2026-05-22',
     priority: 'P3', secTier: 0, environment: 'Production', exposure: 'Public',
     exploitability: 'POC', isCisaKev: false,
     assignedTo: 'T. Williams', dueDate: '2026-07-13' },
@@ -136,6 +136,24 @@ const vulns = [
     priority: 'P3', secTier: 1, environment: 'Dev/Stage', exposure: 'Internal',
     exploitability: 'POC', isCisaKev: false,
     assignedTo: null, dueDate: '2026-07-27' },
+
+  // EOL: Production public-facing runtime — P1 (no patch path, permanent exposure)
+  { id: 'V-010', cve: null, title: 'Node.js 16 — End of Life (Apr 2024)',
+    severity: 'High', cvss: null, status: 'Open', asset: 'api-gateway',
+    controlId: 'UCF.03.02', discovered: '2026-05-30', eol: true, eolDate: '2024-04-30',
+    priority: 'P1', secTier: 0, environment: 'Production', exposure: 'Public',
+    exploitability: 'No patch path', isCisaKev: false,
+    assignedTo: null, dueDate: '2026-06-13',
+    eolNote: 'No security patches issued after Apr 2024. All new CVEs permanently unmitigable. Upgrade to Node.js 20 LTS required.' },
+
+  // EOL: AI/ML runtime in Dev/Stage — P2 (internal exposure, AI dependency)
+  { id: 'V-011', cve: null, title: 'Python 3.8 — End of Life (Oct 2024)',
+    severity: 'High', cvss: null, status: 'Open', asset: 'ml-training-env',
+    controlId: 'UCF.AI.02', discovered: '2026-05-30', eol: true, eolDate: '2024-10-31', ai: true,
+    priority: 'P2', secTier: 1, environment: 'Dev/Stage', exposure: 'Internal',
+    exploitability: 'No patch path', isCisaKev: false,
+    assignedTo: null, dueDate: '2026-07-01',
+    eolNote: 'ML training pipeline runtime. No security patches. Upgrade to Python 3.11 LTS. Blocks EU AI Act Art. 9 risk management requirements.' },
 ];
 
 const incidents = [
@@ -755,6 +773,7 @@ function Vulnerabilities() {
   const [search, setSearch] = useState('');
   const [priorityFilter, setPriorityFilter] = useState('All');
   const [showAI, setShowAI] = useState(false);
+  const [showEOL, setShowEOL] = useState(false);
 
   const open = vulns.filter(v => v.status !== 'Patched');
 
@@ -768,6 +787,13 @@ function Vulnerabilities() {
 
   const p0Overdue = open.filter(v => v.priority === 'P0' && v.dueDate && daysFromToday(v.dueDate) < 0);
   const p1Overdue = open.filter(v => v.priority === 'P1' && v.dueDate && daysFromToday(v.dueDate) < 0);
+  const eolOpen   = open.filter(v => v.eol);
+
+  const patched   = vulns.filter(v => v.status === 'Patched' && v.patchedDate && v.discovered);
+  const mttrDays  = patched.length
+    ? Math.round(patched.reduce((s, v) => s + (-daysFromToday(v.discovered) + daysFromToday(v.patchedDate)), 0) / patched.length)
+    : null;
+  const kevOpen   = open.filter(v => v.isCisaKev).length;
 
   const aiCtrl = ctrlMap['UCF.AI.03'];
   const ctrl   = ctrlMap['UCF.03.02'];
@@ -775,6 +801,7 @@ function Vulnerabilities() {
   const data = vulns.filter(v =>
     (priorityFilter === 'All' || v.priority === priorityFilter) &&
     (!showAI || v.ai) &&
+    (!showEOL || v.eol) &&
     (v.title.toLowerCase().includes(search.toLowerCase()) ||
      (v.cve && v.cve.toLowerCase().includes(search.toLowerCase())))
   );
@@ -804,6 +831,51 @@ function Vulnerabilities() {
           <p className={`text-3xl font-bold mb-1 ${unassignedCritical > 0 ? 'text-red-600' : 'text-emerald-600'}`}>{unassignedCritical}</p>
           <p className="text-xs text-gray-400">Target: 0 &gt; 24h</p>
         </div>
+      </div>
+
+      {/* MTTR + KEV + trend row */}
+      <div className="grid grid-cols-3 gap-4">
+        <div className="bg-white rounded-xl border border-gray-100 p-4 shadow-sm flex items-center gap-4">
+          <RefreshCw size={20} className="text-blue-500 flex-shrink-0" />
+          <div>
+            <p className="text-xs text-gray-400 mb-0.5">Avg MTTR (patched)</p>
+            <p className="text-2xl font-bold text-gray-900">{mttrDays != null ? `${mttrDays}d` : '-'}</p>
+            <p className="text-xs text-gray-400">VMP target: P1 &lt;14d</p>
+          </div>
+        </div>
+        <div className={`rounded-xl border p-4 shadow-sm flex items-center gap-4 ${kevOpen > 0 ? 'bg-red-50 border-red-300' : 'bg-white border-gray-100'}`}>
+          <AlertTriangle size={20} className={kevOpen > 0 ? 'text-red-600 flex-shrink-0' : 'text-gray-300 flex-shrink-0'} />
+          <div>
+            <p className="text-xs text-gray-400 mb-0.5">CISA KEV Open</p>
+            <p className={`text-2xl font-bold ${kevOpen > 0 ? 'text-red-600' : 'text-gray-900'}`}>{kevOpen}</p>
+            <p className="text-xs text-gray-400">Known exploited · P0 SLA</p>
+          </div>
+        </div>
+        <div className={`rounded-xl border p-4 shadow-sm flex items-center gap-4 ${eolOpen.length > 0 ? 'bg-rose-50 border-rose-300' : 'bg-white border-gray-100'}`}>
+          <Activity size={20} className={eolOpen.length > 0 ? 'text-rose-600 flex-shrink-0' : 'text-gray-300 flex-shrink-0'} />
+          <div>
+            <p className="text-xs text-gray-400 mb-0.5">EOL Components</p>
+            <p className={`text-2xl font-bold ${eolOpen.length > 0 ? 'text-rose-600' : 'text-gray-900'}`}>{eolOpen.length}</p>
+            <p className="text-xs text-gray-400">No patch path available</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Program document links */}
+      <div className="bg-white border border-gray-100 rounded-xl px-5 py-3 shadow-sm flex flex-wrap items-center gap-x-6 gap-y-2">
+        <span className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Program Docs</span>
+        {[
+          { label: 'Vulnerability Management Program', href: 'docs/VULNERABILITY-MANAGEMENT-PROGRAM.md' },
+          { label: 'VSRM Methodology', href: 'docs/VULNERABILITY-MANAGEMENT-PROGRAM.md#vulnerability-severity-rating-matrix-vsrm' },
+          { label: 'SDLC Security Guardrails', href: 'docs/SDLC-SECURITY-GUARDRAILS.md' },
+          { label: 'PDLC Security Guardrails', href: 'docs/PDLC-SECURITY-GUARDRAILS.md' },
+        ].map(({ label, href }) => (
+          <a key={href} href={`https://github.com/9snxz8htcw-netizen/chris-grc-engineering/blob/main/${href}`}
+             target="_blank" rel="noopener noreferrer"
+             className="text-xs text-blue-600 hover:text-blue-800 font-medium hover:underline flex items-center gap-1">
+            <FileText size={11} />{label}
+          </a>
+        ))}
       </div>
 
       {/* P0/P1 SLA breach alerts */}
@@ -840,6 +912,36 @@ function Vulnerabilities() {
         <EffectivenessBadge effectiveness={aiCtrl?.effectiveness} score={aiCtrl?.score} />
       </div>
 
+      {/* EOL banner */}
+      {eolOpen.length > 0 && (
+        <div className="bg-rose-50 border border-rose-300 rounded-xl p-4">
+          <div className="flex items-start gap-3">
+            <Activity size={16} className="text-rose-600 flex-shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <p className="text-sm font-semibold text-rose-800">
+                {eolOpen.length} End-of-Life Component{eolOpen.length !== 1 ? 's' : ''} — No Patch Path
+              </p>
+              <p className="text-xs text-rose-700 mt-0.5 mb-2">
+                EOL software receives no security patches. Every new CVE discovered after EOL is permanently unmitigable without upgrading or migrating. Standard VSRM patch SLAs do not apply — remediation requires an upgrade or migration plan.
+              </p>
+              <div className="space-y-1.5">
+                {eolOpen.map(v => (
+                  <div key={v.id} className="flex items-start gap-2 bg-white rounded-lg border border-rose-100 px-3 py-2">
+                    <PriorityBadge priority={v.priority} />
+                    <div className="flex-1 min-w-0">
+                      <span className="text-xs font-semibold text-gray-800">{v.title}</span>
+                      <span className="text-xs text-gray-400 ml-2 font-mono">{v.asset}</span>
+                      {v.eolNote && <p className="text-xs text-gray-500 mt-0.5">{v.eolNote}</p>}
+                    </div>
+                    {!v.assignedTo && <span className="text-xs font-semibold text-red-600 flex-shrink-0">Unassigned</span>}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Vulnerability register table */}
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm">
         <ModuleHeader
@@ -854,6 +956,9 @@ function Vulnerabilities() {
             <button onClick={() => setShowAI(a => !a)} className={`px-3 py-2 text-sm font-medium rounded-lg border transition-colors flex items-center gap-1.5 ${showAI ? 'bg-purple-600 text-white border-purple-600' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'}`}>
               <Cpu size={13} /> AI Only
             </button>
+            <button onClick={() => setShowEOL(e => !e)} className={`px-3 py-2 text-sm font-medium rounded-lg border transition-colors flex items-center gap-1.5 ${showEOL ? 'bg-rose-600 text-white border-rose-600' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'}`}>
+              <Activity size={13} /> EOL Only
+            </button>
           </>}
         />
         <ModuleTable
@@ -865,13 +970,29 @@ function Vulnerabilities() {
             { key: 'cve',      label: 'CVE / Ref',
               render: r => (
                 <div className="flex items-center gap-1.5 flex-wrap">
-                  <span className="font-mono text-xs text-blue-600">{r.cve}</span>
-                  {r.ai       && <span className="px-1.5 py-0.5 bg-purple-100 text-purple-700 text-xs rounded font-medium">AI</span>}
+                  {r.cve
+                    ? <span className="font-mono text-xs text-blue-600">{r.cve}</span>
+                    : <span className="text-xs text-gray-400 italic">No CVE</span>}
+                  {r.eol       && <span className="px-1.5 py-0.5 bg-rose-100 text-rose-700 text-xs rounded font-medium">EOL</span>}
+                  {r.ai        && <span className="px-1.5 py-0.5 bg-purple-100 text-purple-700 text-xs rounded font-medium">AI</span>}
                   {r.isCisaKev && <span className="px-1.5 py-0.5 bg-red-100 text-red-700 text-xs rounded font-medium">KEV</span>}
                 </div>
               ) },
             { key: 'title',    label: 'Title',
               render: r => <span className="text-sm text-gray-800 font-medium">{r.title}</span> },
+            { key: 'age',      label: 'Age',
+              render: r => {
+                const dOpen = -daysFromToday(r.discovered);
+                const overdue = r.dueDate ? -daysFromToday(r.dueDate) : null;
+                if (r.status === 'Patched') return <span className="text-xs text-emerald-600 font-medium">Patched</span>;
+                const cls = overdue > 0 ? 'text-red-600 font-semibold' : dOpen > 14 ? 'text-amber-600' : 'text-gray-500';
+                return (
+                  <div>
+                    <span className={`text-xs ${cls}`}>{dOpen}d open</span>
+                    {overdue > 0 && <p className="text-xs text-red-500 font-semibold">{overdue}d overdue</p>}
+                  </div>
+                );
+              }},
             { key: 'sla',      label: 'SLA Deadline',
               render: r => <SLACountdown dueDate={r.dueDate} status={r.status} /> },
             { key: 'severity', label: 'Severity',
@@ -1376,15 +1497,93 @@ function Scorecard({ onViewReport }) {
   const healthColor   = (h) => h >= 80 ? 'text-emerald-600' : h >= 60 ? 'text-amber-500' : 'text-red-500';
   const healthBorder  = (h) => h >= 80 ? 'border-emerald-200' : h >= 60 ? 'border-amber-200' : 'border-red-200';
 
+  // Trend vs prior month
+  const prevAvgHealth  = Math.round(Object.values(monthlyHistory).reduce((s, h) => s + (h[h.length - 2]?.health ?? 0), 0) / Object.values(monthlyHistory).length);
+  const healthDelta    = avgHealth - prevAvgHealth;
+  const prevTotalGaps  = Object.values(monthlyHistory).reduce((s, h) => s + (h[h.length - 2]?.gaps ?? 0), 0);
+  const gapDelta       = totalGaps - prevTotalGaps;
+
+  // Leadership decisions — items requiring explicit sign-off or resource decision
+  const p0Breach       = vulns.filter(v => v.priority === 'P0' && v.status !== 'Patched' && v.dueDate && daysFromToday(v.dueDate) < 0);
+  const euAiAct        = frameworks.find(f => f.name === 'EU AI Act');
+  const aiVendorGaps   = vendors.filter(v => v.ai && v.status !== 'Active').length;
+  const crisisTeams    = teamStats.filter(t => t.health < 40);
+
+  const leadershipDecisions = [
+    ...p0Breach.map(v => ({
+      urgency: 'critical', color: '#EF4444', bg: 'bg-red-50', border: 'border-red-200',
+      icon: AlertTriangle,
+      title: 'P0 SLA Breach — CISO Escalation Required',
+      detail: `${v.id} (${v.title}) is ${Math.abs(daysFromToday(v.dueDate))}d overdue on a 1-day SLA. Requires CISO sign-off or formal incident declaration.`,
+      ask: 'Escalate / Declare Incident',
+    })),
+    ...(euAiAct && euAiAct.progress < 40 ? [{
+      urgency: 'high', color: '#D97706', bg: 'bg-amber-50', border: 'border-amber-200',
+      icon: Globe,
+      title: 'EU AI Act — Board Decision Required',
+      detail: `${euAiAct.progress}% coverage with enforcement active. Options: approve remediation budget or formally accept regulatory exposure as residual risk.`,
+      ask: 'Approve budget / Accept risk',
+    }] : []),
+    ...crisisTeams.map(t => ({
+      urgency: 'high', color: '#F97316', bg: 'bg-orange-50', border: 'border-orange-200',
+      icon: AlertTriangle,
+      title: `${t.name} in Crisis (${t.health}%) — Resource Decision`,
+      detail: `${t.gaps} control gap${t.gaps !== 1 ? 's' : ''}, ${t.openVulns} open vuln${t.openVulns !== 1 ? 's' : ''}, ${t.openInc} unresolved incident${t.openInc !== 1 ? 's' : ''}. Requires resource allocation or formal risk acceptance.`,
+      ask: 'Assign resources / Accept risk',
+    })),
+    ...(aiVendorGaps > 0 ? [{
+      urgency: 'medium', color: '#EAB308', bg: 'bg-yellow-50', border: 'border-yellow-200',
+      icon: Building2,
+      title: `${aiVendorGaps} AI Vendor${aiVendorGaps > 1 ? 's' : ''} Without DPA — Legal Action`,
+      detail: `${aiVendorGaps} AI vendor${aiVendorGaps > 1 ? 's' : ''} operating without Data Processing Agreements. GDPR Art. 28 exposure. Procurement or Legal sign-off required.`,
+      ask: 'Approve DPA / Offboard vendor',
+    }] : []),
+  ].slice(0, 4);
+
   return (
     <div className="space-y-5">
       {/* Program KPIs */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <KPICard title="Program Health"     value={`${avgHealth}%`}  icon={Award}         color="#2563EB" subtitle="avg across all teams" />
+        <KPICard title="Program Health"     value={`${avgHealth}%`}  icon={Award}         color="#2563EB"
+          subtitle={`${healthDelta >= 0 ? '+' : ''}${healthDelta}pp vs last month`}
+          delta={`${healthDelta >= 0 ? '+' : ''}${healthDelta}pp MoM`} deltaType={healthDelta < 0 ? 'up' : undefined} />
         <KPICard title="Teams At Risk"      value={criticalTeams}    icon={AlertTriangle} color="#EF4444" subtitle="health below 50%" />
-        <KPICard title="Total Control Gaps" value={totalGaps}        icon={CheckSquare}   color="#D97706" subtitle="ineffective + untested" />
+        <KPICard title="Control Gaps"       value={totalGaps}        icon={CheckSquare}   color="#D97706"
+          subtitle={`${gapDelta <= 0 ? gapDelta : '+' + gapDelta} vs last month`}
+          delta={`${gapDelta > 0 ? '+' : ''}${gapDelta} MoM`} deltaType={gapDelta > 0 ? 'up' : undefined} />
         <KPICard title="High Risk Exposure" value={risks.filter(r=>r.inherentScore>=15).length} icon={BarChart2} color="#7C3AED" subtitle="critical + high risks" />
       </div>
+
+      {/* Leadership Decisions Required */}
+      {leadershipDecisions.length > 0 && (
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm">
+          <div className="px-5 py-4 border-b border-gray-100 flex items-center gap-2">
+            <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+            <h3 className="font-semibold text-gray-900 text-sm">Leadership Decisions Required</h3>
+            <span className="ml-auto text-xs text-gray-400">{leadershipDecisions.length} item{leadershipDecisions.length !== 1 ? 's' : ''} need your sign-off</span>
+          </div>
+          <div className="divide-y divide-gray-50">
+            {leadershipDecisions.map((d, i) => {
+              const Icon = d.icon;
+              return (
+                <div key={i} className={`px-5 py-4 flex items-start gap-4 ${d.bg}`}>
+                  <div className="mt-0.5 flex-shrink-0">
+                    <Icon size={15} style={{ color: d.color }} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-gray-900">{d.title}</p>
+                    <p className="text-xs text-gray-600 mt-0.5 leading-relaxed">{d.detail}</p>
+                  </div>
+                  <span className="flex-shrink-0 text-xs font-semibold px-2.5 py-1 rounded-lg border mt-0.5"
+                    style={{ color: d.color, borderColor: d.color + '40', background: d.color + '10' }}>
+                    {d.ask}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* AI Program Health */}
       {(() => {
@@ -1468,16 +1667,16 @@ function Scorecard({ onViewReport }) {
                 <span className="text-base font-bold text-gray-300 w-6 flex-shrink-0">#{rank + 1}</span>
                 <div className="p-1.5 rounded-lg flex-shrink-0" style={{ background: team.color + '18' }}><Icon size={13} style={{ color: team.color }} /></div>
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-1.5 mb-0.5 flex-wrap">
+                  <div className="flex items-center gap-2 mb-0.5 flex-wrap">
                     <span className="text-sm font-semibold text-gray-800">{team.name}</span>
-                    <span className={`text-xs px-1.5 py-0.5 rounded font-bold ${lvl.bg} ${lvl.text}`}>{lvl.icon} {lvl.name}</span>
-                    {team.badges.map(b => <span key={b.label} title={`${b.label}: ${b.desc}`} className="text-sm cursor-help">{b.icon}</span>)}
+                    <span className="text-xs text-gray-400">{team.dept}</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <div className="flex-1 bg-gray-100 rounded-full h-1.5 max-w-xs">
-                      <div className={`h-1.5 rounded-full ${lvl.bar}`} style={{ width:`${team.health}%` }} />
+                      <div className="h-1.5 rounded-full" style={{ width:`${team.health}%`, background: team.health >= 70 ? '#22C55E' : team.health >= 50 ? '#EAB308' : '#EF4444' }} />
                     </div>
-                    <span className="text-xs text-gray-400 whitespace-nowrap">{team.health}% · next: {nextLvl.name} at {lvl.next}%</span>
+                    <span className="text-xs text-gray-500 whitespace-nowrap font-medium">{team.health}%</span>
+                    {team.gaps > 0 && <span className="text-xs text-red-500">{team.gaps} gap{team.gaps !== 1 ? 's' : ''}</span>}
                   </div>
                 </div>
                 <div className="flex-shrink-0">
@@ -1498,103 +1697,6 @@ function Scorecard({ onViewReport }) {
             );
           })}
         </div>
-      </div>
-
-      {/* Team cards with sparklines + badges */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
-        {teamStats.map(team => {
-          const Icon   = team.icon;
-          const isOpen = expanded === team.id;
-          const lvl    = team.level;
-          return (
-            <div key={team.id} className={`bg-white rounded-xl border shadow-sm ${healthBorder(team.health)}`}>
-              <button className="w-full p-5 text-left" onClick={() => setExpanded(isOpen ? null : team.id)}>
-                <div className="flex items-start justify-between mb-2">
-                  <div className="flex items-center gap-2.5">
-                    <div className="p-2 rounded-lg flex-shrink-0" style={{ background: team.color + '18' }}><Icon size={15} style={{ color: team.color }} /></div>
-                    <div>
-                      <p className="font-semibold text-gray-900 text-sm">{team.name}</p>
-                      <p className="text-xs text-gray-400">{team.dept} · {team.lead}</p>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <p className={`text-2xl font-bold ${healthColor(team.health)}`}>{team.health}%</p>
-                    <span className={`text-xs px-1.5 py-0.5 rounded font-bold ${lvl.bg} ${lvl.text}`}>{lvl.icon} {lvl.name}</span>
-                  </div>
-                </div>
-
-                {/* Level progress */}
-                <div className="mb-2">
-                  <div className="flex justify-between text-xs text-gray-400 mb-0.5">
-                    <span>{lvl.name} ({lvl.min}%)</span><span>{lvl.next}% → {LEVELS[Math.min(LEVELS.indexOf(lvl)+1,LEVELS.length-1)].name}</span>
-                  </div>
-                  <div className="w-full bg-gray-100 rounded-full h-2">
-                    <div className={`h-2 rounded-full ${lvl.bar} transition-all`}
-                      style={{ width:`${Math.min(100,((team.health - lvl.min) / Math.max(1, lvl.next - lvl.min))*100)}%` }} />
-                  </div>
-                </div>
-
-                {/* 3-month sparkline */}
-                <div className="flex items-end gap-1 mb-2" style={{ height: 36 }}>
-                  {team.hist.map((h, i) => (
-                    <div key={i} className="flex-1 flex flex-col items-center justify-end gap-0.5">
-                      <div className={`w-full rounded-t-sm ${h.health >= 70 ? 'bg-emerald-400' : h.health >= 50 ? 'bg-amber-400' : 'bg-red-400'}`}
-                        style={{ height: `${(h.health / 100) * 28}px` }} />
-                      <span className="text-xs text-gray-300 leading-none">{h.month.slice(0, 3)}</span>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Badges */}
-                {team.badges.length > 0 && (
-                  <div className="flex flex-wrap gap-1 mb-2">
-                    {team.badges.map(b => (
-                      <span key={b.label} title={b.desc} className="text-xs bg-slate-50 border border-slate-200 px-1.5 py-0.5 rounded-full text-slate-600 flex items-center gap-1 cursor-help">
-                        {b.icon} {b.label}
-                      </span>
-                    ))}
-                  </div>
-                )}
-
-                <div className="grid grid-cols-4 gap-2 text-center">
-                  <div><p className="text-sm font-bold text-emerald-600">{team.effective}</p><p className="text-xs text-gray-400">Effective</p></div>
-                  <div><p className="text-sm font-bold text-amber-500">{team.partial}</p><p className="text-xs text-gray-400">Partial</p></div>
-                  <div><p className="text-sm font-bold text-red-500">{team.gaps}</p><p className="text-xs text-gray-400">Gaps</p></div>
-                  <div><p className="text-sm font-bold text-orange-500">{team.openVulns + team.openInc}</p><p className="text-xs text-gray-400">Issues</p></div>
-                </div>
-              </button>
-
-              {isOpen && (
-                <div className="px-5 pb-5 border-t border-gray-50 pt-4 space-y-3">
-                  {team.worstCtrl && (
-                    <div className="p-3 bg-red-50 rounded-lg border border-red-100">
-                      <p className="text-xs font-semibold text-red-700 mb-0.5">Critical Gap</p>
-                      <p className="font-mono text-xs text-red-400">{team.worstCtrl.id}</p>
-                      <p className="text-xs text-red-800 font-medium">{team.worstCtrl.name}</p>
-                    </div>
-                  )}
-                  <div className="space-y-1.5">
-                    {team.owned.map(c => (
-                      <div key={c.id} className="flex items-center justify-between gap-2">
-                        <div className="min-w-0">
-                          <span className="font-mono text-xs text-gray-400 mr-1">{c.id}</span>
-                          <span className="text-xs text-gray-700">{c.name}</span>
-                        </div>
-                        <EffectivenessBadge effectiveness={c.effectiveness} score={c.score} />
-                      </div>
-                    ))}
-                  </div>
-                  {onViewReport && (
-                    <button onClick={() => onViewReport(team.id)}
-                      className="w-full mt-1 py-2 text-xs font-semibold text-blue-600 border border-blue-200 rounded-lg hover:bg-blue-50 transition-colors flex items-center justify-center gap-1">
-                      <FileText size={12} /> View Monthly Report
-                    </button>
-                  )}
-                </div>
-              )}
-            </div>
-          );
-        })}
       </div>
 
       {/* Framework exposure by team */}
