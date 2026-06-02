@@ -125,3 +125,47 @@ The header badge shows **○ Demo** or **● Live** accordingly.
 | Auth (P0 before production) | Supabase Auth or Okta SSO before connecting real data |
 | RLS hardening (P0) | Current `anon_read` policy is open - must be scoped per user before real data |
 | Preventive controls | OPA pipeline blocks non-compliant infrastructure before deployment |
+
+---
+
+## AI security architecture
+
+The Phase 4 AI layer (see [AI-GRC-ROADMAP.md](./AI-GRC-ROADMAP.md)) introduces a distinct security boundary between the AI agent layer and the GRC data plane. The following controls apply across all AI-assisted workflows.
+
+### Trust boundary: AI agents ↔ GRC data
+
+```
+Claude Agent Layer
+        │  MCP protocol (tool calls only)
+        ▼
+GRC MCP Server  ──► Rate limiter ──► Input validator ──► Supabase (read/write)
+        │
+        ▼
+AUDIT log stream ──► CloudWatch ──► S3 Glacier (3-year retention)
+```
+
+All AI agent access to GRC data flows through the MCP server — agents never hold direct Supabase credentials.
+
+### AI security controls
+
+| Concern | Implementation |
+|---------|----------------|
+| Prompt injection prevention | Input validation and pattern detection at MCP server boundary; blocked attempts logged as `AUDIT` security alerts |
+| Sensitive data isolation | Agents receive hashed context or summaries of SecTier 0/1 data — never raw PII; all AI data access logged at `AUDIT` level |
+| AI output validation | All AI-generated content validated and scrubbed before rendering in dashboard or writing to Supabase |
+| Human-in-the-loop for writes | Write tools require `approved_by` field; AI agents cannot commit data changes without human approval |
+| Model version control | Exact model version pinned per agent; version changes logged as `AUDIT` events and reviewed before promotion |
+| Rate limiting | Per-tool and per-agent rate limits enforced at MCP server layer; token counts and duration logged per call |
+| AI audit trail | Every AI decision produces an `AUDIT` log with `reasoning_summary`, `model_version`, `input_hash`, and `approved_by` — satisfying EU AI Act Art. 12 & 13 |
+
+### AI compliance posture
+
+| Framework | Requirement | Architecture response |
+|-----------|------------|----------------------|
+| EU AI Act Art. 9 | Risk management system | AI risk tier classification at Gate 0 (PDLC); UCF.AI.06 |
+| EU AI Act Art. 12 | Automatic logging | `AUDIT` log on every MCP tool call; 3-year S3 retention |
+| EU AI Act Art. 13 | Transparency | `reasoning_summary` and `model_version` in every AI decision log |
+| ISO 42001 9.1 | AI monitoring | MCP tool call metrics; model performance monitoring |
+| NIST AI RMF | Govern / Map / Measure / Manage | UCF.AI.01–10 controls tracked in GRC dashboard |
+
+For full AI security requirements see [SECURITY.md — AI security strategy](./SECURITY.md) and [LOGGING-STRATEGY.md — AI security logging](./LOGGING-STRATEGY.md).

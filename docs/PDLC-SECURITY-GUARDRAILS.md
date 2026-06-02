@@ -218,3 +218,4 @@ When a security finding cannot be remediated before launch, formal risk acceptan
 - [Risk Methodology](./RISK-METHODOLOGY.md)
 - [Security Policy](./SECURITY.md)
 - [Architecture Overview](./ARCHITECTURE.md)
+- [Logging Strategy](./LOGGING-STRATEGY.md)

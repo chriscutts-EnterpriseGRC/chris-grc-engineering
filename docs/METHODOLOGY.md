@@ -140,3 +140,54 @@ Per-leader filtered view showing their controls, open vulnerabilities, active in
 - Monthly Risk Review meetings - Critical and Severe risks
 - Quarterly Leadership Risk Briefings - High and above
 - Weekly operational risk stand-ups - active treatment tracking
+
+---
+
+## AI security methodology
+
+AI features on this platform are assessed under a layered methodology that combines EU AI Act obligations, NIST AI RMF, and ISO 42001. This sits on top of the standard risk and compliance methodology above.
+
+### AI risk assessment
+
+AI risk is assessed across three dimensions:
+
+| Dimension | Assessment method |
+|-----------|------------------|
+| **Regulatory tier** | Classify per EU AI Act Annex III: Prohibited / High-risk / Limited / Minimal. Current platform features are Limited or Minimal. Any move to High-risk requires full conformity assessment before deployment. |
+| **Security risk** | Apply STRIDE to the AI trust boundary (agent ↔ MCP server ↔ data). Key threats: prompt injection (Tampering), data leakage (Info Disclosure), unauthorized writes (Elevation of Privilege). Full AI threat surface documented in [SECURITY.md](./SECURITY.md). |
+| **Operational risk** | Assess model drift, output quality degradation, and adversarial misuse potential. Monitored via UCF.AI.07 (Model Risk Management) and UCF.AI.08 (Model Performance Monitoring). |
+
+### AI control framework (UCF.AI)
+
+Ten AI-specific controls (UCF.AI.01–10) extend the core UCF model to cover the AI lifecycle. Each maps to EU AI Act articles, ISO 42001 clauses, NIST AI RMF functions, and OWASP LLM Top 10:
+
+| Control | Focus | Key frameworks |
+|---------|-------|---------------|
+| UCF.AI.01–02 | AI Model Governance + AI Data Privacy & Bias | EU AI Act Art.9, ISO 42001, GDPR Art.22 |
+| UCF.AI.03 | AI Security Controls | OWASP LLM Top 10, NIST AI RMF MEASURE 2.5 |
+| UCF.AI.04 | AI Vendor Risk | EU AI Act Art.28, UCF.06.01 |
+| UCF.AI.05 | AI Incident Response | EU AI Act Art.62, NIST AI RMF MANAGE 2.4 |
+| UCF.AI.06 | AI Risk Categorization | NIST AI RMF MAP 2.1, EU AI Act Art.6 |
+| UCF.AI.07–08 | Model Risk + Performance Monitoring | NIST AI RMF MEASURE 3.2, ISO 42001 9.1 |
+| UCF.AI.09 | AI Explainability & Transparency | EU AI Act Art.13, GDPR Art.22 |
+| UCF.AI.10 | AI Model Lifecycle Management | NIST AI RMF MANAGE 4.3, EU AI Act Art.9 |
+
+### AI audit trail requirement
+
+Every AI-assisted decision must be traceable end-to-end. The audit trail must contain:
+
+1. **Input provenance** — what data the agent accessed and from which SecTier assets
+2. **Decision record** — the decision made, the reasoning summary, and the model version
+3. **Human review** — who approved or overrode the decision, and when
+4. **Output record** — what action was taken as a result
+
+This trail is implemented via `AUDIT`-level structured logs as specified in [LOGGING-STRATEGY.md](./LOGGING-STRATEGY.md) and stored for 3 years per EU AI Act Art. 12.
+
+### Current AI compliance posture
+
+| Framework | Coverage | Gap | Enforcement |
+|-----------|---------|-----|------------|
+| EU AI Act | 22% | 78% | August 2026 |
+| ISO 42001 | 18% | 82% | — |
+
+Addressing UCF.AI.03 (AI Security Controls) and UCF.AI.05 (AI Incident Response) in the next sprint would move EU AI Act coverage from 22% → approximately 43%. See [AI-GRC-ROADMAP.md](./AI-GRC-ROADMAP.md) for the full gap analysis workflow.

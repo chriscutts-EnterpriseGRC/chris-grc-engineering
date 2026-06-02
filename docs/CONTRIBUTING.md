@@ -26,6 +26,8 @@ Checklist:
 - [ ] Register in `sync.js` `INTEGRATIONS` object with `module` and `requires`
 - [ ] Add env vars to `dashboard/.env.example` with placeholder values
 - [ ] Update the integrations table in `README.md`
+- [ ] Use structured NDJSON logging — not raw `console.log`. Log `INFO` on sync start/complete, `WARN` on skipped adapter, `ERROR` on upsert failure. See [LOGGING-STRATEGY.md](./LOGGING-STRATEGY.md) for the logger implementation
+- [ ] Never log credential values — not even partially. Log the integration name and error code only
 
 **Target tables:**
 
