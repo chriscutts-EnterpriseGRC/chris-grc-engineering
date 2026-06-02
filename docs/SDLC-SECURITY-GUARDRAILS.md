@@ -165,3 +165,4 @@ All gate outcomes are recorded for compliance evidence:
 - [Threat Model: Docker Supply Chain](./THREAT-MODEL-DOCKER-SUPPLY-CHAIN.md)
 - [Risk Methodology](./RISK-METHODOLOGY.md)
 - [Architecture Overview](./ARCHITECTURE.md)
+- [Logging Strategy](./LOGGING-STRATEGY.md)
