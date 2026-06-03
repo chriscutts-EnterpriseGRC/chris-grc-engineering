@@ -251,6 +251,13 @@ const RESPONSE_SLA  = { Critical:'7 days', Severe:'30 days', High:'60 days', Mod
 // Approval authority for risk acceptance (doc §6, Step 5)
 const ACCEPT_AUTH   = { Critical:'C-Suite / SVP+', Severe:'VP+', High:'Director+', Moderate:'Sr Manager+', Low:'Manager+' };
 const CTRL_EFF = {'UCF.01.01':92,'UCF.01.02':38,'UCF.02.02':45,'UCF.03.02':41,'UCF.AI.02':33,'UCF.AI.03':0,'UCF.AI.04':51,'UCF.AI.05':0,'UCF.04.01':87,'UCF.05.01':71,'UCF.06.01':63,'UCF.06.02':62,'UCF.07.01':74,'UCF.09.01':69,'UCF.AI.01':29};
+const getBusinessImpact = (score) => {
+  if (score >= 20) return { label: 'Existential',  color: 'bg-red-100 text-red-800',      hint: 'Potential fines >€20M or operational shutdown' };
+  if (score >= 15) return { label: 'Significant',  color: 'bg-orange-100 text-orange-800', hint: 'Material revenue or reputational impact' };
+  if (score >= 10) return { label: 'Moderate',     color: 'bg-amber-100 text-amber-800',   hint: 'Operational disruption, recoverable' };
+  if (score >= 5)  return { label: 'Low',          color: 'bg-green-100 text-green-700',   hint: 'Contained, manageable impact' };
+  return               { label: 'Negligible',  color: 'bg-gray-100 text-gray-600',     hint: 'Minimal business impact' };
+};
 
 const _rawRisks = [
   { id:'RSK-001', title:'Privileged accounts without MFA',               category:'Access Control', asset:'Identity Platform',       owner:'J. Martinez', likelihood:4, impact:5, controlIds:['UCF.01.01','UCF.01.02'], treatment:'Mitigate', treatmentPlan:'Enforce Okta MFA for all admin accounts by 2026-06-15',              status:'Mitigating',  reviewDate:'2026-06-15', linkedModule:'vulns',      ai:false },
@@ -514,13 +521,20 @@ function ModuleTable({ columns, rows, emptyMsg = 'No items found' }) {
   );
 }
 
-function ModuleHeader({ title, subtitle, search, setSearch, filters, extra }) {
+function ModuleHeader({ title, subtitle, search, setSearch, filters, extra, syncedAt }) {
   return (
     <div className="p-5 border-b border-gray-100">
       <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
         <div>
           <h2 className="font-semibold text-gray-900">{title}</h2>
           {subtitle && <p className="text-xs text-gray-400 mt-0.5">{subtitle}</p>}
+          {syncedAt && (
+            <p className="text-[10px] text-gray-400 mt-0.5 flex items-center gap-1">
+              <RefreshCw size={9} />
+              Synced {syncedAt}
+              <button className="text-blue-400 hover:text-blue-600 ml-1 underline">Refresh</button>
+            </p>
+          )}
         </div>
         <div className="flex flex-wrap gap-2">
           {search !== undefined && (
@@ -1226,6 +1240,38 @@ function Vulnerabilities() {
         </div>
       )}
 
+      {/* Predictive SLA breach warning */}
+      {(() => {
+        const predictedBreaches = open.filter(v =>
+          v.dueDate &&
+          daysFromToday(v.dueDate) > 0 &&
+          daysFromToday(v.dueDate) <= 5 &&
+          (v.priority === 'P0' || v.priority === 'P1')
+        );
+        if (predictedBreaches.length === 0) return null;
+        return (
+          <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <TrendingDown size={14} className="text-amber-600 flex-shrink-0" />
+              <p className="text-sm font-semibold text-amber-800">
+                {predictedBreaches.length} SLA breach{predictedBreaches.length > 1 ? 'es' : ''} predicted within 5 days
+              </p>
+            </div>
+            <div className="space-y-1.5">
+              {predictedBreaches.map(v => (
+                <div key={v.id} className="flex items-center gap-3 flex-wrap">
+                  <PriorityBadge priority={v.priority} />
+                  <span className="text-xs text-gray-700">{v.title}</span>
+                  <span className="text-xs font-semibold text-amber-700">
+                    breaches in {daysFromToday(v.dueDate)}d — assign to {v.assignedTo || 'owner now'}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      })()}
+
       {/* AI gap banner */}
       <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-start gap-3">
         <Cpu size={16} className="text-purple-600 flex-shrink-0 mt-0.5" />
@@ -1273,6 +1319,7 @@ function Vulnerabilities() {
           subtitle={`${data.length} vulnerabilities · Priority scored P0–P4 (VSRM)`}
           search={search}
           setSearch={setSearch}
+          syncedAt="2h ago"
           filters={<>
             <select value={priorityFilter} onChange={e => setPriorityFilter(e.target.value)} className="px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none">
               {['All','P0','P1','P2','P3','P4'].map(p => <option key={p}>{p}</option>)}
@@ -1372,6 +1419,21 @@ function Incidents() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
   const [showAI, setShowAI] = useState(false);
+  const [triageIncident, setTriageIncident] = useState(null);
+
+  const getTriageSteps = (incident) => {
+    const steps = {
+      'Data Breach':    ['1. Isolate affected systems immediately', '2. Notify DPO within 1 hour (GDPR Art.33 72h clock starts)', '3. Preserve logs — do not wipe', '4. Identify data subjects affected', '5. Engage legal for regulatory notification'],
+      'Intrusion':      ['1. Block source IPs at perimeter firewall', '2. Reset credentials for affected accounts', '3. Preserve forensic evidence', '4. Check lateral movement via UCF.05.01', '5. Notify CISO if Critical severity'],
+      'Malware':        ['1. Quarantine affected endpoints immediately', '2. Run full AV scan on adjacent systems', '3. Block C2 domains at DNS layer', '4. Check UCF.08.01 SIEM for propagation', '5. Initiate UCF.09.01 BCP if >3 systems affected'],
+      'Phishing':       ['1. Block sender domain in email gateway', '2. Reset passwords for all users who clicked', '3. Revoke active sessions for affected accounts', '4. Scan for credential harvesting payloads', '5. Send security awareness reminder via UCF.07.02'],
+      'AI Data Leak':   ['1. Suspend affected AI model endpoint immediately', '2. Identify what PII was exposed and to whom', '3. Notify DPO — AI-generated PII exposure may trigger GDPR Art.33', '4. Review prompt logs for scope of exposure', '5. Engage UCF.AI.05 AI Incident Response plan'],
+      'AI Governance':  ['1. Document the hallucination — capture exact input/output', '2. Assess if compliance-impacting decision was made on bad output', '3. Review model version and confidence thresholds', '4. Escalate to AI Governance Lead if regulatory impact', '5. Add to AI model performance monitoring (UCF.AI.07)'],
+      'Insider Threat': ['1. Preserve access logs without alerting the subject', '2. Engage HR and Legal before taking action', '3. Review UCF.01.02 PAM — check for privilege abuse', '4. Determine scope of data accessed', '5. Coordinate with legal on evidence preservation'],
+      'Data Exposure':  ['1. Revoke the exposed credentials immediately', '2. Audit access logs for the past 30 days', '3. Identify any data that was accessed with the key', '4. Rotate all adjacent credentials proactively', '5. Review UCF.06.02 vendor questionnaire for this vendor'],
+    };
+    return steps[incident.type] || ['1. Assess impact scope', '2. Escalate to incident commander', '3. Preserve evidence', '4. Notify stakeholders per severity', '5. Document timeline'];
+  };
 
   const data = incidents.filter(i =>
     (statusFilter === 'All' || i.status === statusFilter) &&
@@ -1426,6 +1488,7 @@ function Incidents() {
 
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm">
         <ModuleHeader title="Incident Register" subtitle={`${data.length} incidents`} search={search} setSearch={setSearch}
+          syncedAt="45m ago"
           filters={<>
             <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className="px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none">
               {['All','Open','Investigating','Contained','Resolved'].map(s => <option key={s}>{s}</option>)}
@@ -1447,10 +1510,73 @@ function Incidents() {
             { key: 'systems',  label: 'Systems', render: r => <span className="text-xs font-semibold text-gray-600">{r.systems}</span> },
             { key: 'ctrl',     label: 'Linked Control', render: r => <ControlCell controlId={r.controlId} /> },
             { key: 'eff',      label: 'Control Effectiveness', render: r => { const c = ctrlMap[r.controlId]; return c ? <EffectivenessBadge effectiveness={c.effectiveness} score={c.score} /> : null; } },
+            { key: 'triage',   label: '', render: r => r.status !== 'Resolved' ? (
+              <button onClick={() => setTriageIncident(r)}
+                className="flex items-center gap-1 px-2 py-1 bg-orange-50 text-orange-700 border border-orange-200 rounded text-[10px] font-semibold hover:bg-orange-100 transition-colors whitespace-nowrap">
+                <Flame size={10} />
+                Triage
+              </button>
+            ) : null },
           ]}
           rows={data}
         />
       </div>
+
+      {/* Triage Drawer */}
+      {triageIncident && (
+        <div className="fixed right-0 top-0 h-full w-80 bg-white border-l border-gray-200 shadow-2xl z-40 flex flex-col">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 bg-orange-50">
+            <div>
+              <div className="flex items-center gap-2">
+                <Flame size={14} className="text-orange-600" />
+                <span className="text-sm font-semibold text-gray-900">Triage Guide</span>
+              </div>
+              <p className="text-xs text-gray-500 mt-0.5 truncate max-w-[200px]">{triageIncident.title}</p>
+            </div>
+            <button onClick={() => setTriageIncident(null)} className="text-gray-400 hover:text-gray-600"><X size={16} /></button>
+          </div>
+          <div className="flex-1 overflow-y-auto p-4 space-y-4">
+            <div className="flex items-center gap-2 flex-wrap">
+              <SeverityBadge severity={triageIncident.severity} />
+              <StatusBadge status={triageIncident.status} />
+              <span className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded">{triageIncident.type}</span>
+            </div>
+            <div>
+              <p className="text-xs font-semibold text-gray-700 uppercase tracking-wide mb-2">Response Steps</p>
+              <ol className="space-y-2">
+                {getTriageSteps(triageIncident).map((step, idx) => (
+                  <li key={idx} className="flex gap-2 text-xs text-gray-700 leading-relaxed">
+                    <span className="flex-shrink-0 w-5 h-5 bg-orange-100 text-orange-700 rounded-full flex items-center justify-center font-bold text-[10px]">{idx + 1}</span>
+                    <span>{step.replace(/^\d+\.\s*/, '')}</span>
+                  </li>
+                ))}
+              </ol>
+            </div>
+            {triageIncident.controlId && ctrlMap[triageIncident.controlId] && (
+              <div className="border border-gray-200 rounded-lg p-3 bg-gray-50">
+                <p className="text-xs font-semibold text-gray-600 mb-1">Linked Control</p>
+                <p className="text-xs font-mono text-blue-600">{triageIncident.controlId}</p>
+                <p className="text-xs text-gray-700 mt-0.5">{ctrlMap[triageIncident.controlId].name}</p>
+                <div className="mt-2">
+                  <EffectivenessBadge effectiveness={ctrlMap[triageIncident.controlId].effectiveness} score={ctrlMap[triageIncident.controlId].score} />
+                </div>
+              </div>
+            )}
+            <div className="border border-amber-200 rounded-lg p-3 bg-amber-50">
+              <p className="text-xs font-semibold text-amber-700 mb-1">Escalation Rule</p>
+              <p className="text-xs text-amber-700">
+                {triageIncident.severity === 'Critical' ? 'Notify CISO and DPO immediately. Invoke BCP if systems impacted > 3.' :
+                 triageIncident.severity === 'High' ? 'Notify Security Lead within 2 hours. Update incident log every 4 hours.' :
+                 'Log progress every 24 hours. Resolve within SLA window.'}
+              </p>
+            </div>
+          </div>
+          <div className="px-4 py-3 border-t border-gray-100 flex gap-2">
+            <button className="flex-1 px-3 py-2 bg-orange-600 text-white text-xs rounded-lg hover:bg-orange-700 font-medium">Escalate</button>
+            <button onClick={() => setTriageIncident(null)} className="flex-1 px-3 py-2 bg-gray-100 text-gray-700 text-xs rounded-lg hover:bg-gray-200">Close</button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -1542,6 +1668,8 @@ function PolicyModule() {
   const [showAI, setShowAI] = useState(false);
   const [draftPolicy, setDraftPolicy] = useState(null);
 
+  const getDraftText = (policy) => `# ${policy.title}\n\n**Status:** Draft v0.1 — AI-assisted\n**Owner:** ${policy.owner}\n**Category:** ${policy.category}\n\n## 1. Purpose\nThis policy establishes requirements for ${policy.title.toLowerCase()} within the GRC platform and all AI systems operated by the organisation.\n\n## 2. Scope\nApplies to all employees, contractors, and third parties who develop, operate, or interact with AI systems.\n\n## 3. Policy Requirements\n[Requirements to be completed by ${policy.owner} — framework references: ${ctrlMap[policy.controlId]?.frameworks?.join(', ') || 'UCF controls'}]\n\n## 4. Controls & Compliance\nLinked control: ${policy.controlId} — ${ctrlMap[policy.controlId]?.name}\n\n## 5. Review Cycle\nAnnual review or upon material change to AI systems.\n\n_This draft was generated to accelerate policy creation. Review and approval required before publishing._`;
+
   const data = policies.filter(p =>
     (statusFilter === 'All' || p.status === statusFilter) &&
     (!showAI || p.ai) &&
@@ -1601,6 +1729,7 @@ function PolicyModule() {
 
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm">
         <ModuleHeader title="Policy Library" subtitle={`${data.length} policies`} search={search} setSearch={setSearch}
+          syncedAt="1d ago"
           filters={<>
             <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className="px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none">
               {['All','Current','Due for Review','Overdue','Missing'].map(s => <option key={s}>{s}</option>)}
@@ -1622,10 +1751,43 @@ function PolicyModule() {
             { key: 'owner',       label: 'Owner',      render: r => <span className="text-xs text-gray-500">{r.owner}</span> },
             { key: 'ctrl',        label: 'Linked Control', render: r => <ControlCell controlId={r.controlId} /> },
             { key: 'eff',         label: 'Control Effectiveness', render: r => { const c = ctrlMap[r.controlId]; return c ? <EffectivenessBadge effectiveness={c.effectiveness} score={c.score} /> : null; } },
+            { key: 'draft',       label: '',           render: r => r.status === 'Missing' ? (
+              <button onClick={() => setDraftPolicy(r)}
+                className="flex items-center gap-1 px-2 py-1 bg-purple-50 text-purple-700 border border-purple-200 rounded text-[10px] font-semibold hover:bg-purple-100 transition-colors whitespace-nowrap">
+                <Cpu size={10} />
+                Draft with AI
+              </button>
+            ) : null },
           ]}
           rows={data}
         />
       </div>
+
+      {/* Policy Draft Modal */}
+      {draftPolicy && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setDraftPolicy(null)}>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[80vh] flex flex-col" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+              <div className="flex items-center gap-2">
+                <Cpu size={15} className="text-purple-600" />
+                <h3 className="font-semibold text-gray-900">AI Policy Draft — {draftPolicy.title}</h3>
+              </div>
+              <button onClick={() => setDraftPolicy(null)} className="text-gray-400 hover:text-gray-600"><X size={16} /></button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-5">
+              <div className="bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mb-4">
+                <p className="text-xs text-amber-700">AI-generated draft — review and approval required before publishing. This is a starting point only.</p>
+              </div>
+              <pre className="text-sm text-gray-700 whitespace-pre-wrap font-sans leading-relaxed">{getDraftText(draftPolicy)}</pre>
+            </div>
+            <div className="px-5 py-4 border-t border-gray-100 flex gap-2">
+              <button className="px-4 py-2 bg-purple-600 text-white text-sm rounded-lg hover:bg-purple-700 font-medium">Open in Editor</button>
+              <button className="px-4 py-2 bg-gray-100 text-gray-700 text-sm rounded-lg hover:bg-gray-200">Copy Draft</button>
+              <button onClick={() => setDraftPolicy(null)} className="px-4 py-2 text-gray-500 text-sm ml-auto">Close</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -1694,6 +1856,7 @@ function ThirdParty() {
 
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm">
         <ModuleHeader title="Third Party Register" subtitle={`${data.length} vendors`} search={search} setSearch={setSearch}
+          syncedAt="3h ago"
           filters={<>
             <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className="px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none">
               {['All','Compliant','Review Pending','Questionnaire Overdue','SLA Breach','No Contract'].map(s => <option key={s}>{s}</option>)}
@@ -1734,6 +1897,7 @@ function ThirdParty() {
 
 function Compliance() {
   const { frameworks } = useGRCData();
+  const [showGapAnalysis, setShowGapAnalysis] = useState(false);
 
   const overall    = Math.round(frameworks.reduce((s,f) => s+f.progress, 0) / frameworks.length);
   const aiFrames    = frameworks.filter(f => f.name.includes('AI') || f.name.includes('42001'));
@@ -1749,6 +1913,15 @@ function Compliance() {
     : gapCount > 0
       ? `${gapCount} framework${gapCount>1?'s':''} at Gap status. Review blockers and assign remediation owners before the next audit cycle.`
       : 'Compliance posture is healthy. Maintain cadence and prepare evidence packages for upcoming audit windows.';
+
+  const gapPlan = [
+    { step: 1, action: 'Create AI Usage & Governance Policy (POL-007)', impact: '+4 controls', owner: 'A. Patel', deadline: 'Jun 30', effort: 'Low' },
+    { step: 2, action: 'Test UCF.AI.01 (AI Model Governance) and document evidence', impact: '+3 controls', owner: 'A. Patel', deadline: 'Jul 15', effort: 'Medium' },
+    { step: 3, action: 'Execute OpenAI DPA — satisfies EU AI Act Art.28', impact: '+2 controls', owner: 'S. Chen', deadline: 'Jul 1', effort: 'Low' },
+    { step: 4, action: 'Run AI risk categorisation for all 6 AI use cases', impact: '+2 controls', owner: 'A. Patel', deadline: 'Jul 31', effort: 'Medium' },
+    { step: 5, action: 'Conduct AI tabletop exercise (UCF.AI.05)', impact: '+2 controls', owner: 'K. Thompson', deadline: 'Aug 30', effort: 'High' },
+  ];
+  const projectedProgress = 22 + gapPlan.reduce((sum, s) => sum + parseInt(s.impact), 0);
 
   return (
     <div className="space-y-4">
@@ -1775,6 +1948,46 @@ function Compliance() {
           : { action: 'Review framework coverage gaps with engineering teams', owner: 'S. Chen', deadline: 'This quarter', urgency: 'low' };
         return <NextActionCard {...nextAction} />;
       })()}
+
+      {/* Compliance module actions */}
+      <div className="flex justify-end">
+        <button onClick={() => setShowGapAnalysis(s => !s)}
+          className="flex items-center gap-1.5 px-3 py-2 bg-purple-50 text-purple-700 border border-purple-200 rounded-lg text-xs font-medium hover:bg-purple-100 transition-colors">
+          <Cpu size={12} />
+          Gap Analysis
+        </button>
+      </div>
+
+      {/* Gap Analysis Panel */}
+      {showGapAnalysis && (
+        <div className="bg-white rounded-xl border border-purple-200 shadow-sm p-5">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <Cpu size={14} className="text-purple-600" />
+              <h3 className="font-semibold text-gray-900 text-sm">EU AI Act — Gap Analysis & Remediation Plan</h3>
+              <span className="text-xs text-gray-400">Current: 22% → Projected: ~{projectedProgress}%</span>
+            </div>
+            <button onClick={() => setShowGapAnalysis(false)} className="text-gray-400 hover:text-gray-600"><X size={13} /></button>
+          </div>
+          <div className="space-y-2">
+            {gapPlan.map(g => (
+              <div key={g.step} className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
+                <span className="w-5 h-5 rounded-full bg-purple-600 text-white text-[10px] font-bold flex items-center justify-center flex-shrink-0 mt-0.5">{g.step}</span>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm text-gray-800">{g.action}</p>
+                  <div className="flex items-center gap-3 mt-1 flex-wrap">
+                    <span className="text-xs text-green-700 font-semibold">{g.impact}</span>
+                    <span className="text-xs text-gray-400">{g.owner}</span>
+                    <span className="text-xs text-gray-400">Due {g.deadline}</span>
+                    <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${g.effort==='Low'?'bg-green-100 text-green-700':g.effort==='Medium'?'bg-amber-100 text-amber-700':'bg-red-100 text-red-700'}`}>{g.effort} effort</span>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+          <p className="text-xs text-gray-400 mt-3">Completing all 5 steps moves EU AI Act from 22% → ~{projectedProgress}% within 12 weeks.</p>
+        </div>
+      )}
 
       {/* EU AI Act urgent callout */}
       <div className="bg-red-50 border border-red-200 rounded-xl p-5 flex items-start gap-4">
@@ -1965,6 +2178,16 @@ function Scorecard({ onViewReport }) {
   const { controls, vulns, incidents, vendors } = useGRCData();
   const ctrlMap = Object.fromEntries(controls.map(c => [c.id, c]));
   const [expanded, setExpanded] = useState(null);
+  const [decisionLog, setDecisionLog] = useState([]);
+
+  const logDecision = (decision, action) => {
+    setDecisionLog(prev => [...prev, {
+      id: decision.title,
+      action,
+      timestamp: new Date().toLocaleString(),
+      actor: 'CISO',
+    }]);
+  };
 
   const teamStats = teams.map(team => {
     const owned     = team.controls.map(id => ctrlMap[id]).filter(Boolean);
@@ -2080,6 +2303,20 @@ function Scorecard({ onViewReport }) {
                       {d.tier && <DecisionTierBadge tier={d.tier} />}
                     </div>
                     <p className="text-xs text-gray-600 mt-0.5 leading-relaxed">{d.detail}</p>
+                    <div className="flex gap-1 mt-2 flex-wrap">
+                      <button onClick={() => logDecision(d, 'Approved')}
+                        className="px-2 py-0.5 bg-green-100 text-green-700 text-[10px] font-semibold rounded hover:bg-green-200 transition-colors">
+                        Approve
+                      </button>
+                      <button onClick={() => logDecision(d, 'Rejected')}
+                        className="px-2 py-0.5 bg-red-100 text-red-700 text-[10px] font-semibold rounded hover:bg-red-200 transition-colors">
+                        Reject
+                      </button>
+                      <button onClick={() => logDecision(d, 'Deferred')}
+                        className="px-2 py-0.5 bg-gray-100 text-gray-600 text-[10px] font-semibold rounded hover:bg-gray-200 transition-colors">
+                        Defer 30d
+                      </button>
+                    </div>
                   </div>
                   <span className="flex-shrink-0 text-xs font-semibold px-2.5 py-1 rounded-lg border mt-0.5"
                     style={{ color: d.color, borderColor: d.color + '40', background: d.color + '10' }}>
@@ -2088,6 +2325,30 @@ function Scorecard({ onViewReport }) {
                 </div>
               );
             })}
+          </div>
+        </div>
+      )}
+
+      {/* Decision Log */}
+      {decisionLog.length > 0 && (
+        <div className="bg-white rounded-xl border border-gray-100 p-5 shadow-sm">
+          <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
+            <CheckSquare size={15} className="text-green-600" />
+            Decision Log
+            <span className="text-xs text-gray-400 font-normal ml-1">{decisionLog.length} recorded</span>
+          </h3>
+          <div className="space-y-2">
+            {[...decisionLog].reverse().map((d, i) => (
+              <div key={i} className="flex items-center gap-3 text-sm">
+                <span className={`px-2 py-0.5 rounded text-xs font-semibold ${
+                  d.action === 'Approved' ? 'bg-green-100 text-green-700' :
+                  d.action === 'Rejected' ? 'bg-red-100 text-red-700' :
+                  'bg-gray-100 text-gray-600'
+                }`}>{d.action}</span>
+                <span className="text-gray-700 flex-1 truncate">{d.id}</span>
+                <span className="text-xs text-gray-400 flex-shrink-0">{d.actor} · {d.timestamp}</span>
+              </div>
+            ))}
           </div>
         </div>
       )}
@@ -3336,6 +3597,7 @@ function RiskRegister() {
   const [showAI, setShowAI] = useState(false);
   const [workflow, setWorkflow] = useState(null);
   const [activeView, setActiveView] = useState('register');
+  const [showRiskNarrative, setShowRiskNarrative] = useState(false);
 
   const categories = ['All',...[...new Set(risks.map(r=>r.category))]];
   const filtered = risks.filter(r =>
@@ -3459,6 +3721,7 @@ function RiskRegister() {
       {activeView==='matrix' ? <HeatMatrix /> : (
         <div className="bg-white rounded-xl border border-gray-100 shadow-sm">
           <ModuleHeader title="Risk Register" subtitle={filtered.length+" risks"} search={search} setSearch={setSearch}
+            syncedAt="2h ago"
             filters={<>
               <select value={catFilter} onChange={e=>setCatFilter(e.target.value)} className="px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none">
                 {categories.map(c=><option key={c}>{c}</option>)}
@@ -3467,11 +3730,36 @@ function RiskRegister() {
                 <Cpu size={13}/> AI Only
               </button>
             </>}
+            extra={
+              <button onClick={() => setShowRiskNarrative(s => !s)}
+                className="flex items-center gap-1.5 px-3 py-2 bg-purple-50 text-purple-700 border border-purple-200 rounded-lg text-xs font-medium hover:bg-purple-100 transition-colors">
+                <Cpu size={12} />
+                Summarise for Board
+              </button>
+            }
           />
+          {showRiskNarrative && (() => {
+            const top = [...risks].sort((a,b) => b.inherentScore - a.inherentScore).slice(0,3);
+            const exceedingAppetite = risks.filter(r => getAppetite(r.residualScore) === 'Significantly Exceeds' || getAppetite(r.residualScore) === 'Exceeds').length;
+            const aiRisksOpen = risks.filter(r => r.ai && r.status === 'Open').length;
+            const riskNarrative = `The most critical unmitigated risk is "${top[0].title}" (inherent score ${top[0].inherentScore}, residual ${top[0].residualScore}) owned by ${top[0].owner}. Treatment plan: ${top[0].treatmentPlan}.\n\n${exceedingAppetite} risks currently exceed the board-approved risk appetite — these require VP+ or C-Suite sign-off before acceptance. ${aiRisksOpen} open AI-related risks have no tested controls, creating regulatory exposure under the EU AI Act.\n\nRecommended board action: approve the treatment plans for ${top[0].id} and ${risks.filter(r=>r.ai&&r.status==='Open')[0]?.id || top[1]?.id}, and authorise the DPA negotiation with OpenAI (RSK-004).`;
+            return (
+              <div className="mx-5 mb-4 p-4 bg-slate-50 border border-slate-200 rounded-xl">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <Cpu size={13} className="text-purple-600" />
+                    <span className="text-xs font-semibold text-purple-700">AI-Generated Board Narrative</span>
+                  </div>
+                  <button onClick={() => setShowRiskNarrative(false)} className="text-gray-400 hover:text-gray-600"><X size={13} /></button>
+                </div>
+                <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-line">{riskNarrative}</p>
+              </div>
+            );
+          })()}
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead><tr className="bg-gray-50 text-left">
-                {['Risk','Category','Score (Inherent → Residual)','Appetite','Controls','Status','Owner',''].map(h=>(
+                {['Risk','Category','Business Impact','Score (Inherent → Residual)','Appetite','Controls','Status','Owner',''].map(h=>(
                   <th key={h} className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">{h}</th>
                 ))}
               </tr></thead>
@@ -3482,6 +3770,7 @@ function RiskRegister() {
                   const avgEff = r.controlIds.length ? Math.round(r.controlIds.reduce((s,id)=>s+(CTRL_EFF[id]??50),0)/r.controlIds.length) : null;
                   const effBarColor = avgEff===null?'#94A3B8':avgEff>=70?'#22C55E':avgEff>=40?'#EAB308':'#EF4444';
                   const catClass = RISK_CAT_COLOR[r.category] ?? 'bg-slate-100 text-slate-600';
+                  const bizImpact = getBusinessImpact(r.inherentScore);
                   return (
                     <tr key={r.id} className="hover:bg-gray-50 transition-colors">
                       <td className="px-4 py-3.5 max-w-sm">
@@ -3494,6 +3783,10 @@ function RiskRegister() {
                       </td>
                       <td className="px-4 py-3.5 whitespace-nowrap">
                         <span className={"text-xs font-medium px-2 py-0.5 rounded-full "+catClass}>{r.category}</span>
+                      </td>
+                      <td className="px-4 py-3.5">
+                        <span className={`px-1.5 py-0.5 rounded text-xs font-semibold ${bizImpact.color}`}>{bizImpact.label}</span>
+                        <p className="text-[10px] text-gray-400 mt-0.5 max-w-[140px]">{bizImpact.hint}</p>
                       </td>
                       <td className="px-4 py-3.5 whitespace-nowrap">
                         <div className="flex items-center gap-1">
@@ -3664,6 +3957,7 @@ function EvidenceLocker() {
       </div>
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm">
         <ModuleHeader title="Evidence Locker" subtitle={filteredControls.length+" controls"} search={search} setSearch={setSearch}
+          syncedAt="6h ago"
           filters={
             <select value={statusFilter} onChange={e=>setStatusFilter(e.target.value)} className="px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none">
               {['All','Current','Expiring','Expired','Missing'].map(s=><option key={s}>{s}</option>)}
@@ -4152,6 +4446,26 @@ function Architecture() {
   );
 }
 
+// ─── Copilot Message List ─────────────────────────────────────────────────────
+function CopilotMessageList({ messages }) {
+  const bottomRef = useRef(null);
+  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
+  return (
+    <>
+      {messages.map((m, i) => (
+        <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+          <div className={`max-w-[85%] px-3 py-2 rounded-xl text-sm leading-relaxed whitespace-pre-line ${
+            m.role === 'user' ? 'bg-purple-600 text-white' : 'bg-gray-100 text-gray-800'
+          }`}>
+            {m.text}
+          </div>
+        </div>
+      ))}
+      <div ref={bottomRef} />
+    </>
+  );
+}
+
 // ─── App Shell ────────────────────────────────────────────────────────────────
 
 export default function GRCDashboard() {
@@ -4161,6 +4475,56 @@ export default function GRCDashboard() {
   const [sidebarOpen, setSidebarOpen]   = useState(true);
   const [liveData, setLiveData]         = useState(null);
   const [dataLoading, setDataLoading]   = useState(isLive);
+
+  // AI Copilot state
+  const [copilotOpen, setCopilotOpen] = useState(false);
+  const [copilotMessages, setCopilotMessages] = useState([]);
+  const [copilotInput, setCopilotInput] = useState('');
+
+  // Computed alert count for header bell
+  const alertCount = [
+    ...vulns.filter(v => v.priority==='P0' && v.status!=='Patched'),
+    ...incidents.filter(i => i.severity==='Critical' && i.status!=='Resolved'),
+    ...policies.filter(p => p.status==='Missing'),
+    ...risks.filter(r => getAppetite(r.residualScore)==='Significantly Exceeds'),
+  ].length;
+
+  const handleCopilotQuery = useCallback((q) => {
+    if (!q.trim()) return;
+    const question = q.trim();
+    setCopilotMessages(msgs => [...msgs, { role: 'user', text: question }]);
+    setCopilotInput('');
+
+    let answer = '';
+    const ql = question.toLowerCase();
+
+    if (ql.includes('eu ai act') || ql.includes('compliance')) {
+      const euAI = frameworks.find(f => f.name === 'EU AI Act');
+      const failing = euAI ? euAI.controls - euAI.passing : 24;
+      const missingPols = policies.filter(p => p.status === 'Missing' && p.ai);
+      answer = `EU AI Act is at ${euAI?.progress || 22}% — ${failing} controls failing. The fastest path to improvement: (1) Create ${missingPols.map(p=>p.title).join(' and ')} — this unblocks 4 controls. (2) Test UCF.AI.01 through UCF.AI.06 — all currently untested. (3) Execute OpenAI DPA to satisfy Art.28. Realistic timeline to 60%: 8–10 weeks with dedicated effort.`;
+    } else if (ql.includes('p1') || ql.includes('team') || ql.includes('unresolved')) {
+      const teamVulns = teams.map(t => ({
+        team: t,
+        p1s: vulns.filter(v => v.priority==='P1' && v.status!=='Patched' && t.controls.includes(v.controlId)).length
+      })).sort((a,b) => b.p1s - a.p1s);
+      const worst = teamVulns[0];
+      answer = `${worst.team.name} (${worst.team.lead}) has the most open P1 vulnerabilities with ${worst.p1s} unresolved. They own controls ${worst.team.controls.slice(0,3).join(', ')}. Recommend immediate triage session with ${worst.team.lead}.`;
+    } else if (ql.includes('board') || ql.includes('risk') || ql.includes('summarise') || ql.includes('summarize')) {
+      const topRisks = [..._rawRisks].sort((a,b) => (b.likelihood*b.impact)-(a.likelihood*a.impact)).slice(0,3);
+      answer = `Top 3 risks for the board:\n\n1. ${topRisks[0].title} (score ${topRisks[0].likelihood*topRisks[0].impact}) — owner: ${topRisks[0].owner}, treatment: ${topRisks[0].treatmentPlan.slice(0,60)}…\n\n2. ${topRisks[1].title} (score ${topRisks[1].likelihood*topRisks[1].impact}) — ${topRisks[1].owner}\n\n3. ${topRisks[2].title} (score ${topRisks[2].likelihood*topRisks[2].impact}) — ${topRisks[2].owner}\n\nAll three require VP+ approval for risk acceptance.`;
+    } else if (ql.includes('decide') || ql.includes('this week') || ql.includes('action')) {
+      const p0Breach = vulns.filter(v => v.priority==='P0' && v.status!=='Patched' && daysFromToday(v.dueDate) < 0);
+      const boardRisks = risks.filter(r => r.residualScore > RISK_APPETITE.severe);
+      answer = `This week you need to: (1) ${p0Breach.length > 0 ? `Escalate P0 SLA breach on "${p0Breach[0].title}" — ${Math.abs(daysFromToday(p0Breach[0].dueDate))}d overdue` : 'Review P0/P1 patch SLA compliance'}. (2) ${boardRisks.length > 0 ? `Sign off on ${boardRisks[0].id} — residual score ${boardRisks[0].residualScore} significantly exceeds appetite` : 'Review risk register items approaching appetite'}. (3) Initiate OpenAI DPA process — vendor RSK-004 is your highest liability item.`;
+    } else {
+      answer = `Based on your current posture (71/100): ${vulns.filter(v=>v.status!=='Patched').length} open vulnerabilities, ${incidents.filter(i=>i.status!=='Resolved').length} active incidents, ${policies.filter(p=>p.status==='Missing'||p.status==='Overdue').length} policy gaps, and EU AI Act at 22%. Your most urgent action is addressing the P0 SLA breach and the 3 missing AI governance policies. What specific area would you like to dig into?`;
+    }
+
+    setTimeout(() => {
+      setCopilotMessages(msgs => [...msgs, { role: 'assistant', text: answer }]);
+    }, 600);
+  }, []);
 
   useEffect(() => {
     if (!isLive) return;
@@ -4251,12 +4615,75 @@ export default function GRCDashboard() {
               ? <span className="text-xs text-gray-400 animate-pulse">Connecting…</span>
               : <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${liveData ? 'bg-emerald-50 text-emerald-700' : 'bg-blue-50 text-blue-600'}`}>{liveData ? '● Live' : '◉ Sample Data'}</span>
             }
-            <button className="relative p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-50 rounded-lg transition-colors"><Bell size={18} /><span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full" /></button>
+            <button onClick={() => setCopilotOpen(o => !o)}
+              className={`p-2 rounded-lg transition-colors ${copilotOpen ? 'bg-purple-100 text-purple-700' : 'hover:bg-gray-100 text-gray-400'}`}
+              title="AI Copilot">
+              <Cpu size={18} />
+            </button>
+            <button className="relative p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-50 rounded-lg transition-colors">
+              <Bell size={18} />
+              {alertCount > 0 && (
+                <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center px-0.5">
+                  {alertCount}
+                </span>
+              )}
+            </button>
             <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center"><User size={14} className="text-white" /></div>
           </div>
         </header>
         <main className="flex-1 overflow-y-auto p-6">{pageMap[page]}</main>
       </div>
+
+      {/* AI Copilot Panel */}
+      {copilotOpen && (
+        <div className="fixed right-0 top-0 h-full w-96 bg-white border-l border-gray-200 shadow-2xl z-50 flex flex-col">
+          {/* Header */}
+          <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 bg-gradient-to-r from-purple-900 to-slate-900">
+            <div className="flex items-center gap-2">
+              <Cpu size={16} className="text-purple-300" />
+              <span className="text-sm font-semibold text-white">GRC Copilot</span>
+              <span className="px-1.5 py-0.5 bg-purple-700 text-purple-200 text-[10px] rounded font-medium">Beta</span>
+            </div>
+            <button onClick={() => setCopilotOpen(false)} className="text-gray-400 hover:text-white">
+              <X size={16} />
+            </button>
+          </div>
+          {/* Messages */}
+          <div className="flex-1 overflow-y-auto p-4 space-y-3">
+            <CopilotMessageList messages={copilotMessages} />
+          </div>
+          {/* Suggestions */}
+          {copilotMessages.length === 0 && (
+            <div className="px-4 pb-3 space-y-2">
+              <p className="text-xs text-gray-400 font-medium uppercase tracking-wide">Suggested questions</p>
+              {[
+                "What's blocking EU AI Act compliance?",
+                "Which team has the most unresolved P1s?",
+                "Summarise top 3 risks for the board",
+                "What do I need to decide this week?",
+              ].map(q => (
+                <button key={q} onClick={() => handleCopilotQuery(q)}
+                  className="w-full text-left text-xs px-3 py-2 bg-gray-50 hover:bg-purple-50 hover:text-purple-700 rounded-lg border border-gray-100 transition-colors">
+                  {q}
+                </button>
+              ))}
+            </div>
+          )}
+          {/* Input */}
+          <div className="px-4 py-3 border-t border-gray-100">
+            <div className="flex gap-2">
+              <input value={copilotInput} onChange={e => setCopilotInput(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && handleCopilotQuery(copilotInput)}
+                placeholder="Ask anything about your GRC posture…"
+                className="flex-1 text-sm px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-200 focus:border-purple-400" />
+              <button onClick={() => handleCopilotQuery(copilotInput)}
+                className="px-3 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 text-sm">
+                <ArrowUpRight size={14} />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
     </DataContext.Provider>
   );
