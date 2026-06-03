@@ -652,9 +652,11 @@ function Overview({ navigate }) {
   return (
     <div className="space-y-5">
 
-      {/* ── 0. Decisions + Alert Tray (RRR1) ───────────────────────────── */}
-      <DecisionsRequired navigate={navigate} />
-      <AlertTray />
+      {/* ── 0. Decisions + Alert Tray — two equal tiles ─────────────── */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 items-start">
+        <DecisionsRequired navigate={navigate} />
+        <AlertTray navigate={navigate} />
+      </div>
 
       {/* ── 0a. Executive Briefing (RRR2) ───────────────────────────────── */}
       <div className="bg-gradient-to-r from-slate-900 to-slate-800 rounded-xl p-5 shadow-md">
@@ -936,14 +938,14 @@ function SLACountdown({ dueDate, status }) {
 }
 
 // ─── Alert Tray ───────────────────────────────────────────────────────────────
-function AlertTray() {
+function AlertTray({ navigate }) {
   const { vulns, incidents, policies, vendors } = useGRCData();
   const [dismissed, setDismissed] = useState(() => {
     try { return JSON.parse(localStorage.getItem('grc_dismissed_alerts') || '[]'); } catch { return []; }
   });
-  const [open, setOpen] = useState(true);
 
-  const dismiss = (id) => {
+  const dismiss = (e, id) => {
+    e.stopPropagation();
     const next = [...dismissed, id];
     setDismissed(next);
     localStorage.setItem('grc_dismissed_alerts', JSON.stringify(next));
@@ -960,23 +962,26 @@ function AlertTray() {
       .map(v => ({ id: `vnd-${v.id}`, level: 1, label: 'No Contract', text: `${v.name} — ${v.dataShared}`, action: 'Legal must initiate DPA before next data processing', nav: 'thirdparty', color: '#0891B2', bg: 'bg-cyan-50', border: 'border-cyan-200', textCol: 'text-cyan-800' })),
   ].filter(a => !dismissed.includes(a.id)).sort((a, b) => a.level - b.level);
 
-  if (alerts.length === 0) return null;
-
   return (
-    <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-      <button onClick={() => setOpen(o => !o)}
-        className="w-full flex items-center justify-between px-5 py-3 hover:bg-gray-50 transition-colors">
-        <div className="flex items-center gap-2">
-          <Bell size={14} className="text-red-500" />
-          <span className="text-sm font-semibold text-gray-900">Action Required</span>
-          <span className="px-2 py-0.5 bg-red-100 text-red-700 text-xs font-bold rounded-full">{alerts.length}</span>
+    <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden flex flex-col">
+      <div className="px-5 py-3 bg-amber-500 flex items-center gap-2">
+        <Bell size={14} className="text-white flex-shrink-0" />
+        <span className="text-sm font-bold text-white">Action Required</span>
+        <span className="px-2 py-0.5 bg-white/20 text-white text-xs font-bold rounded-full">{alerts.length}</span>
+        <span className="ml-auto text-xs text-amber-100">Click any item to open</span>
+      </div>
+      {alerts.length === 0 ? (
+        <div className="flex-1 flex items-center justify-center p-6">
+          <div className="text-center">
+            <CheckCircle size={20} className="text-emerald-500 mx-auto mb-1" />
+            <p className="text-xs text-gray-500">All alerts cleared</p>
+          </div>
         </div>
-        <ChevronRight size={14} className={`text-gray-400 transition-transform ${open ? 'rotate-90' : ''}`} />
-      </button>
-      {open && (
-        <div className="border-t border-gray-100 divide-y divide-gray-50">
+      ) : (
+        <div className="divide-y divide-gray-50 flex-1">
           {alerts.map(a => (
-            <div key={a.id} className={`flex items-start gap-3 px-5 py-3 ${a.bg}`}>
+            <button key={a.id} onClick={() => navigate(a.nav)}
+              className={`w-full flex items-start gap-3 px-5 py-3 ${a.bg} hover:brightness-95 transition-all text-left group`}>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-0.5">
                   <span className={`text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded ${a.bg} ${a.textCol} border ${a.border}`}>{a.label}</span>
@@ -984,8 +989,11 @@ function AlertTray() {
                 </div>
                 <p className="text-xs text-gray-500">{a.action}</p>
               </div>
-              <button onClick={() => dismiss(a.id)} className="text-gray-300 hover:text-gray-500 flex-shrink-0 mt-0.5"><X size={13} /></button>
-            </div>
+              <div className="flex items-center gap-1 flex-shrink-0 mt-0.5">
+                <ChevronRight size={12} className="text-gray-300 group-hover:text-gray-500" />
+                <button onClick={(e) => dismiss(e, a.id)} className="text-gray-300 hover:text-gray-500 p-0.5 rounded" title="Dismiss"><X size={12} /></button>
+              </div>
+            </button>
           ))}
         </div>
       )}
