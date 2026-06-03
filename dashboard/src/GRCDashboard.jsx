@@ -542,6 +542,10 @@ function Overview({ navigate }) {
   return (
     <div className="space-y-5">
 
+      {/* ── 0. Decisions + Alert Tray ───────────────────────────────────── */}
+      <DecisionsRequired navigate={navigate} />
+      <AlertTray />
+
       {/* ── 1. Headline ─────────────────────────────────────────────────── */}
       <div className={`bg-white rounded-xl border ${posture.border} p-5 shadow-sm`}>
         <div className="flex items-center gap-6">
@@ -774,6 +778,120 @@ function SLACountdown({ dueDate, status }) {
   return <span className="text-xs text-gray-500">{days}d left</span>;
 }
 
+// ─── Alert Tray ───────────────────────────────────────────────────────────────
+function AlertTray() {
+  const { vulns, incidents, policies, vendors } = useGRCData();
+  const [dismissed, setDismissed] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('grc_dismissed_alerts') || '[]'); } catch { return []; }
+  });
+  const [open, setOpen] = useState(true);
+
+  const dismiss = (id) => {
+    const next = [...dismissed, id];
+    setDismissed(next);
+    localStorage.setItem('grc_dismissed_alerts', JSON.stringify(next));
+  };
+
+  const alerts = [
+    ...vulns.filter(v => v.priority === 'P0' && v.status !== 'Patched' && v.dueDate && daysFromToday(v.dueDate) < 0)
+      .map(v => ({ id: `p0-${v.id}`, level: 0, label: 'P0 SLA Breach', text: v.title, action: 'Declare incident or escalate now', nav: 'vulns', color: '#EF4444', bg: 'bg-red-50', border: 'border-red-200', textCol: 'text-red-800' })),
+    ...incidents.filter(i => i.severity === 'Critical' && i.status !== 'Resolved')
+      .map(i => ({ id: `inc-${i.id}`, level: 0, label: 'Critical Incident', text: i.title, action: 'Incident commander sign-off required', nav: 'incidents', color: '#F97316', bg: 'bg-orange-50', border: 'border-orange-200', textCol: 'text-orange-800' })),
+    ...policies.filter(p => p.status === 'Missing')
+      .map(p => ({ id: `pol-${p.id}`, level: 1, label: 'Policy Missing', text: p.title, action: 'Create or approve policy — blocks compliance controls', nav: 'policy', color: '#7C3AED', bg: 'bg-purple-50', border: 'border-purple-200', textCol: 'text-purple-800' })),
+    ...vendors.filter(v => v.status === 'No Contract')
+      .map(v => ({ id: `vnd-${v.id}`, level: 1, label: 'No Contract', text: `${v.name} — ${v.dataShared}`, action: 'Legal must initiate DPA before next data processing', nav: 'thirdparty', color: '#0891B2', bg: 'bg-cyan-50', border: 'border-cyan-200', textCol: 'text-cyan-800' })),
+  ].filter(a => !dismissed.includes(a.id)).sort((a, b) => a.level - b.level);
+
+  if (alerts.length === 0) return null;
+
+  return (
+    <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+      <button onClick={() => setOpen(o => !o)}
+        className="w-full flex items-center justify-between px-5 py-3 hover:bg-gray-50 transition-colors">
+        <div className="flex items-center gap-2">
+          <Bell size={14} className="text-red-500" />
+          <span className="text-sm font-semibold text-gray-900">Action Required</span>
+          <span className="px-2 py-0.5 bg-red-100 text-red-700 text-xs font-bold rounded-full">{alerts.length}</span>
+        </div>
+        <ChevronRight size={14} className={`text-gray-400 transition-transform ${open ? 'rotate-90' : ''}`} />
+      </button>
+      {open && (
+        <div className="border-t border-gray-100 divide-y divide-gray-50">
+          {alerts.map(a => (
+            <div key={a.id} className={`flex items-start gap-3 px-5 py-3 ${a.bg}`}>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-0.5">
+                  <span className={`text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded ${a.bg} ${a.textCol} border ${a.border}`}>{a.label}</span>
+                  <span className={`text-xs font-semibold ${a.textCol} truncate`}>{a.text}</span>
+                </div>
+                <p className="text-xs text-gray-500">{a.action}</p>
+              </div>
+              <button onClick={() => dismiss(a.id)} className="text-gray-300 hover:text-gray-500 flex-shrink-0 mt-0.5"><X size={13} /></button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Decisions Required Today ─────────────────────────────────────────────────
+function DecisionsRequired({ navigate }) {
+  const { vulns, incidents, policies, vendors } = useGRCData();
+
+  const decisions = [
+    ...vulns.filter(v => v.priority === 'P0' && v.status !== 'Patched' && v.dueDate && daysFromToday(v.dueDate) < 0)
+      .map(v => ({ id: v.id, icon: Bug, color: '#EF4444', title: `Escalate or declare incident: ${v.title}`, context: `P0 · ${Math.abs(daysFromToday(v.dueDate))}d past SLA · CISO sign-off required`, nav: 'vulns' })),
+    ...risks.filter(r => r.status === 'Open' && r.inherentScore > 19)
+      .map(r => ({ id: r.id, icon: AlertTriangle, color: '#EF4444', title: `Board-level risk: ${r.title}`, context: `Score ${r.inherentScore} — significantly exceeds risk appetite · ${r.owner}`, nav: 'risks' })),
+    ...incidents.filter(i => i.severity === 'Critical' && i.status !== 'Resolved')
+      .map(i => ({ id: i.id, icon: Flame, color: '#F97316', title: `Critical incident unresolved: ${i.title}`, context: `Detected ${i.detected} · ${i.systems} system${i.systems !== 1 ? 's' : ''} affected · IMT activation required`, nav: 'incidents' })),
+    ...policies.filter(p => p.status === 'Missing').slice(0, 2)
+      .map(p => ({ id: p.id, icon: BookOpen, color: '#7C3AED', title: `Approve and ratify: ${p.title}`, context: `Missing — blocks EU AI Act, ISO 42001, and GDPR compliance · ${p.owner}`, nav: 'policy' })),
+    ...vendors.filter(v => v.status === 'No Contract')
+      .map(v => ({ id: v.id, icon: Building2, color: '#0891B2', title: `Offboard or contract: ${v.name}`, context: `No DPA — ${v.dataShared} being processed without legal basis · Legal sign-off required`, nav: 'thirdparty' })),
+  ];
+
+  if (decisions.length === 0) return (
+    <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 flex items-center gap-3">
+      <CheckCircle size={16} className="text-emerald-600 flex-shrink-0" />
+      <p className="text-sm font-semibold text-emerald-800">No decisions required today — maintain momentum on open treatment plans.</p>
+    </div>
+  );
+
+  return (
+    <div className="bg-white rounded-xl border border-red-200 shadow-sm overflow-hidden">
+      <div className="px-5 py-3 bg-red-600 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <AlertTriangle size={14} className="text-white flex-shrink-0" />
+          <p className="text-sm font-bold text-white">Decisions Required Today</p>
+          <span className="px-2 py-0.5 bg-white/20 text-white text-xs font-bold rounded-full">{decisions.length}</span>
+        </div>
+        <p className="text-xs text-red-200">Click any item to investigate</p>
+      </div>
+      <div className="divide-y divide-gray-50">
+        {decisions.map(d => {
+          const Icon = d.icon;
+          return (
+            <button key={d.id} onClick={() => navigate(d.nav)}
+              className="w-full flex items-start gap-3 px-5 py-3.5 hover:bg-gray-50 transition-colors text-left group">
+              <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5" style={{ background: d.color + '15' }}>
+                <Icon size={13} style={{ color: d.color }} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-gray-900 leading-snug">{d.title}</p>
+                <p className="text-xs text-gray-400 mt-0.5">{d.context}</p>
+              </div>
+              <ChevronRight size={13} className="text-gray-300 group-hover:text-gray-500 flex-shrink-0 mt-1" />
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function SectionContext({ what, why, ask, askUrgency = 'normal' }) {
   const askBg = { critical: 'bg-red-600', high: 'bg-amber-500', normal: 'bg-blue-600' };
   return (
@@ -805,6 +923,7 @@ function Vulnerabilities() {
   const [priorityFilter, setPriorityFilter] = useState('All');
   const [showAI, setShowAI] = useState(false);
   const [showEOL, setShowEOL] = useState(false);
+  const [tableExpanded, setTableExpanded] = useState(false);
 
   const open = vulns.filter(v => v.status !== 'Patched');
 
@@ -1008,67 +1127,62 @@ function Vulnerabilities() {
             <button onClick={() => setShowEOL(e => !e)} className={`px-3 py-2 text-sm font-medium rounded-lg border transition-colors flex items-center gap-1.5 ${showEOL ? 'bg-rose-600 text-white border-rose-600' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'}`}>
               <Activity size={13} /> EOL Only
             </button>
+            <button onClick={() => setTableExpanded(x => !x)} className="px-3 py-2 text-sm font-medium rounded-lg border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 transition-colors flex items-center gap-1.5">
+              <Grid size={13} /> {tableExpanded ? 'Collapse' : 'All columns'}
+            </button>
           </>}
         />
         <ModuleTable
           columns={[
-            { key: 'id',       label: 'ID',
-              render: r => <span className="font-mono text-xs text-gray-400">{r.id}</span> },
-            { key: 'priority', label: 'Priority (VSRM)',
-              render: r => <PriorityBadge priority={r.priority} /> },
-            { key: 'cve',      label: 'CVE / Ref',
+            { key: 'priority', label: 'Priority',
               render: r => (
-                <div className="flex items-center gap-1.5 flex-wrap">
-                  {r.cve
-                    ? <span className="font-mono text-xs text-blue-600">{r.cve}</span>
-                    : <span className="text-xs text-gray-400 italic">No CVE</span>}
+                <div className="flex items-center gap-1.5">
+                  <PriorityBadge priority={r.priority} />
                   {r.eol       && <span className="px-1.5 py-0.5 bg-rose-100 text-rose-700 text-xs rounded font-medium">EOL</span>}
-                  {r.ai        && <span className="px-1.5 py-0.5 bg-purple-100 text-purple-700 text-xs rounded font-medium">AI</span>}
                   {r.isCisaKev && <span className="px-1.5 py-0.5 bg-red-100 text-red-700 text-xs rounded font-medium">KEV</span>}
+                  {r.ai        && <span className="px-1.5 py-0.5 bg-purple-100 text-purple-700 text-xs rounded font-medium">AI</span>}
                 </div>
               ) },
-            { key: 'title',    label: 'Title',
-              render: r => <span className="text-sm text-gray-800 font-medium">{r.title}</span> },
-            { key: 'age',      label: 'Age',
+            { key: 'title', label: 'Vulnerability',
+              render: r => (
+                <div>
+                  <p className="text-sm text-gray-800 font-medium">{r.title}</p>
+                  {r.cve && <p className="font-mono text-xs text-blue-500 mt-0.5">{r.cve}</p>}
+                </div>
+              ) },
+            { key: 'sla', label: 'SLA Status',
               render: r => {
+                if (r.status === 'Patched') return <span className="text-xs text-emerald-600 font-medium">✓ Patched</span>;
                 const dOpen = -daysFromToday(r.discovered);
                 const overdue = r.dueDate ? -daysFromToday(r.dueDate) : null;
-                if (r.status === 'Patched') return <span className="text-xs text-emerald-600 font-medium">Patched</span>;
-                const cls = overdue > 0 ? 'text-red-600 font-semibold' : dOpen > 14 ? 'text-amber-600' : 'text-gray-500';
                 return (
                   <div>
-                    <span className={`text-xs ${cls}`}>{dOpen}d open</span>
-                    {overdue > 0 && <p className="text-xs text-red-500 font-semibold">{overdue}d overdue</p>}
+                    <SLACountdown dueDate={r.dueDate} status={r.status} />
+                    <p className={`text-xs mt-0.5 ${overdue > 0 ? 'text-red-500 font-semibold' : 'text-gray-400'}`}>{dOpen}d open{overdue > 0 ? ` · ${overdue}d overdue` : ''}</p>
                   </div>
                 );
               }},
-            { key: 'sla',      label: 'SLA Deadline',
-              render: r => <SLACountdown dueDate={r.dueDate} status={r.status} /> },
-            { key: 'severity', label: 'Severity',
-              render: r => <SeverityBadge severity={r.severity} /> },
-            { key: 'status',   label: 'Status',
-              render: r => <StatusBadge status={r.status} /> },
-            { key: 'asset',    label: 'Asset',
-              render: r => (
-                <div className="flex items-center gap-1.5">
-                  <span className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded font-mono">{r.asset}</span>
-                  {r.secTier != null && (
-                    <span className={`text-xs px-1.5 py-0.5 rounded font-semibold ${r.secTier === 0 ? 'bg-red-100 text-red-700' : r.secTier === 1 ? 'bg-orange-100 text-orange-700' : 'bg-gray-100 text-gray-500'}`}>
-                      T{r.secTier}
-                    </span>
-                  )}
-                </div>
-              ) },
-            { key: 'owner',    label: 'Owner',
+            { key: 'owner', label: 'Owner',
               render: r => r.assignedTo
                 ? <span className="text-xs text-gray-600">{r.assignedTo}</span>
                 : (r.status !== 'Patched' && (r.priority === 'P0' || r.priority === 'P1'))
                   ? <span className="text-xs font-semibold text-red-600">⚠ Unassigned</span>
-                  : <span className="text-xs text-gray-400">-</span> },
-            { key: 'ctrl',     label: 'Control',
-              render: r => <ControlCell controlId={r.controlId} /> },
-            { key: 'eff',      label: 'Effectiveness',
-              render: r => { const c = ctrlMap[r.controlId]; return c ? <EffectivenessBadge effectiveness={c.effectiveness} score={c.score} /> : null; } },
+                  : <span className="text-xs text-gray-400">—</span> },
+            { key: 'status', label: 'Status',
+              render: r => <StatusBadge status={r.status} /> },
+            ...(tableExpanded ? [
+              { key: 'id',       label: 'ID',       render: r => <span className="font-mono text-xs text-gray-400">{r.id}</span> },
+              { key: 'severity', label: 'Severity', render: r => <SeverityBadge severity={r.severity} /> },
+              { key: 'asset',    label: 'Asset',
+                render: r => (
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded font-mono">{r.asset}</span>
+                    {r.secTier != null && <span className={`text-xs px-1.5 py-0.5 rounded font-semibold ${r.secTier === 0 ? 'bg-red-100 text-red-700' : r.secTier === 1 ? 'bg-orange-100 text-orange-700' : 'bg-gray-100 text-gray-500'}`}>T{r.secTier}</span>}
+                  </div>
+                ) },
+              { key: 'ctrl', label: 'Control', render: r => <ControlCell controlId={r.controlId} /> },
+              { key: 'eff',  label: 'Effectiveness', render: r => { const c = ctrlMap[r.controlId]; return c ? <EffectivenessBadge effectiveness={c.effectiveness} score={c.score} /> : null; } },
+            ] : []),
           ]}
           rows={data}
         />
@@ -1177,12 +1291,90 @@ function Incidents() {
 
 // ─── Policy ───────────────────────────────────────────────────────────────────
 
+const POLICY_DRAFTS = {
+  'POL-007': {
+    title: 'AI Usage & Governance Policy',
+    sections: [
+      { heading: 'Purpose', body: 'This policy establishes the governance framework for the development, deployment, and use of artificial intelligence and machine learning systems across the organisation, ensuring alignment with EU AI Act, ISO/IEC 42001, and NIST AI RMF obligations.' },
+      { heading: 'Scope', body: 'Applies to all employees, contractors, and third parties who develop, procure, deploy, or use AI systems that process organisational or customer data.' },
+      { heading: 'AI Use Case Register', body: 'All AI use cases must be registered with the GRC team before deployment. Each use case must be classified by risk tier (Unacceptable / High / Limited / Minimal) per EU AI Act Article 6.' },
+      { heading: 'Prohibited Uses', body: 'AI systems must not be used for: real-time biometric surveillance in public spaces, social scoring, exploitation of vulnerable groups, or any use case classified as Unacceptable Risk under EU AI Act Annex I.' },
+      { heading: 'Approval & Review', body: 'High-risk AI systems require CISO and DPO sign-off prior to deployment. All AI use cases must be reviewed annually or when material changes occur.' },
+      { heading: 'Controls', body: 'UCF.AI.01 (AI Model Governance) · UCF.AI.06 (AI Risk Categorization) · UCF.AI.10 (AI Model Lifecycle Management)' },
+      { heading: 'Owner', body: 'A. Patel · Review annually · Next review: 2026-12-31' },
+    ]
+  },
+  'POL-008': {
+    title: 'AI Ethics & Bias Policy',
+    sections: [
+      { heading: 'Purpose', body: 'This policy ensures that AI systems deployed by the organisation are fair, transparent, and do not discriminate against individuals or groups, in compliance with GDPR Art.22, EU AI Act Art.10, and NIST AI RMF.' },
+      { heading: 'Scope', body: 'Applies to all AI systems that make or materially influence decisions affecting individuals, including automated decisioning, recommendations, and risk scoring.' },
+      { heading: 'Bias Assessment', body: 'All AI systems must undergo bias and fairness assessments prior to deployment, covering: training data representativeness, output disparity analysis across protected characteristics, and ongoing monitoring for drift.' },
+      { heading: 'Explainability Requirements', body: 'Systems making individual decisions must be capable of providing meaningful explanations upon request (GDPR Art.22). Black-box models used in high-stakes decisions require explainability tooling (SHAP, LIME, or equivalent).' },
+      { heading: 'Human Oversight', body: 'High-risk AI decisions must have a defined human review pathway. Individuals have the right to challenge automated decisions and request human review.' },
+      { heading: 'Controls', body: 'UCF.AI.02 (AI Data Privacy & Bias Controls) · UCF.AI.08 (AI Explainability & Transparency) · UCF.AI.09 (AI Data Provenance & Lineage)' },
+      { heading: 'Owner', body: 'A. Patel · Review annually · Next review: 2026-12-31' },
+    ]
+  },
+  'POL-009': {
+    title: 'AI Vendor Risk Policy',
+    sections: [
+      { heading: 'Purpose', body: 'This policy governs the procurement, assessment, and ongoing oversight of third-party AI vendors and model providers, ensuring data protection obligations and EU AI Act Article 28 requirements are met.' },
+      { heading: 'Scope', body: 'Applies to all LLM providers, ML platform vendors, AI-enabled SaaS tools, and any third party that processes organisational or customer data through AI models.' },
+      { heading: 'Pre-Procurement Requirements', body: 'Before contracting any AI vendor, the GRC team must complete: security questionnaire, Data Processing Agreement (DPA), model provenance review, and EU AI Act conformity assessment where applicable.' },
+      { heading: 'Data Transfer Controls', body: 'Prompt data sent to external LLM providers must be classified. PII must be pseudonymised or redacted before transmission. Vendors must confirm data is not used for model training without explicit consent.' },
+      { heading: 'Ongoing Monitoring', body: 'AI vendors must be re-assessed annually or upon material changes to their service. Questionnaire responses must be reviewed against current risk scores in the vendor register.' },
+      { heading: 'Controls', body: 'UCF.AI.04 (AI Vendor Risk Management) · UCF.06.01 (Third Party Risk Assessment) · UCF.06.02 (Vendor Questionnaire Process)' },
+      { heading: 'Owner', body: 'S. Chen · Review annually · Next review: 2026-12-31' },
+    ]
+  },
+};
+
+function PolicyDraftModal({ policy, onClose }) {
+  const draft = POLICY_DRAFTS[policy.id];
+  if (!draft) return null;
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.4)' }}>
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[85vh] flex flex-col">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+          <div>
+            <div className="flex items-center gap-2 mb-0.5">
+              <span className="px-2 py-0.5 bg-purple-100 text-purple-700 text-xs font-bold rounded">AI Draft</span>
+              <span className="text-xs text-gray-400">Generated from UCF control mappings</span>
+            </div>
+            <h2 className="text-base font-bold text-gray-900">{draft.title}</h2>
+          </div>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X size={18} /></button>
+        </div>
+        <div className="overflow-y-auto flex-1 px-6 py-4 space-y-4">
+          {draft.sections.map(s => (
+            <div key={s.heading}>
+              <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">{s.heading}</p>
+              <p className="text-sm text-gray-700 leading-relaxed">{s.body}</p>
+            </div>
+          ))}
+        </div>
+        <div className="px-6 py-4 border-t border-gray-100 bg-gray-50 rounded-b-xl flex items-center justify-between">
+          <p className="text-xs text-gray-400">Review and edit before submitting for approval. Wire to LLM gateway for dynamic generation.</p>
+          <div className="flex gap-2">
+            <button onClick={onClose} className="px-4 py-2 text-sm border border-gray-200 rounded-lg hover:bg-white text-gray-600">Close</button>
+            <button className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium flex items-center gap-1.5">
+              <Download size={13} /> Export Draft
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function PolicyModule() {
   const { policies, controls } = useGRCData();
   const ctrlMap = Object.fromEntries(controls.map(c => [c.id, c]));
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
   const [showAI, setShowAI] = useState(false);
+  const [draftPolicy, setDraftPolicy] = useState(null);
 
   const data = policies.filter(p =>
     (statusFilter === 'All' || p.status === statusFilter) &&
@@ -1194,12 +1386,16 @@ function PolicyModule() {
   const overdue = policies.filter(p => p.status === 'Overdue').length;
   const exceptions = policies.reduce((s, p) => s + p.exceptions, 0);
 
+  const missingAIPolicies = policies.filter(p => p.status === 'Missing' && p.ai);
+
   return (
     <div className="space-y-4">
+      {draftPolicy && <PolicyDraftModal policy={draftPolicy} onClose={() => setDraftPolicy(null)} />}
+
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <KPICard title="Missing Policies"  value={missing}    icon={AlertTriangle} color="#EF4444" subtitle="3 AI policies" />
-        <KPICard title="Overdue Reviews"   value={overdue}    icon={FileText}      color="#F97316" subtitle="oldest: 2026-04-30" />
-        <KPICard title="Open Exceptions"   value={exceptions} icon={Eye}           color="#EAB308" subtitle="across all policies" />
+        <KPICard title="Missing Policies"  value={missing}    icon={AlertTriangle} color="#EF4444" subtitle={`${missing} AI policies don't exist yet — blocks EU AI Act & ISO 42001`} />
+        <KPICard title="Overdue Reviews"   value={overdue}    icon={FileText}      color="#F97316" subtitle="Review deadline passed — policy may no longer reflect current risk" />
+        <KPICard title="Open Exceptions"   value={exceptions} icon={Eye}           color="#EAB308" subtitle="Each exception is an approved deviation from policy — needs annual review" />
         <div className="bg-white rounded-xl border border-gray-100 p-4 shadow-sm">
           <p className="text-xs text-gray-400 mb-1">Policy Control · {ctrlMap['UCF.07.01']?.id}</p>
           <p className="text-sm font-semibold text-gray-800 mb-2">{ctrlMap['UCF.07.01']?.name}</p>
@@ -1211,7 +1407,15 @@ function PolicyModule() {
         <Cpu size={16} className="text-purple-600 flex-shrink-0 mt-0.5" />
         <div className="flex-1">
           <p className="text-sm font-semibold text-gray-800">3 AI Policies Missing · Action Required</p>
-          <p className="text-xs text-gray-600 mt-0.5">AI Usage & Governance Policy (overdue since Mar 2026), AI Ethics & Bias Policy, and AI Vendor Risk Policy do not exist. Required by EU AI Act, ISO/IEC 42001, and GDPR Art.22. Controls {ctrlMap['UCF.AI.01']?.id}, {ctrlMap['UCF.AI.02']?.id}, {ctrlMap['UCF.AI.04']?.id} are ineffective until resolved.</p>
+          <p className="text-xs text-gray-600 mt-0.5 mb-3">Required by EU AI Act, ISO/IEC 42001, and GDPR Art.22. Controls {ctrlMap['UCF.AI.01']?.id}, {ctrlMap['UCF.AI.02']?.id}, {ctrlMap['UCF.AI.04']?.id} are ineffective until these policies exist.</p>
+          <div className="flex flex-wrap gap-2">
+            {missingAIPolicies.map(p => (
+              <button key={p.id} onClick={() => setDraftPolicy(p)}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-600 text-white text-xs font-semibold rounded-lg hover:bg-purple-700 transition-colors">
+                <Cpu size={11} /> Draft {p.title.replace(' Policy', '')} Policy with AI
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
