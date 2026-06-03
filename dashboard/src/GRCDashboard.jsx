@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useContext, createContext, useRef, useCallback } from 'react';
-import { BarChart, Bar, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { BarChart, Bar, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from 'recharts';
 import {
   Shield, AlertTriangle, TrendingUp, TrendingDown, CheckCircle,
   Grid, Search, Bell, Settings, User, Menu, Activity,
@@ -339,7 +339,24 @@ function ControlCell({ controlId }) {
   );
 }
 
-function KPICard({ title, value, delta, deltaType, icon: Icon, color, subtitle }) {
+function Sparkline({ data, color = '#3B82F6', width = 60, height = 24 }) {
+  return (
+    <ResponsiveContainer width={width} height={height}>
+      <BarChart data={data} margin={{ top: 2, right: 0, bottom: 0, left: 0 }}>
+        <Bar dataKey="v" fill={color} radius={1} />
+      </BarChart>
+    </ResponsiveContainer>
+  );
+}
+
+const sparkData = {
+  vulns:     [{v:8},{v:9},{v:10},{v:10}],
+  incidents: [{v:5},{v:4},{v:6},{v:5}],
+  policy:    [{v:4},{v:4},{v:5},{v:5}],
+  health:    [{v:68},{v:69},{v:70},{v:71}],
+};
+
+function KPICard({ title, value, delta, deltaType, icon: Icon, color, subtitle, sparkData: sd, sparkColor }) {
   const isUp = deltaType === 'up';
   return (
     <div className="bg-white rounded-xl border border-gray-100 p-5 shadow-sm hover:shadow-md transition-shadow">
@@ -356,8 +373,42 @@ function KPICard({ title, value, delta, deltaType, icon: Icon, color, subtitle }
       <p className="text-2xl font-bold text-gray-900">{value}</p>
       <p className="text-sm font-medium text-gray-700 mt-0.5">{title}</p>
       {subtitle && <p className="text-xs text-gray-400 mt-0.5">{subtitle}</p>}
+      {sd && (
+        <div className="mt-2">
+          <Sparkline data={sd} color={sparkColor || color} width={60} height={24} />
+        </div>
+      )}
     </div>
   );
+}
+
+function NextActionCard({ action, owner, deadline, urgency = 'high' }) {
+  const colors = {
+    high:   { bg: 'bg-red-50',    border: 'border-red-200',   text: 'text-red-700',   label: 'Action Required' },
+    medium: { bg: 'bg-amber-50',  border: 'border-amber-200', text: 'text-amber-700', label: 'Action This Week' },
+    low:    { bg: 'bg-blue-50',   border: 'border-blue-200',  text: 'text-blue-700',  label: 'Recommended' },
+  };
+  const c = colors[urgency] || colors.high;
+  return (
+    <div className={`flex items-center gap-3 px-4 py-3 ${c.bg} border ${c.border} rounded-xl`}>
+      <Zap size={14} className={c.text + ' flex-shrink-0'} />
+      <div className="flex-1 min-w-0">
+        <span className={`text-xs font-bold ${c.text} uppercase tracking-wide mr-2`}>{c.label}</span>
+        <span className="text-sm text-gray-800">{action}</span>
+      </div>
+      {owner && <span className="text-xs text-gray-500 flex-shrink-0">{owner}</span>}
+      {deadline && <span className={`text-xs font-semibold flex-shrink-0 ${c.text}`}>{deadline}</span>}
+    </div>
+  );
+}
+
+function DecisionTierBadge({ tier }) {
+  const t = {
+    'Board / CISO': 'bg-red-100 text-red-700',
+    'VP+':          'bg-orange-100 text-orange-700',
+    'Director+':    'bg-amber-100 text-amber-700',
+  };
+  return <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${t[tier]||'bg-gray-100 text-gray-600'}`}>{tier}</span>;
 }
 
 function SeverityBadge({ severity }) {
@@ -539,8 +590,100 @@ function Overview({ navigate }) {
 
   const riskBandBg = s => s >= 16 ? 'bg-red-50 text-red-700' : s >= 10 ? 'bg-orange-50 text-orange-700' : s >= 5 ? 'bg-amber-50 text-amber-700' : 'bg-green-50 text-green-700';
 
+  // ── Executive Briefing bullets (computed from live data) ──────────────────
+  const execBullets = [];
+  const worstIncident = incidents.filter(i => i.status !== 'Resolved').sort((a,b) => {
+    const sev = {Critical:3,High:2,Medium:1,Low:0};
+    return (sev[b.severity]||0) - (sev[a.severity]||0);
+  })[0];
+  if (worstIncident) {
+    const activeCount = incidents.filter(i => i.status !== 'Resolved').length;
+    execBullets.push({ color:'#EF4444', text: `${activeCount} active incident${activeCount>1?'s':''} — "${worstIncident.title}" is ${worstIncident.severity.toLowerCase()} severity and ${worstIncident.status.toLowerCase()}` });
+  }
+  const euAiActFw = frameworks.find(f => f.name === 'EU AI Act');
+  if (euAiActFw) {
+    const failing = euAiActFw.controls - euAiActFw.passing;
+    execBullets.push({ color:'#9333EA', text: `EU AI Act at ${euAiActFw.progress}% with enforcement approaching — ${failing} of ${euAiActFw.controls} controls failing` });
+  }
+  const noContractVendor = vendors.find(v => v.status === 'No Contract');
+  if (noContractVendor) {
+    execBullets.push({ color:'#F97316', text: `${noContractVendor.name} has no contract or DPA — highest liability vendor in the register (risk score ${noContractVendor.riskScore})` });
+  } else {
+    const topVendor = [...vendors].sort((a,b) => b.riskScore - a.riskScore)[0];
+    if (topVendor) execBullets.push({ color:'#F97316', text: `${topVendor.name} is your highest-risk vendor with a score of ${topVendor.riskScore} — ${topVendor.status.toLowerCase()}` });
+  }
+
+  // ── Prioritisation Engine leverage actions ──────────────────────────────────
+  const leverageActions = [
+    {
+      action: 'Test UCF.AI.01 (AI Model Governance)',
+      unblocks: ['POL-007 policy closure', 'EU AI Act +4 controls', 'RSK-006 treatment'],
+      owner: 'A. Patel',
+      impact: 'High',
+    },
+    {
+      action: 'Remediate UCF.01.02 (Privileged Access Management)',
+      unblocks: ['RSK-001 residual reduction', 'V-005 IAM escalation', 'ISO 27001 +3 controls'],
+      owner: 'J. Martinez',
+      impact: 'High',
+    },
+    {
+      action: 'Execute OpenAI DPA & security addendum',
+      unblocks: ['RSK-004 closure', 'TP-007 compliance', 'EU AI Act Art.28'],
+      owner: 'S. Chen',
+      impact: 'Medium',
+    },
+  ];
+
   return (
     <div className="space-y-5">
+
+      {/* ── 0a. Executive Briefing ───────────────────────────────────────── */}
+      <div className="bg-gradient-to-r from-slate-900 to-slate-800 rounded-xl p-5 shadow-md">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <h3 className="font-semibold text-white text-sm">Executive Briefing</h3>
+            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-gradient-to-r from-purple-500 to-blue-500 text-white">AI-powered</span>
+          </div>
+          <button title="Regenerate" className="p-1.5 rounded-lg bg-slate-700 hover:bg-slate-600 transition-colors text-slate-300 hover:text-white">
+            <RefreshCw size={12} />
+          </button>
+        </div>
+        <div className="space-y-2.5">
+          {execBullets.map((b, i) => (
+            <div key={i} className="flex items-start gap-3">
+              <div className="w-2.5 h-2.5 rounded-full flex-shrink-0 mt-1" style={{ background: b.color }} />
+              <p className="text-sm text-slate-200 leading-snug">{b.text}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* ── 0b. Prioritisation Engine ────────────────────────────────────── */}
+      <div className="bg-white rounded-xl border border-gray-100 p-5 shadow-sm">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h3 className="font-semibold text-gray-900 text-sm">Prioritisation Engine</h3>
+            <p className="text-xs text-gray-400 mt-0.5">Fix these to unblock the most</p>
+          </div>
+        </div>
+        <div className="space-y-3">
+          {leverageActions.map((la, i) => (
+            <div key={i} className="flex items-start gap-3 p-3 rounded-xl border border-gray-100 bg-gray-50 hover:bg-white transition-colors">
+              <span className={`px-2 py-0.5 rounded text-[10px] font-bold flex-shrink-0 mt-0.5 ${la.impact === 'High' ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'}`}>{la.impact}</span>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-gray-800 leading-snug">{la.action}</p>
+                <div className="flex flex-wrap gap-1 mt-1.5">
+                  {la.unblocks.map(u => (
+                    <span key={u} className="px-1.5 py-0.5 rounded bg-slate-100 text-slate-500 text-[10px] font-medium">↳ {u}</span>
+                  ))}
+                </div>
+              </div>
+              <span className="text-xs text-gray-400 flex-shrink-0">{la.owner}</span>
+            </div>
+          ))}
+        </div>
+      </div>
 
       {/* ── 1. Headline ─────────────────────────────────────────────────── */}
       <div className={`bg-white rounded-xl border ${posture.border} p-5 shadow-sm`}>
@@ -550,7 +693,7 @@ function Overview({ navigate }) {
             <div className="flex items-center gap-2 mb-1">
               <span className="text-xl font-bold text-gray-900">{score} / 100</span>
               <span className={`text-xs font-bold px-2.5 py-0.5 rounded-full ${posture.bg} ${posture.color}`}>{posture.label}</span>
-              <span className="text-xs text-gray-400 ml-1">+3 vs last week</span>
+              <span className={`text-xs ml-1 ${p0Open > 0 ? 'text-amber-600 font-medium' : 'text-gray-400'}`}>{p0Open > 0 ? `↑3 open vulns — patch SLA slipping` : `+3 vs last week`}</span>
             </div>
             <p className="text-sm text-gray-600 leading-snug">{postureText}</p>
             <div className="flex gap-4 mt-3 flex-wrap">
@@ -815,11 +958,13 @@ function Vulnerabilities() {
           <p className="text-xs text-gray-400 mb-1">P0 Open · Incident</p>
           <p className={`text-3xl font-bold mb-1 ${p0Open > 0 ? 'text-red-600' : 'text-gray-800'}`}>{p0Open}</p>
           <p className="text-xs text-gray-400">SLA: 1 day · Target: 0</p>
+          <div className="mt-2"><Sparkline data={sparkData.vulns} color="#EF4444" width={60} height={20} /></div>
         </div>
         <div className={`rounded-xl border p-5 shadow-sm ${p1Open > 0 ? 'bg-orange-50 border-orange-300' : 'bg-white border-gray-100'}`}>
           <p className="text-xs text-gray-400 mb-1">P1 Open · Blocker</p>
           <p className={`text-3xl font-bold mb-1 ${p1Open > 0 ? 'text-orange-600' : 'text-gray-800'}`}>{p1Open}</p>
           <p className="text-xs text-gray-400">SLA: 14 days</p>
+          <div className="mt-2"><Sparkline data={sparkData.vulns} color="#F97316" width={60} height={20} /></div>
         </div>
         <div className={`rounded-xl border p-5 shadow-sm ${slaCompliance < 90 ? 'bg-amber-50 border-amber-300' : 'bg-white border-gray-100'}`}>
           <p className="text-xs text-gray-400 mb-1">SLA Compliance (P1/P2)</p>
@@ -832,6 +977,17 @@ function Vulnerabilities() {
           <p className="text-xs text-gray-400">Target: 0 &gt; 24h</p>
         </div>
       </div>
+
+      {/* Vuln Next Action */}
+      {(() => {
+        const p0Breach = open.filter(v => v.priority==='P0' && v.dueDate && daysFromToday(v.dueDate) < 0)[0];
+        const nextAction = p0Breach
+          ? { action: `Patch ${p0Breach.title} immediately — SLA breached`, owner: p0Breach.assignedTo || 'Unassigned', deadline: `${Math.abs(daysFromToday(p0Breach.dueDate))}d overdue`, urgency: 'high' }
+          : unassignedCritical > 0
+          ? { action: `Assign owner to ${unassignedCritical} unassigned P0/P1 vulnerabilities`, owner: 'T. Williams', deadline: 'Today', urgency: 'high' }
+          : { action: `Review P1 SLA compliance — ${slaCompliance}% in SLA`, owner: 'T. Williams', deadline: 'This week', urgency: 'medium' };
+        return <NextActionCard {...nextAction} />;
+      })()}
 
       {/* MTTR + KEV + trend row */}
       <div className="grid grid-cols-3 gap-4">
@@ -1066,7 +1222,7 @@ function Incidents() {
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <KPICard title="Active Incidents"  value={active.length}  icon={Flame}         color="#F97316" subtitle="2 critical unresolved" />
+        <KPICard title="Active Incidents"  value={active.length}  icon={Flame}         color="#F97316" subtitle="2 critical unresolved" sparkData={sparkData.incidents} />
         <KPICard title="Avg MTTR"          value={mttrAvg}        icon={RefreshCw}      color="#2563EB" subtitle="last 30 days" />
         <KPICard title="AI-Related"        value={incidents.filter(i=>i.ai).length} icon={Cpu} color="#9333EA" subtitle="2 open, 0 controls tested" />
         <div className="bg-white rounded-xl border border-gray-100 p-4 shadow-sm">
@@ -1075,6 +1231,16 @@ function Incidents() {
           <EffectivenessBadge effectiveness={ctrlMap['UCF.04.01']?.effectiveness} score={ctrlMap['UCF.04.01']?.score} />
         </div>
       </div>
+
+      {/* Incidents Next Action */}
+      {(() => {
+        const activeInc = incidents.filter(i => i.status !== 'Resolved');
+        const worstActive = [...activeInc].sort((a,b) => {const s={Critical:3,High:2,Medium:1,Low:0}; return (s[b.severity]||0)-(s[a.severity]||0);})[0];
+        const nextAction = worstActive
+          ? { action: `Resolve "${worstActive.title}" — ${worstActive.severity.toLowerCase()} severity, currently ${worstActive.status.toLowerCase()}`, owner: ctrlMap[worstActive.controlId]?.owner || 'K. Thompson', deadline: worstActive.severity==='Critical'?'Immediately':'48h', urgency: worstActive.severity==='Critical'?'high':'medium' }
+          : { action: 'No critical incidents — validate IR playbook is current', owner: 'K. Thompson', deadline: 'This month', urgency: 'low' };
+        return <NextActionCard {...nextAction} />;
+      })()}
 
       <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-start gap-3">
         <Cpu size={16} className="text-purple-600 flex-shrink-0 mt-0.5" />
@@ -1148,11 +1314,25 @@ function PolicyModule() {
         </div>
       </div>
 
-      <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-start gap-3">
+      {/* Policy Next Action */}
+      {(() => {
+        const todayStr = new Date().toISOString().slice(0,10);
+        const missingAI = policies.filter(p => p.status === 'Missing' && p.ai)[0];
+        const overduePolicy = policies.filter(p => p.status === 'Overdue')[0];
+        const nextAction = missingAI
+          ? { action: `Create ${missingAI.title} — blocks EU AI Act remediation`, owner: missingAI.owner, deadline: 'Jun 30', urgency: 'high' }
+          : overduePolicy
+          ? { action: `Review ${overduePolicy.title} — overdue since ${overduePolicy.reviewDate}`, owner: overduePolicy.owner, deadline: 'This week', urgency: 'medium' }
+          : { action: 'Schedule policy reviews for next quarter', owner: 'S. Chen', deadline: 'Q3 2026', urgency: 'low' };
+        return <NextActionCard {...nextAction} />;
+      })()}
+
+      <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-start gap-3">
         <Cpu size={16} className="text-purple-600 flex-shrink-0 mt-0.5" />
         <div className="flex-1">
-          <p className="text-sm font-semibold text-gray-800">3 AI Policies Missing · Action Required</p>
-          <p className="text-xs text-gray-600 mt-0.5">AI Usage & Governance Policy (overdue since Mar 2026), AI Ethics & Bias Policy, and AI Vendor Risk Policy do not exist. Required by EU AI Act, ISO/IEC 42001, and GDPR Art.22. Controls {ctrlMap['UCF.AI.01']?.id}, {ctrlMap['UCF.AI.02']?.id}, {ctrlMap['UCF.AI.04']?.id} are ineffective until resolved.</p>
+          <p className="text-sm font-semibold text-red-800">3 AI Policies Missing · Action Required</p>
+          <p className="text-xs text-red-700 mt-0.5 font-medium">Blocks EU AI Act remediation — immediate action required</p>
+          <p className="text-xs text-gray-600 mt-1">AI Usage & Governance Policy (overdue since Mar 2026), AI Ethics & Bias Policy, and AI Vendor Risk Policy do not exist. Required by EU AI Act, ISO/IEC 42001, and GDPR Art.22. Controls {ctrlMap['UCF.AI.01']?.id}, {ctrlMap['UCF.AI.02']?.id}, {ctrlMap['UCF.AI.04']?.id} are ineffective until resolved.</p>
         </div>
       </div>
 
@@ -1174,7 +1354,7 @@ function PolicyModule() {
             { key: 'category',    label: 'Category',   render: r => <span className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded">{r.category}</span> },
             { key: 'status',      label: 'Status',     render: r => <StatusBadge status={r.status} /> },
             { key: 'version',     label: 'Version',    render: r => <span className="text-xs font-mono text-gray-500">{r.version || '-'}</span> },
-            { key: 'reviewDate',  label: 'Review Due', render: r => <span className={`text-xs ${!r.reviewDate||r.reviewDate<'2026-06-01'?'text-red-500 font-medium':'text-gray-500'}`}>{r.reviewDate || 'Not set'}</span> },
+            { key: 'reviewDate',  label: 'Review Due', render: r => <span className={`text-xs ${!r.reviewDate||r.reviewDate<new Date().toISOString().slice(0,10)?'text-red-500 font-medium':'text-gray-500'}`}>{r.reviewDate || 'Not set'}</span> },
             { key: 'exceptions',  label: 'Exceptions', render: r => <span className={`text-sm font-semibold ${r.exceptions>0?'text-amber-600':'text-gray-400'}`}>{r.exceptions}</span> },
             { key: 'owner',       label: 'Owner',      render: r => <span className="text-xs text-gray-500">{r.owner}</span> },
             { key: 'ctrl',        label: 'Linked Control', render: r => <ControlCell controlId={r.controlId} /> },
@@ -1219,6 +1399,15 @@ function ThirdParty() {
         </div>
       </div>
 
+      {/* Third Party Next Action */}
+      {(() => {
+        const noContractVendor = vendors.find(v => v.status === 'No Contract');
+        const nextAction = noContractVendor
+          ? { action: `Execute DPA with ${noContractVendor.name} — no contract, processes prompt data`, owner: noContractVendor.id === 'TP-007' ? 'S. Chen' : ctrlMap['UCF.AI.04']?.owner, deadline: 'Jul 1', urgency: 'high' }
+          : { action: 'Complete overdue vendor questionnaires', owner: 'S. Chen', deadline: 'This week', urgency: 'medium' };
+        return <NextActionCard {...nextAction} />;
+      })()}
+
       <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-start gap-3">
         <Cpu size={16} className="text-purple-600 flex-shrink-0 mt-0.5" />
         <div className="flex-1">
@@ -1254,7 +1443,7 @@ function ThirdParty() {
             },
             { key: 'status',       label: 'Status',     render: r => <StatusBadge status={r.status} /> },
             { key: 'dataShared',   label: 'Data Shared',render: r => <span className="text-xs text-gray-500">{r.dataShared}</span> },
-            { key: 'contractExpiry',label:'Contract',   render: r => <span className={`text-xs ${!r.contractExpiry?'text-red-500 font-semibold':r.contractExpiry<'2026-09-01'?'text-amber-600':'text-gray-500'}`}>{r.contractExpiry||'None'}</span> },
+            { key: 'contractExpiry',label:'Contract',   render: r => { const in90 = new Date(); in90.setDate(in90.getDate()+90); const exp90 = in90.toISOString().slice(0,10); return <span className={`text-xs ${!r.contractExpiry?'text-red-500 font-semibold':r.contractExpiry<exp90?'text-amber-600':'text-gray-500'}`}>{r.contractExpiry||'None'}</span>; } },
             { key: 'lastAssessed', label: 'Last Assessed', render: r => <span className={`text-xs ${!r.lastAssessed?'text-red-500 font-semibold':'text-gray-500'}`}>{r.lastAssessed||'Never'}</span> },
             { key: 'ctrl',         label: 'Linked Control', render: r => <ControlCell controlId={r.controlId} /> },
             { key: 'eff',          label: 'Control Effectiveness', render: r => { const c = ctrlMap[r.controlId]; return c ? <EffectivenessBadge effectiveness={c.effectiveness} score={c.score} /> : null; } },
@@ -1287,6 +1476,15 @@ function Compliance() {
         <KPICard title="Certified / Compliant" value={certified}       icon={CheckCircle}   color="#22C55E" subtitle={`of ${frameworks.length} total frameworks`} />
         <KPICard title="Frameworks at Gap"     value={gapCount}        icon={AlertTriangle} color="#EF4444" subtitle="immediate remediation required" />
       </div>
+
+      {/* Compliance Next Action */}
+      {(() => {
+        const worstFramework = [...frameworks].filter(f => f.status === 'Gap').sort((a,b) => a.progress-b.progress)[0];
+        const nextAction = worstFramework
+          ? { action: `${worstFramework.name} at ${worstFramework.progress}% — ${worstFramework.controls - worstFramework.passing} controls failing`, owner: 'A. Patel', deadline: 'Q4 2026', urgency: 'high' }
+          : { action: 'Review framework coverage gaps with engineering teams', owner: 'S. Chen', deadline: 'This quarter', urgency: 'low' };
+        return <NextActionCard {...nextAction} />;
+      })()}
 
       {/* EU AI Act urgent callout */}
       <div className="bg-red-50 border border-red-200 rounded-xl p-5 flex items-start gap-4">
@@ -1331,6 +1529,11 @@ function Compliance() {
                 <div className="h-2 rounded-full" style={{ width:`${f.progress}%`, background: f.color }} />
               </div>
               <p className="text-xs text-right font-semibold text-gray-700">{f.progress}%</p>
+              {f.name === 'EU AI Act' && (
+                <p className="text-xs text-red-600 mt-1 font-medium">
+                  {f.controls - f.passing} of {f.controls} controls failing — enforcement approaching
+                </p>
+              )}
             </div>
           );
         })}
@@ -1511,34 +1714,34 @@ function Scorecard({ onViewReport }) {
 
   const leadershipDecisions = [
     ...p0Breach.map(v => ({
-      urgency: 'critical', color: '#EF4444', bg: 'bg-red-50', border: 'border-red-200',
-      icon: AlertTriangle,
+      urgency: 'critical', urgencyRank: 0, color: '#EF4444', bg: 'bg-red-50', border: 'border-red-200',
+      icon: AlertTriangle, tier: 'Board / CISO',
       title: 'P0 SLA Breach — CISO Escalation Required',
       detail: `${v.id} (${v.title}) is ${Math.abs(daysFromToday(v.dueDate))}d overdue on a 1-day SLA. Requires CISO sign-off or formal incident declaration.`,
       ask: 'Escalate / Declare Incident',
     })),
     ...(euAiAct && euAiAct.progress < 40 ? [{
-      urgency: 'high', color: '#D97706', bg: 'bg-amber-50', border: 'border-amber-200',
-      icon: Globe,
+      urgency: 'high', urgencyRank: 1, color: '#D97706', bg: 'bg-amber-50', border: 'border-amber-200',
+      icon: Globe, tier: 'Board / CISO',
       title: 'EU AI Act — Board Decision Required',
       detail: `${euAiAct.progress}% coverage with enforcement active. Options: approve remediation budget or formally accept regulatory exposure as residual risk.`,
       ask: 'Approve budget / Accept risk',
     }] : []),
     ...crisisTeams.map(t => ({
-      urgency: 'high', color: '#F97316', bg: 'bg-orange-50', border: 'border-orange-200',
-      icon: AlertTriangle,
+      urgency: 'high', urgencyRank: 1, color: '#F97316', bg: 'bg-orange-50', border: 'border-orange-200',
+      icon: AlertTriangle, tier: 'VP+',
       title: `${t.name} in Crisis (${t.health}%) — Resource Decision`,
       detail: `${t.gaps} control gap${t.gaps !== 1 ? 's' : ''}, ${t.openVulns} open vuln${t.openVulns !== 1 ? 's' : ''}, ${t.openInc} unresolved incident${t.openInc !== 1 ? 's' : ''}. Requires resource allocation or formal risk acceptance.`,
       ask: 'Assign resources / Accept risk',
     })),
     ...(aiVendorGaps > 0 ? [{
-      urgency: 'medium', color: '#EAB308', bg: 'bg-yellow-50', border: 'border-yellow-200',
-      icon: Building2,
+      urgency: 'medium', urgencyRank: 2, color: '#EAB308', bg: 'bg-yellow-50', border: 'border-yellow-200',
+      icon: Building2, tier: 'Director+',
       title: `${aiVendorGaps} AI Vendor${aiVendorGaps > 1 ? 's' : ''} Without DPA — Legal Action`,
       detail: `${aiVendorGaps} AI vendor${aiVendorGaps > 1 ? 's' : ''} operating without Data Processing Agreements. GDPR Art. 28 exposure. Procurement or Legal sign-off required.`,
       ask: 'Approve DPA / Offboard vendor',
     }] : []),
-  ].slice(0, 4);
+  ].sort((a,b) => a.urgencyRank - b.urgencyRank);
 
   return (
     <div className="space-y-5">
@@ -1546,7 +1749,8 @@ function Scorecard({ onViewReport }) {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <KPICard title="Program Health"     value={`${avgHealth}%`}  icon={Award}         color="#2563EB"
           subtitle={`${healthDelta >= 0 ? '+' : ''}${healthDelta}pp vs last month`}
-          delta={`${healthDelta >= 0 ? '+' : ''}${healthDelta}pp MoM`} deltaType={healthDelta < 0 ? 'up' : undefined} />
+          delta={`${healthDelta >= 0 ? '+' : ''}${healthDelta}pp MoM`} deltaType={healthDelta < 0 ? 'up' : undefined}
+          sparkData={sparkData.health} />
         <KPICard title="Teams At Risk"      value={criticalTeams}    icon={AlertTriangle} color="#EF4444" subtitle="health below 50%" />
         <KPICard title="Control Gaps"       value={totalGaps}        icon={CheckSquare}   color="#D97706"
           subtitle={`${gapDelta <= 0 ? gapDelta : '+' + gapDelta} vs last month`}
@@ -1562,7 +1766,7 @@ function Scorecard({ onViewReport }) {
             <h3 className="font-semibold text-gray-900 text-sm">Leadership Decisions Required</h3>
             <span className="ml-auto text-xs text-gray-400">{leadershipDecisions.length} item{leadershipDecisions.length !== 1 ? 's' : ''} need your sign-off</span>
           </div>
-          <div className="divide-y divide-gray-50">
+          <div className="divide-y divide-gray-50 overflow-y-auto max-h-64">
             {leadershipDecisions.map((d, i) => {
               const Icon = d.icon;
               return (
@@ -1571,7 +1775,10 @@ function Scorecard({ onViewReport }) {
                     <Icon size={15} style={{ color: d.color }} />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-gray-900">{d.title}</p>
+                    <div className="flex items-center gap-2 mb-0.5 flex-wrap">
+                      <p className="text-sm font-semibold text-gray-900">{d.title}</p>
+                      {d.tier && <DecisionTierBadge tier={d.tier} />}
+                    </div>
                     <p className="text-xs text-gray-600 mt-0.5 leading-relaxed">{d.detail}</p>
                   </div>
                   <span className="flex-shrink-0 text-xs font-semibold px-2.5 py-1 rounded-lg border mt-0.5"
@@ -1637,13 +1844,24 @@ function Scorecard({ onViewReport }) {
             {teamStats.filter(t => t.health < 30).map(t => {
               const Icon = t.icon;
               return (
-                <div key={t.id} className="flex items-center gap-3 bg-white rounded-lg border border-red-100 px-3 py-2.5 flex-wrap">
-                  <div className="p-1 rounded" style={{ background: t.color + '18' }}><Icon size={13} style={{ color: t.color }} /></div>
-                  <span className="text-sm font-semibold text-gray-800">{t.name}</span>
-                  <span className="text-sm font-bold text-red-600">{t.health}%</span>
-                  {t.delta < 0 && <span className="text-xs text-red-500 font-semibold flex items-center gap-0.5"><TrendingDown size={11}/>{t.delta}% MoM</span>}
-                  <span className="text-xs text-gray-400 ml-1">{t.gaps} control gap{t.gaps !== 1 ? 's' : ''} · {t.openVulns} open vuln{t.openVulns !== 1 ? 's' : ''}</span>
-                  <button onClick={() => onViewReport(t.id)} className="ml-auto text-xs text-blue-600 font-semibold hover:underline">View Report →</button>
+                <div key={t.id} className="bg-white rounded-lg border border-red-100 px-3 py-2.5">
+                  <div className="flex items-center gap-3 flex-wrap">
+                    <div className="p-1 rounded" style={{ background: t.color + '18' }}><Icon size={13} style={{ color: t.color }} /></div>
+                    <span className="text-sm font-semibold text-gray-800">{t.name}</span>
+                    <span className="text-sm font-bold text-red-600">{t.health}%</span>
+                    {t.delta < 0 && <span className="text-xs text-red-500 font-semibold flex items-center gap-0.5"><TrendingDown size={11}/>{t.delta}% MoM</span>}
+                    <span className="text-xs text-gray-400 ml-1">{t.gaps} control gap{t.gaps !== 1 ? 's' : ''} · {t.openVulns} open vuln{t.openVulns !== 1 ? 's' : ''}</span>
+                    <button onClick={() => onViewReport(t.id)} className="ml-auto text-xs text-blue-600 font-semibold hover:underline">View Report →</button>
+                  </div>
+                  {(() => {
+                    const teamControls = controls.filter(c => t.controls.includes(c.id));
+                    const ineffective = teamControls.filter(c => c.effectiveness==='ineffective'||c.effectiveness==='not_tested');
+                    if (ineffective.length > 0) {
+                      const names = ineffective.slice(0,2).map(c => c.id).join(', ');
+                      return <p className="text-xs text-red-400 mt-0.5">{ineffective.length} controls ineffective — {names}</p>;
+                    }
+                    return null;
+                  })()}
                 </div>
               );
             })}
@@ -1654,7 +1872,7 @@ function Scorecard({ onViewReport }) {
       {/* Leaderboard */}
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm">
         <div className="p-5 border-b border-gray-100">
-          <h3 className="font-semibold text-gray-900">Team Leaderboard · May 2026</h3>
+          <h3 className="font-semibold text-gray-900">Team Leaderboard · {new Date(new Date().setMonth(new Date().getMonth()-1)).toLocaleString('default', { month: 'long', year: 'numeric' })}</h3>
           <p className="text-xs text-gray-400 mt-0.5">Ranked by health score. Reach Platinum (85%+) to lead the program.</p>
         </div>
         <div className="divide-y divide-gray-50">
@@ -1758,7 +1976,7 @@ function LeaderReport({ teamId: initialTeamId, onBack }) {
       <div className="space-y-5 max-w-3xl mx-auto">
         <div>
           <h2 className="text-xl font-bold text-gray-900">Monthly Report</h2>
-          <p className="text-sm text-gray-400 mt-1">Select a team to view their May 2026 report</p>
+          <p className="text-sm text-gray-400 mt-1">Select a team to view their {new Date(new Date().setMonth(new Date().getMonth()-1)).toLocaleString('default', { month: 'long', year: 'numeric' })} report</p>
         </div>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           {teams.map(t => {
@@ -1858,7 +2076,7 @@ function LeaderReport({ teamId: initialTeamId, onBack }) {
             <div>
               <h2 className="text-xl font-bold text-gray-900">{team.name}</h2>
               <p className="text-sm text-gray-500">{team.dept} · {team.lead}</p>
-              <p className="text-xs text-gray-400 mt-0.5">Monthly Report · May 2026</p>
+              <p className="text-xs text-gray-400 mt-0.5">Monthly Report · {new Date(new Date().setMonth(new Date().getMonth()-1)).toLocaleString('default', { month: 'long', year: 'numeric' })}</p>
             </div>
           </div>
           <div className="text-right">
@@ -2013,7 +2231,7 @@ function LeaderReport({ teamId: initialTeamId, onBack }) {
 
       {/* Actions for next month */}
       <div className="bg-white rounded-xl border border-blue-100 shadow-sm p-5">
-        <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2"><Play size={14} className="text-blue-600" /> Recommended Actions · June 2026</h3>
+        <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2"><Play size={14} className="text-blue-600" /> Recommended Actions · {new Date().toLocaleString('default', { month: 'long', year: 'numeric' })}</h3>
         {actions.length === 0
           ? <p className="text-sm text-emerald-600">No critical actions · maintain current momentum and target Platinum level.</p>
           : (
@@ -2147,8 +2365,8 @@ function ControlAlignment() {
           const isActive = activeFramework === f.id;
           return (
             <button key={f.id} onClick={() => { setActiveFramework(f.id); setSearch(''); }}
-              className={`rounded-xl border-2 p-3 text-left transition-all ${isActive?'shadow-lg scale-[1.03]':'hover:shadow-md bg-white'}`}
-              style={{ borderColor: isActive ? f.color : '#E5E7EB', background: isActive ? f.color+'10' : 'white' }}>
+              className={`rounded-xl p-3 text-left transition-all ${isActive?'bg-white border-2 shadow-md scale-[1.03]':'bg-gray-50 border border-gray-200 hover:bg-white hover:shadow-md'}`}
+              style={isActive ? { borderColor: f.color } : {}}>
               <div className="flex items-center justify-between mb-1.5">
                 <span className="text-base">{f.icon}</span>
                 {stat && <span className="text-xs font-bold" style={{color:f.color}}>{stat.score}%</span>}
@@ -2822,8 +3040,17 @@ function RiskRegister() {
       <h3 className="font-semibold text-gray-900 mb-1">Risk Heat Matrix</h3>
       <p className="text-xs text-gray-400 mb-4">Inherent risk: Likelihood x Impact · click a dot to open workflow</p>
       <div className="flex gap-3">
-        <div className="flex flex-col justify-between text-xs text-gray-400 pr-1" style={{height:220}}>
-          {[5,4,3,2,1].map(n=><span key={n} className="leading-none">{n}</span>)}
+        <div className="flex flex-col pr-1" style={{height:220, width:32}}>
+          <div className="flex flex-col justify-between h-full text-xs text-gray-400">
+            {[5,4,3,2,1].map((n,idx)=>(
+              <span key={n} className="leading-none flex items-center gap-1">
+                <span>{n}</span>
+                {n===5&&<span className="text-[9px] text-gray-300 font-medium">High</span>}
+                {n===3&&<span className="text-[9px] text-gray-300 font-medium">Med</span>}
+                {n===1&&<span className="text-[9px] text-gray-300 font-medium">Low</span>}
+              </span>
+            ))}
+          </div>
         </div>
         <div className="flex-1 space-y-1">
           {[5,4,3,2,1].map(l=>(
@@ -2847,8 +3074,8 @@ function RiskRegister() {
               })}
             </div>
           ))}
-          <div className="flex gap-1">
-            {[1,2,3,4,5].map(n=><div key={n} className="flex-1 text-center text-xs text-gray-400">{n}</div>)}
+          <div className="flex gap-1 mt-1">
+            {[1,2,3,4,5].map(n=><div key={n} className="flex-1 text-center text-xs text-gray-400 flex flex-col items-center gap-0.5"><span>{n}</span>{(n===1||n===3||n===5)&&<span className="text-[9px] text-gray-300">{n===1?'Low':n===3?'Med':'High'}</span>}</div>)}
           </div>
           <p className="text-xs text-center text-gray-400 mt-0.5">Impact →</p>
         </div>
@@ -2873,6 +3100,17 @@ function RiskRegister() {
         <KPICard title="AI-Related Risks"   value={aiRisks}         icon={Cpu}           color="#9333EA" subtitle="4 with no tested controls" />
         <KPICard title="Within Appetite"    value={withinAppetite}  icon={CheckCircle}   color="#22C55E" subtitle={"of "+risks.length+" total risks"} />
       </div>
+
+      {/* Risk Register Next Action */}
+      {(() => {
+        const boardRisk = risks.find(r => r.residualScore > RISK_APPETITE.severe);
+        const nextAction = boardRisk
+          ? { action: `${boardRisk.id} requires board sign-off — residual score ${boardRisk.residualScore} significantly exceeds appetite`, owner: boardRisk.owner, deadline: RESPONSE_SLA[getRiskRating(boardRisk.residualScore)], urgency: 'high' }
+          : risks.filter(r => r.status==='Open' && r.inherentScore >= 16).length > 0
+          ? { action: `${risks.filter(r=>r.status==='Open'&&r.inherentScore>=16).length} risks exceed appetite — treatment plans required`, owner: 'A. Patel', deadline: 'This week', urgency: 'medium' }
+          : { action: 'Risk register is within appetite thresholds', owner: 'S. Chen', deadline: 'Review Q3', urgency: 'low' };
+        return <NextActionCard {...nextAction} />;
+      })()}
 
       {/* View toggle + appetite legend on one line */}
       <div className="flex items-center justify-between">
@@ -2932,17 +3170,18 @@ function RiskRegister() {
                         <span className={"text-xs font-medium px-2 py-0.5 rounded-full "+catClass}>{r.category}</span>
                       </td>
                       <td className="px-4 py-3.5 whitespace-nowrap">
-                        <div className="flex items-center gap-1">
-                          <span className="w-2 h-2 rounded-full flex-shrink-0" style={{background:getRiskColor(r.inherentScore)}}/>
-                          <span className="font-bold text-gray-700">{r.inherentScore}</span>
-                          <span className="text-gray-300 mx-0.5">→</span>
+                        <div className="flex items-center gap-1.5">
                           <span className="w-2 h-2 rounded-full flex-shrink-0" style={{background:getRiskColor(r.residualScore)}}/>
-                          <span className="font-semibold text-gray-600">{r.residualScore}</span>
+                          <span className="font-bold text-lg text-gray-800">{r.residualScore}</span>
                         </div>
-                        <p className="text-[10px] text-gray-400 mt-0.5">{getRiskRating(r.inherentScore)} · {RESPONSE_SLA[getRiskRating(r.inherentScore)]}</p>
+                        <p className="text-xs text-gray-400">from <span className="font-medium">{r.inherentScore}</span> inherent</p>
+                        <p className="text-[10px] text-gray-400 mt-0.5">{getRiskRating(r.residualScore)} · {RESPONSE_SLA[getRiskRating(r.residualScore)]}</p>
                       </td>
                       <td className="px-4 py-3.5 whitespace-nowrap">
                         <span className={"px-2 py-0.5 rounded-full text-xs font-semibold "+aptColor}>{appetite}</span>
+                        {appetite === 'Significantly Exceeds' && (
+                          <p className="text-[10px] text-red-600 font-semibold mt-0.5">Board sign-off required</p>
+                        )}
                       </td>
                       <td className="px-4 py-3.5" style={{minWidth:'160px',maxWidth:'200px'}}>
                         {r.controlIds.length > 0 ? (
@@ -3038,7 +3277,17 @@ function AuditManagement() {
             { key:"ctrl",    label:"Control",     render:r=>{const c=ctrlMap[r.controlId];return c?<div><span className="font-mono text-xs text-gray-400">{r.controlId}</span><p className="text-xs text-gray-500 truncate max-w-xs">{c.name}</p></div>:null} },
             { key:"eff",     label:"Effectiveness", render:r=>{const c=ctrlMap[r.controlId];return c?<EffectivenessBadge effectiveness={c.effectiveness} score={c.score}/>:null} },
             { key:"status",  label:"Status",      render:r=><StatusBadge status={r.status}/> },
-            { key:"due",     label:"Due",         render:r=><span className={"text-xs "+(r.dueDate<"2026-07-01"&&r.status!=="Resolved"?"text-red-500 font-semibold":"text-gray-400")}>{r.dueDate}</span> },
+            { key:"due",     label:"Due",         render:r=>{
+              const todayStr = new Date().toISOString().slice(0,10);
+              const soc2Audit = audits.find(a=>a.id==='AUD-001');
+              const overlapsSoc2 = soc2Audit && r.dueDate && Math.abs(daysFromToday(r.dueDate)-daysFromToday(soc2Audit.startDate))<=30;
+              if (overlapsSoc2 && r.status!=='Resolved') {
+                return <div><span className="text-xs text-amber-600 font-semibold">{r.dueDate}</span><p className="text-[10px] text-amber-500">SOC 2 starts {soc2Audit.startDate} ⚠</p></div>;
+              }
+              const days = daysFromToday(r.dueDate);
+              const cls = r.dueDate<todayStr&&r.status!=='Resolved'?'text-red-500 font-semibold':days<=30&&r.status!=='Resolved'?'text-amber-600 font-medium':'text-gray-400';
+              return <div><span className={"text-xs "+cls}>{r.dueDate}</span>{days>0&&r.status!=='Resolved'&&<p className="text-[10px] text-gray-400">{days}d remaining</p>}</div>;
+            } },
             { key:"owner",   label:"Owner",       render:r=><span className="text-xs text-gray-500">{r.owner}</span> },
             { key:"actions", label:"",            render:r=><button onClick={()=>setWorkflow(r)} className="px-3 py-1 text-xs font-medium bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors">Actions</button> },
           ]}
@@ -3114,6 +3363,15 @@ function EvidenceLocker() {
                           {['Current','Expiring','Expired'].map(s=>{const n=ev.filter(e=>e.status===s).length;return n?<span key={s} className={"px-2 py-0.5 rounded-full text-xs font-semibold border "+(evStatusCls[s]||'')}>{n} {s}</span>:null;})}
                         </div>
                     }
+                    {(()=>{
+                      const firstExpiring = ev.filter(e=>e.expiryDate).sort((a,b)=>a.expiryDate.localeCompare(b.expiryDate))[0];
+                      if (!firstExpiring) return null;
+                      const d = daysFromToday(firstExpiring.expiryDate);
+                      const cls = d < 30 ? 'text-red-600' : d < 90 ? 'text-amber-600' : 'text-emerald-600';
+                      const parts = new Date(firstExpiring.expiryDate + 'T00:00:00');
+                      const label = parts.toLocaleString('default', {month:'short', day:'numeric'});
+                      return <span className={`text-xs font-medium ${cls} flex-shrink-0`}>{label}</span>;
+                    })()}
                     <ChevronRight size={14} className={"text-gray-300 transition-transform "+(isOpen?'rotate-90':'')}/>
                   </div>
                 </div>
