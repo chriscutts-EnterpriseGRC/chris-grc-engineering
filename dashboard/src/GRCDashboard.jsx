@@ -638,7 +638,11 @@ function Overview({ navigate }) {
   return (
     <div className="space-y-5">
 
-      {/* ── 0a. Executive Briefing ───────────────────────────────────────── */}
+      {/* ── 0. Decisions + Alert Tray (RRR1) ───────────────────────────── */}
+      <DecisionsRequired navigate={navigate} />
+      <AlertTray />
+
+      {/* ── 0a. Executive Briefing (RRR2) ───────────────────────────────── */}
       <div className="bg-gradient-to-r from-slate-900 to-slate-800 rounded-xl p-5 shadow-md">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
@@ -659,7 +663,7 @@ function Overview({ navigate }) {
         </div>
       </div>
 
-      {/* ── 0b. Prioritisation Engine ────────────────────────────────────── */}
+      {/* ── 0b. Prioritisation Engine (RRR2) ────────────────────────────── */}
       <div className="bg-white rounded-xl border border-gray-100 p-5 shadow-sm">
         <div className="flex items-center justify-between mb-4">
           <div>
@@ -694,6 +698,7 @@ function Overview({ navigate }) {
               <span className="text-xl font-bold text-gray-900">{score} / 100</span>
               <span className={`text-xs font-bold px-2.5 py-0.5 rounded-full ${posture.bg} ${posture.color}`}>{posture.label}</span>
               <span className={`text-xs ml-1 ${p0Open > 0 ? 'text-amber-600 font-medium' : 'text-gray-400'}`}>{p0Open > 0 ? `↑3 open vulns — patch SLA slipping` : `+3 vs last week`}</span>
+              <span title="Weighted composite score: Control Effectiveness 40% · Vulnerability Posture 30% · Incident Response 20% · Operational Maturity 10%" className="text-xs text-blue-500 hover:text-blue-700 cursor-help ml-1 underline decoration-dotted select-none">How scored?</span>
             </div>
             <p className="text-sm text-gray-600 leading-snug">{postureText}</p>
             <div className="flex gap-4 mt-3 flex-wrap">
@@ -725,7 +730,7 @@ function Overview({ navigate }) {
         return (
           <div className="bg-white border border-gray-100 rounded-xl px-4 py-3 shadow-sm">
             <div className="flex items-center gap-1 overflow-x-auto">
-              <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider whitespace-nowrap mr-2">Demo path</span>
+              <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider whitespace-nowrap mr-2">Platform Tour</span>
               {steps.map((s, i) => (
                 <React.Fragment key={s.id}>
                   <button onClick={() => navigate(s.id)}
@@ -899,6 +904,12 @@ function PriorityBadge({ priority }) {
   );
 }
 
+function fmtDate(str) {
+  if (!str) return '—';
+  const d = new Date(str + 'T00:00:00');
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
 function SLACountdown({ dueDate, status }) {
   if (status === 'Patched') return <span className="text-xs text-emerald-600 font-medium">Resolved</span>;
   if (!dueDate) return <span className="text-xs text-gray-400">-</span>;
@@ -910,6 +921,144 @@ function SLACountdown({ dueDate, status }) {
   return <span className="text-xs text-gray-500">{days}d left</span>;
 }
 
+// ─── Alert Tray ───────────────────────────────────────────────────────────────
+function AlertTray() {
+  const { vulns, incidents, policies, vendors } = useGRCData();
+  const [dismissed, setDismissed] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('grc_dismissed_alerts') || '[]'); } catch { return []; }
+  });
+  const [open, setOpen] = useState(true);
+
+  const dismiss = (id) => {
+    const next = [...dismissed, id];
+    setDismissed(next);
+    localStorage.setItem('grc_dismissed_alerts', JSON.stringify(next));
+  };
+
+  const alerts = [
+    ...vulns.filter(v => v.priority === 'P0' && v.status !== 'Patched' && v.dueDate && daysFromToday(v.dueDate) < 0)
+      .map(v => ({ id: `p0-${v.id}`, level: 0, label: 'P0 SLA Breach', text: v.title, action: 'Declare incident or escalate now', nav: 'vulns', color: '#EF4444', bg: 'bg-red-50', border: 'border-red-200', textCol: 'text-red-800' })),
+    ...incidents.filter(i => i.severity === 'Critical' && i.status !== 'Resolved')
+      .map(i => ({ id: `inc-${i.id}`, level: 0, label: 'Critical Incident', text: i.title, action: 'Incident commander sign-off required', nav: 'incidents', color: '#F97316', bg: 'bg-orange-50', border: 'border-orange-200', textCol: 'text-orange-800' })),
+    ...policies.filter(p => p.status === 'Missing')
+      .map(p => ({ id: `pol-${p.id}`, level: 1, label: 'Policy Missing', text: p.title, action: 'Create or approve policy — blocks compliance controls', nav: 'policy', color: '#7C3AED', bg: 'bg-purple-50', border: 'border-purple-200', textCol: 'text-purple-800' })),
+    ...vendors.filter(v => v.status === 'No Contract')
+      .map(v => ({ id: `vnd-${v.id}`, level: 1, label: 'No Contract', text: `${v.name} — ${v.dataShared}`, action: 'Legal must initiate DPA before next data processing', nav: 'thirdparty', color: '#0891B2', bg: 'bg-cyan-50', border: 'border-cyan-200', textCol: 'text-cyan-800' })),
+  ].filter(a => !dismissed.includes(a.id)).sort((a, b) => a.level - b.level);
+
+  if (alerts.length === 0) return null;
+
+  return (
+    <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+      <button onClick={() => setOpen(o => !o)}
+        className="w-full flex items-center justify-between px-5 py-3 hover:bg-gray-50 transition-colors">
+        <div className="flex items-center gap-2">
+          <Bell size={14} className="text-red-500" />
+          <span className="text-sm font-semibold text-gray-900">Action Required</span>
+          <span className="px-2 py-0.5 bg-red-100 text-red-700 text-xs font-bold rounded-full">{alerts.length}</span>
+        </div>
+        <ChevronRight size={14} className={`text-gray-400 transition-transform ${open ? 'rotate-90' : ''}`} />
+      </button>
+      {open && (
+        <div className="border-t border-gray-100 divide-y divide-gray-50">
+          {alerts.map(a => (
+            <div key={a.id} className={`flex items-start gap-3 px-5 py-3 ${a.bg}`}>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-0.5">
+                  <span className={`text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded ${a.bg} ${a.textCol} border ${a.border}`}>{a.label}</span>
+                  <span className={`text-xs font-semibold ${a.textCol} truncate`}>{a.text}</span>
+                </div>
+                <p className="text-xs text-gray-500">{a.action}</p>
+              </div>
+              <button onClick={() => dismiss(a.id)} className="text-gray-300 hover:text-gray-500 flex-shrink-0 mt-0.5"><X size={13} /></button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Decisions Required Today ─────────────────────────────────────────────────
+function DecisionsRequired({ navigate }) {
+  const { vulns, incidents, policies, vendors } = useGRCData();
+
+  const decisions = [
+    ...vulns.filter(v => v.priority === 'P0' && v.status !== 'Patched' && v.dueDate && daysFromToday(v.dueDate) < 0)
+      .map(v => ({ id: v.id, icon: Bug, color: '#EF4444', title: `Escalate or declare incident: ${v.title}`, context: `P0 · ${Math.abs(daysFromToday(v.dueDate))}d past SLA · CISO sign-off required`, nav: 'vulns' })),
+    ...risks.filter(r => r.status === 'Open' && r.inherentScore > 19)
+      .map(r => ({ id: r.id, icon: AlertTriangle, color: '#EF4444', title: `Board-level risk: ${r.title}`, context: `Score ${r.inherentScore} — significantly exceeds risk appetite · ${r.owner}`, nav: 'risks' })),
+    ...incidents.filter(i => i.severity === 'Critical' && i.status !== 'Resolved')
+      .map(i => ({ id: i.id, icon: Flame, color: '#F97316', title: `Critical incident unresolved: ${i.title}`, context: `Detected ${i.detected} · ${i.systems} system${i.systems !== 1 ? 's' : ''} affected · IMT activation required`, nav: 'incidents' })),
+    ...policies.filter(p => p.status === 'Missing').slice(0, 2)
+      .map(p => ({ id: p.id, icon: BookOpen, color: '#7C3AED', title: `Approve and ratify: ${p.title}`, context: `Missing — blocks EU AI Act, ISO 42001, and GDPR compliance · ${p.owner}`, nav: 'policy' })),
+    ...vendors.filter(v => v.status === 'No Contract')
+      .map(v => ({ id: v.id, icon: Building2, color: '#0891B2', title: `Offboard or contract: ${v.name}`, context: `No DPA — ${v.dataShared} being processed without legal basis · Legal sign-off required`, nav: 'thirdparty' })),
+  ];
+
+  if (decisions.length === 0) return (
+    <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 flex items-center gap-3">
+      <CheckCircle size={16} className="text-emerald-600 flex-shrink-0" />
+      <p className="text-sm font-semibold text-emerald-800">No decisions required today — maintain momentum on open treatment plans.</p>
+    </div>
+  );
+
+  return (
+    <div className="bg-white rounded-xl border border-red-200 shadow-sm overflow-hidden">
+      <div className="px-5 py-3 bg-red-600 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <AlertTriangle size={14} className="text-white flex-shrink-0" />
+          <p className="text-sm font-bold text-white">Decisions Required Today</p>
+          <span className="px-2 py-0.5 bg-white/20 text-white text-xs font-bold rounded-full">{decisions.length}</span>
+        </div>
+        <p className="text-xs text-red-200">Click any item to investigate</p>
+      </div>
+      <div className="divide-y divide-gray-50">
+        {decisions.map(d => {
+          const Icon = d.icon;
+          return (
+            <button key={d.id} onClick={() => navigate(d.nav)}
+              className="w-full flex items-start gap-3 px-5 py-3.5 hover:bg-gray-50 transition-colors text-left group">
+              <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5" style={{ background: d.color + '15' }}>
+                <Icon size={13} style={{ color: d.color }} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-gray-900 leading-snug">{d.title}</p>
+                <p className="text-xs text-gray-400 mt-0.5">{d.context}</p>
+              </div>
+              <ChevronRight size={13} className="text-gray-300 group-hover:text-gray-500 flex-shrink-0 mt-1" />
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function SectionContext({ what, why, ask, askUrgency = 'normal' }) {
+  const askBg = { critical: 'bg-red-600', high: 'bg-amber-500', normal: 'bg-blue-600' };
+  return (
+    <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+      <div className="flex flex-col md:flex-row">
+        <div className={`${askBg[askUrgency]} px-5 py-4 md:w-2/5 flex-shrink-0`}>
+          <p className="text-[10px] font-bold text-white/70 uppercase tracking-wider mb-1.5">What we need from you</p>
+          <p className="text-sm font-semibold text-white leading-snug">{ask}</p>
+        </div>
+        <div className="flex-1 grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-gray-100">
+          <div className="px-5 py-4">
+            <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1">What this tracks</p>
+            <p className="text-xs text-gray-600 leading-relaxed">{what}</p>
+          </div>
+          <div className="px-5 py-4">
+            <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1">Why it matters</p>
+            <p className="text-xs text-gray-600 leading-relaxed">{why}</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function Vulnerabilities() {
   const { vulns, controls } = useGRCData();
   const ctrlMap = Object.fromEntries(controls.map(c => [c.id, c]));
@@ -917,6 +1066,7 @@ function Vulnerabilities() {
   const [priorityFilter, setPriorityFilter] = useState('All');
   const [showAI, setShowAI] = useState(false);
   const [showEOL, setShowEOL] = useState(false);
+  const [tableExpanded, setTableExpanded] = useState(false);
 
   const open = vulns.filter(v => v.status !== 'Patched');
 
@@ -949,8 +1099,23 @@ function Vulnerabilities() {
      (v.cve && v.cve.toLowerCase().includes(search.toLowerCase())))
   );
 
+  const p0OverdueCount = open.filter(v => v.priority === 'P0' && v.dueDate && daysFromToday(v.dueDate) < 0).length;
+  const eolUnassigned  = open.filter(v => v.eol && !v.assignedTo).length;
+  const vulnAsk = p0OverdueCount > 0
+    ? `P0 SLA breach: declare incident or escalate today. ${eolUnassigned > 0 ? `${eolUnassigned} EOL component${eolUnassigned>1?'s':''} need upgrade owners assigned.` : ''}`
+    : eolUnassigned > 0
+      ? `Assign upgrade owners to ${eolUnassigned} EOL component${eolUnassigned>1?'s':''} — these cannot be patched, only migrated.`
+      : 'No critical blockers. Review P1/P2 SLA compliance and confirm upgrade timelines.';
+  const vulnUrgency = p0OverdueCount > 0 ? 'critical' : eolUnassigned > 0 ? 'high' : 'normal';
+
   return (
     <div className="space-y-4">
+      <SectionContext
+        what="Real-time tracking of CVEs, EOL components, and CISA KEV threats across all production assets. Every finding is scored through the VSRM — 4 dimensions of contextual risk, not raw CVSS."
+        why="Unpatched vulnerabilities are the most common breach vector. EOL runtimes create permanent exposure that no security patch can ever close — only migration eliminates the risk."
+        ask={vulnAsk}
+        askUrgency={vulnUrgency}
+      />
 
       {/* KRI panel */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -969,6 +1134,7 @@ function Vulnerabilities() {
         <div className={`rounded-xl border p-5 shadow-sm ${slaCompliance < 90 ? 'bg-amber-50 border-amber-300' : 'bg-white border-gray-100'}`}>
           <p className="text-xs text-gray-400 mb-1">SLA Compliance (P1/P2)</p>
           <p className={`text-3xl font-bold mb-1 ${slaCompliance < 90 ? 'text-amber-600' : 'text-emerald-600'}`}>{slaCompliance}%</p>
+          <p className="text-xs text-gray-400">{p1p2InSLA} of {p1p2Open.length} within SLA</p>
           <p className="text-xs text-gray-400">Target: &gt;90%</p>
         </div>
         <div className={`rounded-xl border p-5 shadow-sm ${unassignedCritical > 0 ? 'bg-red-50 border-red-300' : 'bg-white border-gray-100'}`}>
@@ -1025,6 +1191,8 @@ function Vulnerabilities() {
           { label: 'VSRM Methodology', href: 'docs/VULNERABILITY-MANAGEMENT-PROGRAM.md#vulnerability-severity-rating-matrix-vsrm' },
           { label: 'SDLC Security Guardrails', href: 'docs/SDLC-SECURITY-GUARDRAILS.md' },
           { label: 'PDLC Security Guardrails', href: 'docs/PDLC-SECURITY-GUARDRAILS.md' },
+          { label: 'NPM Supply Chain Policy', href: 'docs/NPM-SUPPLY-CHAIN-SECURITY.md' },
+          { label: 'AI-GRC Roadmap', href: 'docs/AI-GRC-ROADMAP.md' },
         ].map(({ label, href }) => (
           <a key={href} href={`https://github.com/9snxz8htcw-netizen/chris-grc-engineering/blob/main/${href}`}
              target="_blank" rel="noopener noreferrer"
@@ -1102,7 +1270,7 @@ function Vulnerabilities() {
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm">
         <ModuleHeader
           title="Vulnerability Register"
-          subtitle={`${data.length} vulnerabilities · VSRM P0–P4`}
+          subtitle={`${data.length} vulnerabilities · Priority scored P0–P4 (VSRM)`}
           search={search}
           setSearch={setSearch}
           filters={<>
@@ -1115,67 +1283,62 @@ function Vulnerabilities() {
             <button onClick={() => setShowEOL(e => !e)} className={`px-3 py-2 text-sm font-medium rounded-lg border transition-colors flex items-center gap-1.5 ${showEOL ? 'bg-rose-600 text-white border-rose-600' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'}`}>
               <Activity size={13} /> EOL Only
             </button>
+            <button onClick={() => setTableExpanded(x => !x)} className="px-3 py-2 text-sm font-medium rounded-lg border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 transition-colors flex items-center gap-1.5">
+              <Grid size={13} /> {tableExpanded ? 'Collapse' : 'All columns'}
+            </button>
           </>}
         />
         <ModuleTable
           columns={[
-            { key: 'id',       label: 'ID',
-              render: r => <span className="font-mono text-xs text-gray-400">{r.id}</span> },
-            { key: 'priority', label: 'Priority (VSRM)',
-              render: r => <PriorityBadge priority={r.priority} /> },
-            { key: 'cve',      label: 'CVE / Ref',
+            { key: 'priority', label: 'Priority',
               render: r => (
-                <div className="flex items-center gap-1.5 flex-wrap">
-                  {r.cve
-                    ? <span className="font-mono text-xs text-blue-600">{r.cve}</span>
-                    : <span className="text-xs text-gray-400 italic">No CVE</span>}
+                <div className="flex items-center gap-1.5">
+                  <PriorityBadge priority={r.priority} />
                   {r.eol       && <span className="px-1.5 py-0.5 bg-rose-100 text-rose-700 text-xs rounded font-medium">EOL</span>}
-                  {r.ai        && <span className="px-1.5 py-0.5 bg-purple-100 text-purple-700 text-xs rounded font-medium">AI</span>}
                   {r.isCisaKev && <span className="px-1.5 py-0.5 bg-red-100 text-red-700 text-xs rounded font-medium">KEV</span>}
+                  {r.ai        && <span className="px-1.5 py-0.5 bg-purple-100 text-purple-700 text-xs rounded font-medium">AI</span>}
                 </div>
               ) },
-            { key: 'title',    label: 'Title',
-              render: r => <span className="text-sm text-gray-800 font-medium">{r.title}</span> },
-            { key: 'age',      label: 'Age',
+            { key: 'title', label: 'Vulnerability',
+              render: r => (
+                <div>
+                  <p className="text-sm text-gray-800 font-medium">{r.title}</p>
+                  {r.cve && <p className="font-mono text-xs text-blue-500 mt-0.5">{r.cve}</p>}
+                </div>
+              ) },
+            { key: 'sla', label: 'SLA Status',
               render: r => {
+                if (r.status === 'Patched') return <span className="text-xs text-emerald-600 font-medium">✓ Patched</span>;
                 const dOpen = -daysFromToday(r.discovered);
                 const overdue = r.dueDate ? -daysFromToday(r.dueDate) : null;
-                if (r.status === 'Patched') return <span className="text-xs text-emerald-600 font-medium">Patched</span>;
-                const cls = overdue > 0 ? 'text-red-600 font-semibold' : dOpen > 14 ? 'text-amber-600' : 'text-gray-500';
                 return (
                   <div>
-                    <span className={`text-xs ${cls}`}>{dOpen}d open</span>
-                    {overdue > 0 && <p className="text-xs text-red-500 font-semibold">{overdue}d overdue</p>}
+                    <SLACountdown dueDate={r.dueDate} status={r.status} />
+                    <p className={`text-xs mt-0.5 ${overdue > 0 ? 'text-red-500 font-semibold' : 'text-gray-400'}`}>{dOpen}d open{overdue > 0 ? ` · ${overdue}d overdue` : ''}</p>
                   </div>
                 );
               }},
-            { key: 'sla',      label: 'SLA Deadline',
-              render: r => <SLACountdown dueDate={r.dueDate} status={r.status} /> },
-            { key: 'severity', label: 'Severity',
-              render: r => <SeverityBadge severity={r.severity} /> },
-            { key: 'status',   label: 'Status',
-              render: r => <StatusBadge status={r.status} /> },
-            { key: 'asset',    label: 'Asset',
-              render: r => (
-                <div className="flex items-center gap-1.5">
-                  <span className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded font-mono">{r.asset}</span>
-                  {r.secTier != null && (
-                    <span className={`text-xs px-1.5 py-0.5 rounded font-semibold ${r.secTier === 0 ? 'bg-red-100 text-red-700' : r.secTier === 1 ? 'bg-orange-100 text-orange-700' : 'bg-gray-100 text-gray-500'}`}>
-                      T{r.secTier}
-                    </span>
-                  )}
-                </div>
-              ) },
-            { key: 'owner',    label: 'Owner',
+            { key: 'owner', label: 'Owner',
               render: r => r.assignedTo
                 ? <span className="text-xs text-gray-600">{r.assignedTo}</span>
                 : (r.status !== 'Patched' && (r.priority === 'P0' || r.priority === 'P1'))
                   ? <span className="text-xs font-semibold text-red-600">⚠ Unassigned</span>
-                  : <span className="text-xs text-gray-400">-</span> },
-            { key: 'ctrl',     label: 'Control',
-              render: r => <ControlCell controlId={r.controlId} /> },
-            { key: 'eff',      label: 'Effectiveness',
-              render: r => { const c = ctrlMap[r.controlId]; return c ? <EffectivenessBadge effectiveness={c.effectiveness} score={c.score} /> : null; } },
+                  : <span className="text-xs text-gray-400">—</span> },
+            { key: 'status', label: 'Status',
+              render: r => <StatusBadge status={r.status} /> },
+            ...(tableExpanded ? [
+              { key: 'id',       label: 'ID',       render: r => <span className="font-mono text-xs text-gray-400">{r.id}</span> },
+              { key: 'severity', label: 'Severity', render: r => <SeverityBadge severity={r.severity} /> },
+              { key: 'asset',    label: 'Asset',
+                render: r => (
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded font-mono">{r.asset}</span>
+                    {r.secTier != null && <span className={`text-xs px-1.5 py-0.5 rounded font-semibold ${r.secTier === 0 ? 'bg-red-100 text-red-700' : r.secTier === 1 ? 'bg-orange-100 text-orange-700' : 'bg-gray-100 text-gray-500'}`}>T{r.secTier}</span>}
+                  </div>
+                ) },
+              { key: 'ctrl', label: 'Control', render: r => <ControlCell controlId={r.controlId} /> },
+              { key: 'eff',  label: 'Effectiveness', render: r => { const c = ctrlMap[r.controlId]; return c ? <EffectivenessBadge effectiveness={c.effectiveness} score={c.score} /> : null; } },
+            ] : []),
           ]}
           rows={data}
         />
@@ -1218,9 +1381,19 @@ function Incidents() {
 
   const active = incidents.filter(i => i.status !== 'Resolved');
   const mttrAvg = '3.2h';
+  const aiIncOpen = incidents.filter(i => i.ai && i.status !== 'Resolved').length;
+  const incAsk = active.length > 0
+    ? `${active.length} incident${active.length>1?'s':''} unresolved.${aiIncOpen > 0 ? ` ${aiIncOpen} AI-related ${aiIncOpen>1?'incidents require':'incident requires'} dedicated IR playbook coverage under EU AI Act Art. 9 — assign a Security Lead.` : ' Confirm IR control is tested and playbook is current.'}`
+    : 'No active incidents. Validate IR playbook and schedule a tabletop exercise for AI-related scenarios.';
 
   return (
     <div className="space-y-4">
+      <SectionContext
+        what="Active and historical security events tracked from initial detection through full resolution. Every incident links back to a UCF control and drives MTTR measurement."
+        why="Fast containment limits blast radius. AI-related incidents carry regulatory weight — EU AI Act Art. 9 requires documented risk management and logging for every AI failure in production."
+        ask={incAsk}
+        askUrgency={active.length > 0 ? 'high' : 'normal'}
+      />
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <KPICard title="Active Incidents"  value={active.length}  icon={Flame}         color="#F97316" subtitle="2 critical unresolved" sparkData={sparkData.incidents} />
         <KPICard title="Avg MTTR"          value={mttrAvg}        icon={RefreshCw}      color="#2563EB" subtitle="last 30 days" />
@@ -1269,7 +1442,7 @@ function Incidents() {
             { key: 'type',     label: 'Type',    render: r => <span className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded">{r.type}</span> },
             { key: 'severity', label: 'Severity',render: r => <SeverityBadge severity={r.severity} /> },
             { key: 'status',   label: 'Status',  render: r => <StatusBadge status={r.status} /> },
-            { key: 'detected', label: 'Detected',render: r => <span className="text-xs text-gray-500">{r.detected}</span> },
+            { key: 'detected', label: 'Detected',render: r => <span className="text-xs text-gray-500">{fmtDate(r.detected)}</span> },
             { key: 'mttr',     label: 'MTTR',    render: r => <span className="text-xs text-gray-500">{r.mttr || '-'}</span> },
             { key: 'systems',  label: 'Systems', render: r => <span className="text-xs font-semibold text-gray-600">{r.systems}</span> },
             { key: 'ctrl',     label: 'Linked Control', render: r => <ControlCell controlId={r.controlId} /> },
@@ -1284,12 +1457,90 @@ function Incidents() {
 
 // ─── Policy ───────────────────────────────────────────────────────────────────
 
+const POLICY_DRAFTS = {
+  'POL-007': {
+    title: 'AI Usage & Governance Policy',
+    sections: [
+      { heading: 'Purpose', body: 'This policy establishes the governance framework for the development, deployment, and use of artificial intelligence and machine learning systems across the organisation, ensuring alignment with EU AI Act, ISO/IEC 42001, and NIST AI RMF obligations.' },
+      { heading: 'Scope', body: 'Applies to all employees, contractors, and third parties who develop, procure, deploy, or use AI systems that process organisational or customer data.' },
+      { heading: 'AI Use Case Register', body: 'All AI use cases must be registered with the GRC team before deployment. Each use case must be classified by risk tier (Unacceptable / High / Limited / Minimal) per EU AI Act Article 6.' },
+      { heading: 'Prohibited Uses', body: 'AI systems must not be used for: real-time biometric surveillance in public spaces, social scoring, exploitation of vulnerable groups, or any use case classified as Unacceptable Risk under EU AI Act Annex I.' },
+      { heading: 'Approval & Review', body: 'High-risk AI systems require CISO and DPO sign-off prior to deployment. All AI use cases must be reviewed annually or when material changes occur.' },
+      { heading: 'Controls', body: 'UCF.AI.01 (AI Model Governance) · UCF.AI.06 (AI Risk Categorization) · UCF.AI.10 (AI Model Lifecycle Management)' },
+      { heading: 'Owner', body: 'A. Patel · Review annually · Next review: 2026-12-31' },
+    ]
+  },
+  'POL-008': {
+    title: 'AI Ethics & Bias Policy',
+    sections: [
+      { heading: 'Purpose', body: 'This policy ensures that AI systems deployed by the organisation are fair, transparent, and do not discriminate against individuals or groups, in compliance with GDPR Art.22, EU AI Act Art.10, and NIST AI RMF.' },
+      { heading: 'Scope', body: 'Applies to all AI systems that make or materially influence decisions affecting individuals, including automated decisioning, recommendations, and risk scoring.' },
+      { heading: 'Bias Assessment', body: 'All AI systems must undergo bias and fairness assessments prior to deployment, covering: training data representativeness, output disparity analysis across protected characteristics, and ongoing monitoring for drift.' },
+      { heading: 'Explainability Requirements', body: 'Systems making individual decisions must be capable of providing meaningful explanations upon request (GDPR Art.22). Black-box models used in high-stakes decisions require explainability tooling (SHAP, LIME, or equivalent).' },
+      { heading: 'Human Oversight', body: 'High-risk AI decisions must have a defined human review pathway. Individuals have the right to challenge automated decisions and request human review.' },
+      { heading: 'Controls', body: 'UCF.AI.02 (AI Data Privacy & Bias Controls) · UCF.AI.08 (AI Explainability & Transparency) · UCF.AI.09 (AI Data Provenance & Lineage)' },
+      { heading: 'Owner', body: 'A. Patel · Review annually · Next review: 2026-12-31' },
+    ]
+  },
+  'POL-009': {
+    title: 'AI Vendor Risk Policy',
+    sections: [
+      { heading: 'Purpose', body: 'This policy governs the procurement, assessment, and ongoing oversight of third-party AI vendors and model providers, ensuring data protection obligations and EU AI Act Article 28 requirements are met.' },
+      { heading: 'Scope', body: 'Applies to all LLM providers, ML platform vendors, AI-enabled SaaS tools, and any third party that processes organisational or customer data through AI models.' },
+      { heading: 'Pre-Procurement Requirements', body: 'Before contracting any AI vendor, the GRC team must complete: security questionnaire, Data Processing Agreement (DPA), model provenance review, and EU AI Act conformity assessment where applicable.' },
+      { heading: 'Data Transfer Controls', body: 'Prompt data sent to external LLM providers must be classified. PII must be pseudonymised or redacted before transmission. Vendors must confirm data is not used for model training without explicit consent.' },
+      { heading: 'Ongoing Monitoring', body: 'AI vendors must be re-assessed annually or upon material changes to their service. Questionnaire responses must be reviewed against current risk scores in the vendor register.' },
+      { heading: 'Controls', body: 'UCF.AI.04 (AI Vendor Risk Management) · UCF.06.01 (Third Party Risk Assessment) · UCF.06.02 (Vendor Questionnaire Process)' },
+      { heading: 'Owner', body: 'S. Chen · Review annually · Next review: 2026-12-31' },
+    ]
+  },
+};
+
+function PolicyDraftModal({ policy, onClose }) {
+  const draft = POLICY_DRAFTS[policy.id];
+  if (!draft) return null;
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.4)' }}>
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[85vh] flex flex-col">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+          <div>
+            <div className="flex items-center gap-2 mb-0.5">
+              <span className="px-2 py-0.5 bg-purple-100 text-purple-700 text-xs font-bold rounded">AI Draft</span>
+              <span className="text-xs text-gray-400">Generated from UCF control mappings</span>
+            </div>
+            <h2 className="text-base font-bold text-gray-900">{draft.title}</h2>
+          </div>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X size={18} /></button>
+        </div>
+        <div className="overflow-y-auto flex-1 px-6 py-4 space-y-4">
+          {draft.sections.map(s => (
+            <div key={s.heading}>
+              <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">{s.heading}</p>
+              <p className="text-sm text-gray-700 leading-relaxed">{s.body}</p>
+            </div>
+          ))}
+        </div>
+        <div className="px-6 py-4 border-t border-gray-100 bg-gray-50 rounded-b-xl flex items-center justify-between">
+          <p className="text-xs text-gray-400">Review and edit before submitting for approval. Wire to LLM gateway for dynamic generation.</p>
+          <div className="flex gap-2">
+            <button onClick={onClose} className="px-4 py-2 text-sm border border-gray-200 rounded-lg hover:bg-white text-gray-600">Close</button>
+            <button className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium flex items-center gap-1.5">
+              <Download size={13} /> Export Draft
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function PolicyModule() {
   const { policies, controls } = useGRCData();
   const ctrlMap = Object.fromEntries(controls.map(c => [c.id, c]));
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
   const [showAI, setShowAI] = useState(false);
+  const [draftPolicy, setDraftPolicy] = useState(null);
 
   const data = policies.filter(p =>
     (statusFilter === 'All' || p.status === statusFilter) &&
@@ -1301,12 +1552,16 @@ function PolicyModule() {
   const overdue = policies.filter(p => p.status === 'Overdue').length;
   const exceptions = policies.reduce((s, p) => s + p.exceptions, 0);
 
+  const missingAIPolicies = policies.filter(p => p.status === 'Missing' && p.ai);
+
   return (
     <div className="space-y-4">
+      {draftPolicy && <PolicyDraftModal policy={draftPolicy} onClose={() => setDraftPolicy(null)} />}
+
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <KPICard title="Missing Policies"  value={missing}    icon={AlertTriangle} color="#EF4444" subtitle="3 AI policies" />
-        <KPICard title="Overdue Reviews"   value={overdue}    icon={FileText}      color="#F97316" subtitle="oldest: 2026-04-30" />
-        <KPICard title="Open Exceptions"   value={exceptions} icon={Eye}           color="#EAB308" subtitle="across all policies" />
+        <KPICard title="Missing Policies"  value={missing}    icon={AlertTriangle} color="#EF4444" subtitle={`${missing} AI policies don't exist yet — blocks EU AI Act & ISO 42001`} />
+        <KPICard title="Overdue Reviews"   value={overdue}    icon={FileText}      color="#F97316" subtitle="Review deadline passed — policy may no longer reflect current risk" />
+        <KPICard title="Open Exceptions"   value={exceptions} icon={Eye}           color="#EAB308" subtitle="Each exception is an approved deviation from policy — needs annual review" />
         <div className="bg-white rounded-xl border border-gray-100 p-4 shadow-sm">
           <p className="text-xs text-gray-400 mb-1">Policy Control · {ctrlMap['UCF.07.01']?.id}</p>
           <p className="text-sm font-semibold text-gray-800 mb-2">{ctrlMap['UCF.07.01']?.name}</p>
@@ -1332,7 +1587,15 @@ function PolicyModule() {
         <div className="flex-1">
           <p className="text-sm font-semibold text-red-800">3 AI Policies Missing · Action Required</p>
           <p className="text-xs text-red-700 mt-0.5 font-medium">Blocks EU AI Act remediation — immediate action required</p>
-          <p className="text-xs text-gray-600 mt-1">AI Usage & Governance Policy (overdue since Mar 2026), AI Ethics & Bias Policy, and AI Vendor Risk Policy do not exist. Required by EU AI Act, ISO/IEC 42001, and GDPR Art.22. Controls {ctrlMap['UCF.AI.01']?.id}, {ctrlMap['UCF.AI.02']?.id}, {ctrlMap['UCF.AI.04']?.id} are ineffective until resolved.</p>
+          <p className="text-xs text-gray-600 mt-1 mb-3">Required by EU AI Act, ISO/IEC 42001, and GDPR Art.22. Controls {ctrlMap['UCF.AI.01']?.id}, {ctrlMap['UCF.AI.02']?.id}, {ctrlMap['UCF.AI.04']?.id} are ineffective until these policies exist.</p>
+          <div className="flex flex-wrap gap-2">
+            {missingAIPolicies.map(p => (
+              <button key={p.id} onClick={() => setDraftPolicy(p)}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-600 text-white text-xs font-semibold rounded-lg hover:bg-purple-700 transition-colors">
+                <Cpu size={11} /> Draft {p.title.replace(' Policy', '')} Policy with AI
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -1354,7 +1617,7 @@ function PolicyModule() {
             { key: 'category',    label: 'Category',   render: r => <span className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded">{r.category}</span> },
             { key: 'status',      label: 'Status',     render: r => <StatusBadge status={r.status} /> },
             { key: 'version',     label: 'Version',    render: r => <span className="text-xs font-mono text-gray-500">{r.version || '-'}</span> },
-            { key: 'reviewDate',  label: 'Review Due', render: r => <span className={`text-xs ${!r.reviewDate||r.reviewDate<new Date().toISOString().slice(0,10)?'text-red-500 font-medium':'text-gray-500'}`}>{r.reviewDate || 'Not set'}</span> },
+            { key: 'reviewDate',  label: 'Review Due', render: r => <span className={`text-xs ${!r.reviewDate||r.reviewDate<new Date().toISOString().slice(0,10)?'text-red-500 font-medium':'text-gray-500'}`}>{r.reviewDate ? fmtDate(r.reviewDate) : 'Not set'}</span> },
             { key: 'exceptions',  label: 'Exceptions', render: r => <span className={`text-sm font-semibold ${r.exceptions>0?'text-amber-600':'text-gray-400'}`}>{r.exceptions}</span> },
             { key: 'owner',       label: 'Owner',      render: r => <span className="text-xs text-gray-500">{r.owner}</span> },
             { key: 'ctrl',        label: 'Linked Control', render: r => <ControlCell controlId={r.controlId} /> },
@@ -1385,9 +1648,21 @@ function ThirdParty() {
   const noContract = vendors.filter(v => v.status === 'No Contract').length;
   const highRisk = vendors.filter(v => v.riskScore >= 60).length;
   const aiVendors = vendors.filter(v => v.ai).length;
+  const aiNoDpa = vendors.filter(v => v.ai && v.status !== 'Active').length;
+  const tpAsk = aiNoDpa > 0
+    ? `${aiNoDpa} AI vendor${aiNoDpa>1?'s':''} operating without a Data Processing Agreement — GDPR Art. 28 exposure (fine up to 2% of global revenue). Legal must initiate DPAs or offboard these vendors this week.`
+    : noContract > 0
+      ? `${noContract} vendor${noContract>1?'s':''} without active contracts. Procurement sign-off required before these vendors process any company data.`
+      : 'Vendor contracts in order. Schedule annual risk re-assessments for high-risk vendors.';
 
   return (
     <div className="space-y-4">
+      <SectionContext
+        what="All vendor relationships scored for security posture, contract status, and data processing compliance. AI vendors receive enhanced scrutiny due to data transfer and model governance obligations."
+        why="Third-party integrations extend your attack surface. A vendor breach becomes your breach. Missing DPAs create direct GDPR Art. 28 liability — not a supplier problem, your problem."
+        ask={tpAsk}
+        askUrgency={aiNoDpa > 0 ? 'critical' : noContract > 0 ? 'high' : 'normal'}
+      />
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <KPICard title="High-Risk Vendors"  value={highRisk}    icon={Building2}     color="#EF4444" subtitle="risk score ≥ 60" />
         <KPICard title="No Contract"        value={noContract}  icon={AlertTriangle} color="#F97316" subtitle="uncontracted AI vendors" />
@@ -1443,8 +1718,8 @@ function ThirdParty() {
             },
             { key: 'status',       label: 'Status',     render: r => <StatusBadge status={r.status} /> },
             { key: 'dataShared',   label: 'Data Shared',render: r => <span className="text-xs text-gray-500">{r.dataShared}</span> },
-            { key: 'contractExpiry',label:'Contract',   render: r => { const in90 = new Date(); in90.setDate(in90.getDate()+90); const exp90 = in90.toISOString().slice(0,10); return <span className={`text-xs ${!r.contractExpiry?'text-red-500 font-semibold':r.contractExpiry<exp90?'text-amber-600':'text-gray-500'}`}>{r.contractExpiry||'None'}</span>; } },
-            { key: 'lastAssessed', label: 'Last Assessed', render: r => <span className={`text-xs ${!r.lastAssessed?'text-red-500 font-semibold':'text-gray-500'}`}>{r.lastAssessed||'Never'}</span> },
+            { key: 'contractExpiry',label:'Contract',   render: r => { const in90 = new Date(); in90.setDate(in90.getDate()+90); const exp90 = in90.toISOString().slice(0,10); return <span className={`text-xs ${!r.contractExpiry?'text-red-500 font-semibold':r.contractExpiry<exp90?'text-amber-600':'text-gray-500'}`}>{r.contractExpiry ? fmtDate(r.contractExpiry) : 'None'}</span>; } },
+            { key: 'lastAssessed', label: 'Last Assessed', render: r => <span className={`text-xs ${!r.lastAssessed?'text-red-500 font-semibold':'text-gray-500'}`}>{r.lastAssessed ? fmtDate(r.lastAssessed) : 'Never'}</span> },
             { key: 'ctrl',         label: 'Linked Control', render: r => <ControlCell controlId={r.controlId} /> },
             { key: 'eff',          label: 'Control Effectiveness', render: r => { const c = ctrlMap[r.controlId]; return c ? <EffectivenessBadge effectiveness={c.effectiveness} score={c.score} /> : null; } },
           ]}
@@ -1461,18 +1736,33 @@ function Compliance() {
   const { frameworks } = useGRCData();
 
   const overall    = Math.round(frameworks.reduce((s,f) => s+f.progress, 0) / frameworks.length);
-  const aiFrames   = frameworks.filter(f => f.name.includes('AI') || f.name.includes('42001'));
-  const aiCoverage = Math.round(aiFrames.reduce((s,f) => s+f.progress, 0) / aiFrames.length);
+  const aiFrames    = frameworks.filter(f => f.name.includes('AI') || f.name.includes('42001'));
+  const aiCoverage  = Math.round(aiFrames.reduce((s,f) => s+f.progress, 0) / aiFrames.length);
+  const aiPassing   = aiFrames.reduce((s,f) => s + (f.passing ?? 0), 0);
+  const aiTotal     = aiFrames.reduce((s,f) => s + (f.controls ?? 0), 0);
+  const euAiActFw   = aiFrames.find(f => f.name.includes('EU AI'));
+  const iso42001Fw  = aiFrames.find(f => f.name.includes('42001'));
   const certified  = frameworks.filter(f => f.status === 'Certified' || f.status === 'Compliant').length;
   const gapCount   = frameworks.filter(f => f.status === 'Gap').length;
+  const compAsk = aiCoverage < 30
+    ? `EU AI Act enforcement is live. At ${aiCoverage}% coverage every AI feature we ship carries unmitigated regulatory exposure. Board decision required this week: approve remediation budget or formally accept the risk on the register.`
+    : gapCount > 0
+      ? `${gapCount} framework${gapCount>1?'s':''} at Gap status. Review blockers and assign remediation owners before the next audit cycle.`
+      : 'Compliance posture is healthy. Maintain cadence and prepare evidence packages for upcoming audit windows.';
 
   return (
     <div className="space-y-4">
+      <SectionContext
+        what="Coverage across all active regulatory frameworks: SOC 2, ISO 27001, ISO 42001, EU AI Act, NIST CSF, and NIST AI RMF. Each framework maps to UCF controls with live effectiveness scores."
+        why="Compliance gaps are not just audit findings — they are unmitigated legal and regulatory exposure. EU AI Act enforcement is live in 2026 with fines up to 3% of global annual turnover."
+        ask={compAsk}
+        askUrgency={aiCoverage < 30 ? 'critical' : gapCount > 0 ? 'high' : 'normal'}
+      />
 
       {/* KPI row */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <KPICard title="Overall Coverage"      value={`${overall}%`}   icon={Shield}        color="#2563EB" subtitle={`avg across ${frameworks.length} frameworks`} />
-        <KPICard title="AI Compliance"         value={`${aiCoverage}%`} icon={Cpu}          color="#9333EA" subtitle="EU AI Act + ISO 42001" />
+        <KPICard title="AI Compliance"         value={`${aiCoverage}%`} icon={Cpu}          color="#9333EA" subtitle={aiTotal > 0 ? `${aiPassing} of ${aiTotal} controls · EU AI Act ${euAiActFw?.progress ?? '—'}% · ISO 42001 ${iso42001Fw?.progress ?? '—'}%` : 'EU AI Act + ISO 42001'} />
         <KPICard title="Certified / Compliant" value={certified}       icon={CheckCircle}   color="#22C55E" subtitle={`of ${frameworks.length} total frameworks`} />
         <KPICard title="Frameworks at Gap"     value={gapCount}        icon={AlertTriangle} color="#EF4444" subtitle="immediate remediation required" />
       </div>
@@ -1743,8 +2033,18 @@ function Scorecard({ onViewReport }) {
     }] : []),
   ].sort((a,b) => a.urgencyRank - b.urgencyRank);
 
+  const scorecardAsk = leadershipDecisions.length > 0
+    ? `${leadershipDecisions.length} item${leadershipDecisions.length>1?'s':''} need your sign-off. ${leadershipDecisions[0]?.ask ? `Start with: ${leadershipDecisions[0].title}.` : ''} Each item below lists the exact decision required.`
+    : 'No decisions pending. Program is tracking positively — review team health trends and upcoming review dates.';
+
   return (
     <div className="space-y-5">
+      <SectionContext
+        what="Program-level health across all security domains, team control ownership, and open decisions requiring leadership sign-off. Aggregates signals from every module into a single executive view."
+        why="Security outcomes are determined by decisions made at leadership level — resource allocation, risk acceptance, incident escalation, regulatory investment. This module surfaces exactly those decisions."
+        ask={scorecardAsk}
+        askUrgency={leadershipDecisions.length > 0 ? (p0Breach.length > 0 ? 'critical' : 'high') : 'normal'}
+      />
       {/* Program KPIs */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <KPICard title="Program Health"     value={`${avgHealth}%`}  icon={Award}         color="#2563EB"
@@ -2323,8 +2623,22 @@ function ControlAlignment() {
     URL.revokeObjectURL(url);
   };
 
+  const untestedControls = controls.filter(c => c.effectiveness === 'not_tested').length;
+  const untestedAI = controls.filter(c => c.ai && c.effectiveness === 'not_tested').length;
+  const ctrlAsk = untestedAI > 0
+    ? `${untestedAI} AI control${untestedAI>1?'s':''} untested. Auditors will treat untested controls as automatic findings in SOC 2 and EU AI Act assessments. Schedule effectiveness tests before the next audit window.`
+    : untestedControls > 0
+      ? `${untestedControls} control${untestedControls>1?'s':''} not yet tested. Assign owners and schedule test dates to close evidence gaps before the next audit cycle.`
+      : 'All controls tested. Maintain cadence — export OSCAL SSP for audit evidence packages.';
+
   return (
     <div className="space-y-5">
+      <SectionContext
+        what="UCF control effectiveness scores mapped across every active framework. Shows which controls are tested and effective, which are partial, and which are gaps — with OSCAL export for audit submissions."
+        why="Controls are the mechanism that turns policy into evidence. Untested controls fail audits automatically. Gaps in AI controls create direct EU AI Act Art. 9 and ISO 42001 findings."
+        ask={ctrlAsk}
+        askUrgency={untestedAI > 0 ? 'high' : untestedControls > 0 ? 'high' : 'normal'}
+      />
 
       {/* Top summary strip */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -2898,11 +3212,11 @@ function ControlChip({ controlId }) {
     return () => document.removeEventListener('click', close);
   }, [open]);
 
-  if (!ctrl) return <span className="font-mono text-[10px] px-1.5 py-0.5 rounded bg-gray-100 text-gray-400">{controlId}</span>;
+  if (!ctrl) return <span className="font-mono text-[10px] px-1.5 py-0.5 rounded bg-gray-100 text-gray-400" title={controlId}>{controlId}</span>;
 
   return (
     <>
-      <button ref={btnRef} onClick={toggle}
+      <button ref={btnRef} onClick={toggle} title={`${ctrl.name} · ${eff?.label ?? ''} · Click for details`}
         className={"font-mono text-[10px] px-1.5 py-0.5 rounded whitespace-nowrap flex-shrink-0 transition-colors "+chipCls}>
         {controlId}
       </button>
@@ -3090,8 +3404,20 @@ function RiskRegister() {
 
   const withinAppetite = risks.filter(r=>getAppetite(r.residualScore)==='Within').length;
 
+  const riskAsk = exceedsAppetite > 0
+    ? `${exceedsAppetite} risk${exceedsAppetite>1?'s':''} exceed appetite. Treatment plans need Engineering VP or CISO approval depending on severity band. Review open risks with no owner assigned first.`
+    : open > 0
+      ? `${open} risks in active treatment. Confirm each has an assigned owner and a next review date. AI risks require a tested control before the next audit.`
+      : 'All risks within appetite or accepted. Maintain review cadence and refresh threat models on material changes.';
+
   return (
     <div className="space-y-4">
+      <SectionContext
+        what="All identified risks in formal treatment — each with a VSRM-style inherent and residual score, owner, treatment plan, and review date. Heat matrix shows likelihood × impact across the full portfolio."
+        why="Untreated high-impact risks compound over time. The risk register is the source of truth for audit evidence, insurance underwriting, and budget justification for security investment."
+        ask={riskAsk}
+        askUrgency={exceedsAppetite > 0 ? 'high' : 'normal'}
+      />
       {workflow && <WorkflowPanel item={workflow} itemType="Risk" onClose={()=>setWorkflow(null)} />}
       {/* KPI Row · 4 uniform cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -3145,7 +3471,7 @@ function RiskRegister() {
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead><tr className="bg-gray-50 text-left">
-                {['Risk','Category','Score','Appetite','Controls','Status','Owner',''].map(h=>(
+                {['Risk','Category','Score (Inherent → Residual)','Appetite','Controls','Status','Owner',''].map(h=>(
                   <th key={h} className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">{h}</th>
                 ))}
               </tr></thead>
@@ -3170,7 +3496,10 @@ function RiskRegister() {
                         <span className={"text-xs font-medium px-2 py-0.5 rounded-full "+catClass}>{r.category}</span>
                       </td>
                       <td className="px-4 py-3.5 whitespace-nowrap">
-                        <div className="flex items-center gap-1.5">
+                        <div className="flex items-center gap-1">
+                          <span className="w-2 h-2 rounded-full flex-shrink-0" style={{background:getRiskColor(r.inherentScore)}}/>
+                          <span className="font-bold text-gray-700">{r.inherentScore}</span>
+                          <span className="text-gray-300 mx-0.5" title="Inherent score → Residual score after controls applied">→</span>
                           <span className="w-2 h-2 rounded-full flex-shrink-0" style={{background:getRiskColor(r.residualScore)}}/>
                           <span className="font-bold text-lg text-gray-800">{r.residualScore}</span>
                         </div>
@@ -3412,31 +3741,31 @@ function EvidenceLocker() {
 
 const navGroups = [
   {
-    label: 'SECURITY OPERATIONS',
+    label: 'EXECUTIVE',
     items: [
-      { id: 'overview',    label: 'Overview',        icon: Grid },
-      { id: 'risks',       label: 'Risk Register',   icon: AlertTriangle },
-      { id: 'vulns',       label: 'Vulnerabilities', icon: Bug },
-      { id: 'incidents',   label: 'Incidents',       icon: Flame },
-      { id: 'policy',      label: 'Policy',          icon: BookOpen },
-      { id: 'thirdparty',  label: 'Third Party',     icon: Building2 },
-    ],
-  },
-  {
-    label: 'GRC',
-    items: [
-      { id: 'alignment',   label: 'Control Alignment', icon: CheckSquare },
-      { id: 'compliance',  label: 'Compliance',        icon: Shield },
-      { id: 'audits',      label: 'Audit Management',  icon: FileText },
-      { id: 'evidence',    label: 'Evidence Locker',   icon: Eye },
-      { id: 'architecture',label: 'Architecture',      icon: Activity },
-    ],
-  },
-  {
-    label: 'LEADERSHIP',
-    items: [
+      { id: 'overview',      label: 'Overview',        icon: Grid },
       { id: 'scorecard',     label: 'Scorecard',       icon: Award },
+      { id: 'compliance',    label: 'Compliance',      icon: Shield },
       { id: 'leader-report', label: 'Monthly Report',  icon: Users },
+    ],
+  },
+  {
+    label: 'OPERATIONS',
+    items: [
+      { id: 'risks',      label: 'Risk Register',   icon: AlertTriangle },
+      { id: 'vulns',      label: 'Vulnerabilities', icon: Bug },
+      { id: 'incidents',  label: 'Incidents',       icon: Flame },
+      { id: 'thirdparty', label: 'Third Party',     icon: Building2 },
+      { id: 'policy',     label: 'Policy',          icon: BookOpen },
+    ],
+  },
+  {
+    label: 'GOVERNANCE',
+    items: [
+      { id: 'alignment',    label: 'Control Alignment', icon: CheckSquare },
+      { id: 'audits',       label: 'Audit Management',  icon: FileText },
+      { id: 'evidence',     label: 'Evidence Locker',   icon: Eye },
+      { id: 'architecture', label: 'Architecture',      icon: Activity },
     ],
   },
 ];
@@ -3920,7 +4249,7 @@ export default function GRCDashboard() {
           <div className="flex items-center gap-3">
             {dataLoading
               ? <span className="text-xs text-gray-400 animate-pulse">Connecting…</span>
-              : <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${liveData ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>{liveData ? '● Live' : '○ Demo'}</span>
+              : <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${liveData ? 'bg-emerald-50 text-emerald-700' : 'bg-blue-50 text-blue-600'}`}>{liveData ? '● Live' : '◉ Sample Data'}</span>
             }
             <button className="relative p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-50 rounded-lg transition-colors"><Bell size={18} /><span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full" /></button>
             <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center"><User size={14} className="text-white" /></div>
