@@ -355,6 +355,14 @@ function relativeTime(date) {
   return `${Math.floor(hrs / 24)}d ago`;
 }
 
+function downloadCSV(filename, headers, rows) {
+  const escape = v => `"${String(v ?? '').replace(/"/g, '""')}"`;
+  const lines = [headers.map(escape).join(','), ...rows.map(r => r.map(escape).join(','))];
+  const blob = new Blob([lines.join('\n')], { type: 'text/csv' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+  a.download = filename; a.click(); URL.revokeObjectURL(a.href);
+}
+
 function Sparkline({ data, color = '#3B82F6', width = 60, height = 24 }) {
   return (
     <ResponsiveContainer width={width} height={height}>
@@ -1375,6 +1383,13 @@ function Vulnerabilities({ focusId }) {
             </button>
             <button onClick={() => setTableExpanded(x => !x)} className="px-3 py-2 text-sm font-medium rounded-lg border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 transition-colors flex items-center gap-1.5">
               <Grid size={13} /> {tableExpanded ? 'Collapse' : 'All columns'}
+            </button>
+            <button onClick={() => downloadCSV(
+              `vulnerabilities-${new Date().toISOString().slice(0,10)}.csv`,
+              ['ID','Title','CVE','Priority','Status','SLA Due','Assigned To','Environment','Control'],
+              data.map(v => [v.id, v.title, v.cve||'', v.priority, v.status, v.dueDate||'', v.assignedTo||'Unassigned', v.environment||'', v.controlId||''])
+            )} className="px-3 py-2 text-sm font-medium rounded-lg border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 transition-colors flex items-center gap-1.5">
+              <Download size={13} /> Export CSV
             </button>
           </>}
         />
@@ -3821,11 +3836,20 @@ function RiskRegister({ focusId }) {
               </button>
             </>}
             extra={
-              <button onClick={() => setShowRiskNarrative(s => !s)}
-                className="flex items-center gap-1.5 px-3 py-2 bg-purple-50 text-purple-700 border border-purple-200 rounded-lg text-xs font-medium hover:bg-purple-100 transition-colors">
-                <Cpu size={12} />
-                Summarise for Board
-              </button>
+              <div className="flex items-center gap-2">
+                <button onClick={() => downloadCSV(
+                  `risk-register-${new Date().toISOString().slice(0,10)}.csv`,
+                  ['ID','Title','Category','Inherent Score','Residual Score','Appetite','Status','Owner','Review Date','AI Risk'],
+                  filtered.map(r => [r.id, r.title, r.category, r.inherentScore, r.residualScore, getAppetite(r.residualScore), r.status, r.owner, r.reviewDate||'', r.ai?'Yes':'No'])
+                )} className="flex items-center gap-1.5 px-3 py-2 bg-white text-gray-600 border border-gray-200 rounded-lg text-xs font-medium hover:bg-gray-50 transition-colors">
+                  <Download size={12} /> Export CSV
+                </button>
+                <button onClick={() => setShowRiskNarrative(s => !s)}
+                  className="flex items-center gap-1.5 px-3 py-2 bg-purple-50 text-purple-700 border border-purple-200 rounded-lg text-xs font-medium hover:bg-purple-100 transition-colors">
+                  <Cpu size={12} />
+                  Summarise for Board
+                </button>
+              </div>
             }
           />
           {showRiskNarrative && (() => {
