@@ -2254,13 +2254,75 @@ const computeBadges = (teamId, stats, hist) => {
 
 // ─── Leadership Scorecard ─────────────────────────────────────────────────────
 
+// Approval chain templates for common decision types
+const APPROVAL_CHAINS = {
+  'P0 Escalation':    [{ role: 'CISO', label: 'CISO Sign-off' }, { role: 'Board', label: 'Board Notification' }],
+  'EU AI Act Budget': [{ role: 'CISO', label: 'CISO Review' }, { role: 'Board', label: 'Board Ratification' }],
+  'Legal / DPA':      [{ role: 'Legal', label: 'Legal Review' }, { role: 'CISO', label: 'CISO Approval' }],
+  'Risk Acceptance':  [{ role: 'Risk Owner', label: 'Risk Owner Sign-off' }, { role: 'CISO', label: 'CISO Acceptance' }],
+  'Resource Decision':[{ role: 'CISO', label: 'CISO Approval' }, { role: 'CFO', label: 'CFO Budget Sign-off' }],
+  'CISO Only':        [{ role: 'CISO', label: 'CISO Decision' }],
+};
+
 function Scorecard({ onViewReport }) {
   const { controls, vulns, incidents, vendors } = useGRCData();
   const ctrlMap = Object.fromEntries(controls.map(c => [c.id, c]));
   const [expanded, setExpanded] = useState(null);
+
+  // Persisted decision log
   const [decisionLog, setDecisionLog] = useState(() => {
     try { return JSON.parse(localStorage.getItem('grc_decision_log') || '[]'); } catch { return []; }
   });
+
+  // Workflow engine state
+  const [workflows, setWorkflows] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('grc_workflows') || '[]'); } catch { return []; }
+  });
+  const [routeModal, setRouteModal] = useState(null); // decision being routed
+  const [routeChain, setRouteChain] = useState('CISO Only');
+  const [routeDue, setRouteDue] = useState(() => {
+    const d = new Date(); d.setDate(d.getDate() + 3);
+    return d.toISOString().slice(0, 10);
+  });
+
+  const saveWorkflows = (next) => {
+    setWorkflows(next);
+    localStorage.setItem('grc_workflows', JSON.stringify(next));
+  };
+
+  const routeForReview = (decision) => {
+    const chain = APPROVAL_CHAINS[routeChain] ?? APPROVAL_CHAINS['CISO Only'];
+    const wf = {
+      id: `wf-${Date.now()}`,
+      itemTitle: decision.title,
+      itemType: routeChain,
+      urgency: decision.urgency,
+      routedBy: 'You',
+      routedAt: new Date().toLocaleString(),
+      dueDate: routeDue,
+      steps: chain.map((s, idx) => ({ ...s, status: idx === 0 ? 'pending' : 'waiting', actedAt: null })),
+      currentStep: 0,
+      status: 'in_progress',
+    };
+    saveWorkflows([...workflows, wf]);
+    setRouteModal(null);
+  };
+
+  const advanceWorkflow = (wfId, action) => {
+    const next = workflows.map(wf => {
+      if (wf.id !== wfId) return wf;
+      const steps = [...wf.steps];
+      steps[wf.currentStep] = { ...steps[wf.currentStep], status: action.toLowerCase(), actedAt: new Date().toLocaleString() };
+      if (action === 'Approved' && wf.currentStep < steps.length - 1) {
+        steps[wf.currentStep + 1] = { ...steps[wf.currentStep + 1], status: 'pending' };
+        return { ...wf, steps, currentStep: wf.currentStep + 1, status: 'in_progress' };
+      }
+      return { ...wf, steps, status: action.toLowerCase() };
+    });
+    saveWorkflows(next);
+  };
+
+  const dismissWorkflow = (wfId) => saveWorkflows(workflows.filter(w => w.id !== wfId));
 
   const logDecision = (decision, action) => {
     setDecisionLog(prev => {
@@ -2407,6 +2469,10 @@ function Scorecard({ onViewReport }) {
                         className="px-2 py-0.5 bg-gray-100 text-gray-600 text-[10px] font-semibold rounded hover:bg-gray-200 transition-colors">
                         Defer 30d
                       </button>
+                      <button onClick={() => { setRouteModal(d); setRouteChain('CISO Only'); }}
+                        className="px-2 py-0.5 bg-blue-50 text-blue-700 text-[10px] font-semibold rounded border border-blue-200 hover:bg-blue-100 transition-colors flex items-center gap-1">
+                        <ArrowUpRight size={9} /> Route for Review
+                      </button>
                     </div>
                   </div>
                   <span className="flex-shrink-0 text-xs font-semibold px-2.5 py-1 rounded-lg border mt-0.5"
@@ -2443,6 +2509,132 @@ function Scorecard({ onViewReport }) {
                 <span className="text-xs text-gray-400 flex-shrink-0">{d.actor} · {d.timestamp}</span>
               </div>
             ))}
+          </div>
+        </div>
+      )}
+
+      {/* Pending Sign-offs — in-flight workflows */}
+      {workflows.filter(w => w.status === 'in_progress').length > 0 && (
+        <div className="bg-white rounded-xl border border-blue-200 shadow-sm overflow-hidden">
+          <div className="px-5 py-3 border-b border-blue-100 flex items-center gap-2 bg-blue-50">
+            <ArrowUpRight size={14} className="text-blue-600 flex-shrink-0" />
+            <h3 className="font-semibold text-blue-900 text-sm">Pending Sign-offs</h3>
+            <span className="px-2 py-0.5 bg-blue-200 text-blue-800 text-xs font-bold rounded-full">{workflows.filter(w=>w.status==='in_progress').length}</span>
+            <span className="ml-auto text-xs text-blue-400">Active approval workflows</span>
+          </div>
+          <div className="divide-y divide-gray-50">
+            {workflows.filter(w => w.status === 'in_progress').map(wf => {
+              const current = wf.steps[wf.currentStep];
+              const overdue = wf.dueDate && wf.dueDate < new Date().toISOString().slice(0,10);
+              return (
+                <div key={wf.id} className="px-5 py-4">
+                  <div className="flex items-start justify-between gap-4 mb-3">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <p className="text-sm font-semibold text-gray-900 leading-snug">{wf.itemTitle}</p>
+                        <span className="text-[10px] font-bold px-1.5 py-0.5 bg-blue-50 text-blue-700 border border-blue-200 rounded">{wf.itemType}</span>
+                        {overdue && <span className="text-[10px] font-bold px-1.5 py-0.5 bg-red-50 text-red-700 border border-red-200 rounded">OVERDUE</span>}
+                      </div>
+                      <p className="text-xs text-gray-400 mt-0.5">Routed by {wf.routedBy} · {wf.routedAt} · Due {fmtDate(wf.dueDate)}</p>
+                    </div>
+                    <button onClick={() => dismissWorkflow(wf.id)} className="text-gray-300 hover:text-gray-500 flex-shrink-0"><X size={13} /></button>
+                  </div>
+                  {/* Step chain */}
+                  <div className="flex items-center gap-1 mb-3 flex-wrap">
+                    {wf.steps.map((step, idx) => (
+                      <div key={idx} className="flex items-center gap-1">
+                        {idx > 0 && <div className="w-4 h-px bg-gray-200 flex-shrink-0" />}
+                        <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${
+                          step.status === 'approved'  ? 'bg-green-50 text-green-700 border-green-200' :
+                          step.status === 'rejected'  ? 'bg-red-50 text-red-700 border-red-200' :
+                          step.status === 'deferred'  ? 'bg-gray-50 text-gray-500 border-gray-200' :
+                          step.status === 'pending'   ? 'bg-blue-50 text-blue-700 border-blue-300 animate-pulse' :
+                          'bg-gray-50 text-gray-400 border-gray-100'
+                        }`}>
+                          {step.label}
+                          {step.status !== 'waiting' && step.status !== 'pending' && ` · ${step.status}`}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                  {/* Action buttons for current step */}
+                  {current?.status === 'pending' && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-gray-500 font-medium">Awaiting {current.role}:</span>
+                      <button onClick={() => advanceWorkflow(wf.id, 'Approved')}
+                        className="px-2.5 py-1 bg-green-600 text-white text-xs font-semibold rounded hover:bg-green-700 transition-colors">
+                        Approve
+                      </button>
+                      <button onClick={() => advanceWorkflow(wf.id, 'Rejected')}
+                        className="px-2.5 py-1 bg-red-100 text-red-700 text-xs font-semibold rounded hover:bg-red-200 transition-colors">
+                        Reject
+                      </button>
+                      <button onClick={() => advanceWorkflow(wf.id, 'Deferred')}
+                        className="px-2.5 py-1 bg-gray-100 text-gray-600 text-xs font-semibold rounded hover:bg-gray-200 transition-colors">
+                        Defer
+                      </button>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+          {/* Completed workflows summary */}
+          {workflows.filter(w => w.status !== 'in_progress').length > 0 && (
+            <div className="px-5 py-2 bg-gray-50 border-t border-gray-100">
+              <p className="text-xs text-gray-400">{workflows.filter(w=>w.status!=='in_progress').length} completed workflow{workflows.filter(w=>w.status!=='in_progress').length!==1?'s':''} ·
+                <button onClick={() => saveWorkflows(workflows.filter(w => w.status === 'in_progress'))} className="text-blue-400 hover:text-blue-600 ml-1 underline">Clear completed</button>
+              </p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Route for Review modal */}
+      {routeModal && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={() => setRouteModal(null)}>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+              <div>
+                <h3 className="font-semibold text-gray-900 text-sm">Route for Review</h3>
+                <p className="text-xs text-gray-400 mt-0.5 truncate max-w-xs">{routeModal.title}</p>
+              </div>
+              <button onClick={() => setRouteModal(null)} className="text-gray-400 hover:text-gray-600"><X size={16} /></button>
+            </div>
+            <div className="p-5 space-y-4">
+              <div>
+                <label className="text-xs font-semibold text-gray-600 uppercase tracking-wider mb-1.5 block">Approval Chain</label>
+                <div className="grid grid-cols-2 gap-2">
+                  {Object.keys(APPROVAL_CHAINS).map(chain => (
+                    <button key={chain} onClick={() => setRouteChain(chain)}
+                      className={`text-left px-3 py-2 rounded-lg border text-xs font-medium transition-colors ${routeChain === chain ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-700 border-gray-200 hover:border-blue-300'}`}>
+                      <p className="font-semibold">{chain}</p>
+                      <p className={`text-[10px] mt-0.5 ${routeChain === chain ? 'text-blue-200' : 'text-gray-400'}`}>
+                        {APPROVAL_CHAINS[chain].map(s => s.role).join(' → ')}
+                      </p>
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-gray-600 uppercase tracking-wider mb-1.5 block">Due Date</label>
+                <input type="date" value={routeDue} onChange={e => setRouteDue(e.target.value)}
+                  className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-400" />
+              </div>
+              <div className="bg-blue-50 rounded-lg px-3 py-2">
+                <p className="text-xs text-blue-700 font-medium">Chain: {APPROVAL_CHAINS[routeChain]?.map(s => s.label).join(' → ')}</p>
+              </div>
+            </div>
+            <div className="px-5 py-4 border-t border-gray-100 flex gap-2">
+              <button onClick={() => routeForReview(routeModal)}
+                className="flex-1 px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-lg hover:bg-blue-700 transition-colors">
+                Route for Review
+              </button>
+              <button onClick={() => setRouteModal(null)}
+                className="px-4 py-2 bg-gray-100 text-gray-700 text-sm rounded-lg hover:bg-gray-200">
+                Cancel
+              </button>
+            </div>
           </div>
         </div>
       )}
