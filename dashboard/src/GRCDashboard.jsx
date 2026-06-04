@@ -493,7 +493,14 @@ function HealthRing({ score, size = 140 }) {
   );
 }
 
-function ModuleTable({ columns, rows, emptyMsg = 'No items found' }) {
+function ModuleTable({ columns, rows, emptyMsg = 'No items found', focusId }) {
+  const focusRef = useRef(null);
+
+  useEffect(() => {
+    if (!focusId || !focusRef.current) return;
+    requestAnimationFrame(() => focusRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }));
+  }, [focusId]);
+
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-sm">
@@ -507,13 +514,19 @@ function ModuleTable({ columns, rows, emptyMsg = 'No items found' }) {
         <tbody className="divide-y divide-gray-50">
           {rows.length === 0
             ? <tr><td colSpan={columns.length} className="px-4 py-8 text-center text-sm text-gray-400">{emptyMsg}</td></tr>
-            : rows.map((row, i) => (
-              <tr key={i} className="hover:bg-gray-50 transition-colors">
-                {columns.map(c => (
-                  <td key={c.key} className="px-4 py-3.5 align-middle">{c.render ? c.render(row) : row[c.key]}</td>
-                ))}
-              </tr>
-            ))
+            : rows.map((row, i) => {
+              const isFocused = focusId && row.id === focusId;
+              return (
+                <tr key={row.id ?? i}
+                  ref={isFocused ? focusRef : null}
+                  data-item-id={row.id}
+                  className={`transition-colors ${isFocused ? 'bg-amber-50 outline outline-2 outline-amber-400 outline-offset-[-2px]' : 'hover:bg-gray-50'}`}>
+                  {columns.map(c => (
+                    <td key={c.key} className="px-4 py-3.5 align-middle">{c.render ? c.render(row) : row[c.key]}</td>
+                  ))}
+                </tr>
+              );
+            })
           }
         </tbody>
       </table>
@@ -953,13 +966,13 @@ function AlertTray({ navigate }) {
 
   const alerts = [
     ...vulns.filter(v => v.priority === 'P0' && v.status !== 'Patched' && v.dueDate && daysFromToday(v.dueDate) < 0)
-      .map(v => ({ id: `p0-${v.id}`, level: 0, label: 'P0 SLA Breach', text: v.title, action: 'Declare incident or escalate now', nav: 'vulns', color: '#EF4444', bg: 'bg-red-50', border: 'border-red-200', textCol: 'text-red-800' })),
+      .map(v => ({ id: `p0-${v.id}`, itemId: v.id, level: 0, label: 'P0 SLA Breach', text: v.title, action: 'Declare incident or escalate now', nav: 'vulns', color: '#EF4444', bg: 'bg-red-50', border: 'border-red-200', textCol: 'text-red-800' })),
     ...incidents.filter(i => i.severity === 'Critical' && i.status !== 'Resolved')
-      .map(i => ({ id: `inc-${i.id}`, level: 0, label: 'Critical Incident', text: i.title, action: 'Incident commander sign-off required', nav: 'incidents', color: '#F97316', bg: 'bg-orange-50', border: 'border-orange-200', textCol: 'text-orange-800' })),
+      .map(i => ({ id: `inc-${i.id}`, itemId: i.id, level: 0, label: 'Critical Incident', text: i.title, action: 'Incident commander sign-off required', nav: 'incidents', color: '#F97316', bg: 'bg-orange-50', border: 'border-orange-200', textCol: 'text-orange-800' })),
     ...policies.filter(p => p.status === 'Missing')
-      .map(p => ({ id: `pol-${p.id}`, level: 1, label: 'Policy Missing', text: p.title, action: 'Create or approve policy — blocks compliance controls', nav: 'policy', color: '#7C3AED', bg: 'bg-purple-50', border: 'border-purple-200', textCol: 'text-purple-800' })),
+      .map(p => ({ id: `pol-${p.id}`, itemId: p.id, level: 1, label: 'Policy Missing', text: p.title, action: 'Create or approve policy — blocks compliance controls', nav: 'policy', color: '#7C3AED', bg: 'bg-purple-50', border: 'border-purple-200', textCol: 'text-purple-800' })),
     ...vendors.filter(v => v.status === 'No Contract')
-      .map(v => ({ id: `vnd-${v.id}`, level: 1, label: 'No Contract', text: `${v.name} — ${v.dataShared}`, action: 'Legal must initiate DPA before next data processing', nav: 'thirdparty', color: '#0891B2', bg: 'bg-cyan-50', border: 'border-cyan-200', textCol: 'text-cyan-800' })),
+      .map(v => ({ id: `vnd-${v.id}`, itemId: v.id, level: 1, label: 'No Contract', text: `${v.name} — ${v.dataShared}`, action: 'Legal must initiate DPA before next data processing', nav: 'thirdparty', color: '#0891B2', bg: 'bg-cyan-50', border: 'border-cyan-200', textCol: 'text-cyan-800' })),
   ].filter(a => !dismissed.includes(a.id)).sort((a, b) => a.level - b.level);
 
   return (
@@ -980,7 +993,7 @@ function AlertTray({ navigate }) {
       ) : (
         <div className="divide-y divide-gray-50 flex-1">
           {alerts.map(a => (
-            <button key={a.id} onClick={() => navigate(a.nav)}
+            <button key={a.id} onClick={() => navigate(a.nav, a.itemId)}
               className={`w-full flex items-start gap-3 px-5 py-3 ${a.bg} hover:brightness-95 transition-all text-left group`}>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-0.5">
@@ -1007,15 +1020,15 @@ function DecisionsRequired({ navigate }) {
 
   const decisions = [
     ...vulns.filter(v => v.priority === 'P0' && v.status !== 'Patched' && v.dueDate && daysFromToday(v.dueDate) < 0)
-      .map(v => ({ id: v.id, icon: Bug, color: '#EF4444', title: `Escalate or declare incident: ${v.title}`, context: `P0 · ${Math.abs(daysFromToday(v.dueDate))}d past SLA · CISO sign-off required`, nav: 'vulns' })),
+      .map(v => ({ id: v.id, itemId: v.id, icon: Bug, color: '#EF4444', title: `Escalate or declare incident: ${v.title}`, context: `P0 · ${Math.abs(daysFromToday(v.dueDate))}d past SLA · CISO sign-off required`, nav: 'vulns' })),
     ...risks.filter(r => r.status === 'Open' && r.inherentScore > 19)
-      .map(r => ({ id: r.id, icon: AlertTriangle, color: '#EF4444', title: `Board-level risk: ${r.title}`, context: `Score ${r.inherentScore} — significantly exceeds risk appetite · ${r.owner}`, nav: 'risks' })),
+      .map(r => ({ id: r.id, itemId: r.id, icon: AlertTriangle, color: '#EF4444', title: `Board-level risk: ${r.title}`, context: `Score ${r.inherentScore} — significantly exceeds risk appetite · ${r.owner}`, nav: 'risks' })),
     ...incidents.filter(i => i.severity === 'Critical' && i.status !== 'Resolved')
-      .map(i => ({ id: i.id, icon: Flame, color: '#F97316', title: `Critical incident unresolved: ${i.title}`, context: `Detected ${i.detected} · ${i.systems} system${i.systems !== 1 ? 's' : ''} affected · IMT activation required`, nav: 'incidents' })),
+      .map(i => ({ id: i.id, itemId: i.id, icon: Flame, color: '#F97316', title: `Critical incident unresolved: ${i.title}`, context: `Detected ${i.detected} · ${i.systems} system${i.systems !== 1 ? 's' : ''} affected · IMT activation required`, nav: 'incidents' })),
     ...policies.filter(p => p.status === 'Missing').slice(0, 2)
-      .map(p => ({ id: p.id, icon: BookOpen, color: '#7C3AED', title: `Approve and ratify: ${p.title}`, context: `Missing — blocks EU AI Act, ISO 42001, and GDPR compliance · ${p.owner}`, nav: 'policy' })),
+      .map(p => ({ id: p.id, itemId: p.id, icon: BookOpen, color: '#7C3AED', title: `Approve and ratify: ${p.title}`, context: `Missing — blocks EU AI Act, ISO 42001, and GDPR compliance · ${p.owner}`, nav: 'policy' })),
     ...vendors.filter(v => v.status === 'No Contract')
-      .map(v => ({ id: v.id, icon: Building2, color: '#0891B2', title: `Offboard or contract: ${v.name}`, context: `No DPA — ${v.dataShared} being processed without legal basis · Legal sign-off required`, nav: 'thirdparty' })),
+      .map(v => ({ id: v.id, itemId: v.id, icon: Building2, color: '#0891B2', title: `Offboard or contract: ${v.name}`, context: `No DPA — ${v.dataShared} being processed without legal basis · Legal sign-off required`, nav: 'thirdparty' })),
   ];
 
   if (decisions.length === 0) return (
@@ -1039,7 +1052,7 @@ function DecisionsRequired({ navigate }) {
         {decisions.map(d => {
           const Icon = d.icon;
           return (
-            <button key={d.id} onClick={() => navigate(d.nav)}
+            <button key={d.id} onClick={() => navigate(d.nav, d.itemId)}
               className="w-full flex items-start gap-3 px-5 py-3.5 hover:bg-gray-50 transition-colors text-left group">
               <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5" style={{ background: d.color + '15' }}>
                 <Icon size={13} style={{ color: d.color }} />
@@ -1081,7 +1094,7 @@ function SectionContext({ what, why, ask, askUrgency = 'normal' }) {
   );
 }
 
-function Vulnerabilities() {
+function Vulnerabilities({ focusId }) {
   const { vulns, controls } = useGRCData();
   const ctrlMap = Object.fromEntries(controls.map(c => [c.id, c]));
   const [search, setSearch] = useState('');
@@ -1089,6 +1102,10 @@ function Vulnerabilities() {
   const [showAI, setShowAI] = useState(false);
   const [showEOL, setShowEOL] = useState(false);
   const [tableExpanded, setTableExpanded] = useState(false);
+
+  useEffect(() => {
+    if (focusId) { setPriorityFilter('All'); setSearch(''); setShowAI(false); setShowEOL(false); }
+  }, [focusId]);
 
   const open = vulns.filter(v => v.status !== 'Patched');
 
@@ -1396,6 +1413,7 @@ function Vulnerabilities() {
             ] : []),
           ]}
           rows={data}
+          focusId={focusId}
         />
       </div>
 
@@ -1421,13 +1439,17 @@ function Vulnerabilities() {
 
 // ─── Incidents ────────────────────────────────────────────────────────────────
 
-function Incidents() {
+function Incidents({ focusId }) {
   const { incidents, controls } = useGRCData();
   const ctrlMap = Object.fromEntries(controls.map(c => [c.id, c]));
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
   const [showAI, setShowAI] = useState(false);
   const [triageIncident, setTriageIncident] = useState(null);
+
+  useEffect(() => {
+    if (focusId) { setStatusFilter('All'); setSearch(''); setShowAI(false); }
+  }, [focusId]);
 
   const getTriageSteps = (incident) => {
     const steps = {
@@ -1527,6 +1549,7 @@ function Incidents() {
             ) : null },
           ]}
           rows={data}
+          focusId={focusId}
         />
       </div>
 
@@ -1668,13 +1691,17 @@ function PolicyDraftModal({ policy, onClose }) {
   );
 }
 
-function PolicyModule() {
+function PolicyModule({ focusId }) {
   const { policies, controls } = useGRCData();
   const ctrlMap = Object.fromEntries(controls.map(c => [c.id, c]));
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
   const [showAI, setShowAI] = useState(false);
   const [draftPolicy, setDraftPolicy] = useState(null);
+
+  useEffect(() => {
+    if (focusId) { setStatusFilter('All'); setSearch(''); setShowAI(false); }
+  }, [focusId]);
 
   const getDraftText = (policy) => `# ${policy.title}\n\n**Status:** Draft v0.1 — AI-assisted\n**Owner:** ${policy.owner}\n**Category:** ${policy.category}\n\n## 1. Purpose\nThis policy establishes requirements for ${policy.title.toLowerCase()} within the GRC platform and all AI systems operated by the organisation.\n\n## 2. Scope\nApplies to all employees, contractors, and third parties who develop, operate, or interact with AI systems.\n\n## 3. Policy Requirements\n[Requirements to be completed by ${policy.owner} — framework references: ${ctrlMap[policy.controlId]?.frameworks?.join(', ') || 'UCF controls'}]\n\n## 4. Controls & Compliance\nLinked control: ${policy.controlId} — ${ctrlMap[policy.controlId]?.name}\n\n## 5. Review Cycle\nAnnual review or upon material change to AI systems.\n\n_This draft was generated to accelerate policy creation. Review and approval required before publishing._`;
 
@@ -1768,6 +1795,7 @@ function PolicyModule() {
             ) : null },
           ]}
           rows={data}
+          focusId={focusId}
         />
       </div>
 
@@ -1802,12 +1830,16 @@ function PolicyModule() {
 
 // ─── Third Party ──────────────────────────────────────────────────────────────
 
-function ThirdParty() {
+function ThirdParty({ focusId }) {
   const { vendors, controls } = useGRCData();
   const ctrlMap = Object.fromEntries(controls.map(c => [c.id, c]));
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
   const [showAI, setShowAI] = useState(false);
+
+  useEffect(() => {
+    if (focusId) { setStatusFilter('All'); setSearch(''); setShowAI(false); }
+  }, [focusId]);
 
   const data = vendors.filter(v =>
     (statusFilter === 'All' || v.status === statusFilter) &&
@@ -1895,6 +1927,7 @@ function ThirdParty() {
             { key: 'eff',          label: 'Control Effectiveness', render: r => { const c = ctrlMap[r.controlId]; return c ? <EffectivenessBadge effectiveness={c.effectiveness} score={c.score} /> : null; } },
           ]}
           rows={data}
+          focusId={focusId}
         />
       </div>
     </div>
@@ -3599,13 +3632,23 @@ const RISK_CAT_COLOR = {
 };
 
 // ─── Risk Register ────────────────────────────────────────────────────────────
-function RiskRegister() {
+function RiskRegister({ focusId }) {
   const [search, setSearch] = useState('');
   const [catFilter, setCatFilter] = useState('All');
   const [showAI, setShowAI] = useState(false);
   const [workflow, setWorkflow] = useState(null);
   const [activeView, setActiveView] = useState('register');
   const [showRiskNarrative, setShowRiskNarrative] = useState(false);
+  const focusRowRef = useRef(null);
+
+  useEffect(() => {
+    if (focusId) { setCatFilter('All'); setSearch(''); setShowAI(false); setActiveView('register'); }
+  }, [focusId]);
+
+  useEffect(() => {
+    if (!focusId || !focusRowRef.current) return;
+    requestAnimationFrame(() => focusRowRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }));
+  }, [focusId]);
 
   const categories = ['All',...[...new Set(risks.map(r=>r.category))]];
   const filtered = risks.filter(r =>
@@ -3779,8 +3822,12 @@ function RiskRegister() {
                   const effBarColor = avgEff===null?'#94A3B8':avgEff>=70?'#22C55E':avgEff>=40?'#EAB308':'#EF4444';
                   const catClass = RISK_CAT_COLOR[r.category] ?? 'bg-slate-100 text-slate-600';
                   const bizImpact = getBusinessImpact(r.inherentScore);
+                  const isFocused = focusId && r.id === focusId;
                   return (
-                    <tr key={r.id} className="hover:bg-gray-50 transition-colors">
+                    <tr key={r.id}
+                      ref={isFocused ? focusRowRef : null}
+                      data-item-id={r.id}
+                      className={`transition-colors ${isFocused ? 'bg-amber-50 outline outline-2 outline-amber-400 outline-offset-[-2px]' : 'hover:bg-gray-50'}`}>
                       <td className="px-4 py-3.5 max-w-sm">
                         <div className="flex items-center gap-1.5 mb-0.5">
                           <span className="font-mono text-[10px] text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded">{r.id}</span>
@@ -4553,8 +4600,11 @@ export default function GRCDashboard() {
     window.history.replaceState(null, '', window.location.pathname);
   };
 
-  const handleNavClick = (id) => {
+  const [focusId, setFocusId] = useState(null);
+
+  const handleNavClick = (id, itemId = null) => {
     setPage(id);
+    setFocusId(itemId);
     if (id !== 'leader-report') {
       setLeaderTeamId(null);
       window.history.replaceState(null, '', window.location.pathname);
@@ -4568,11 +4618,11 @@ export default function GRCDashboard() {
 
   const pageMap = {
     overview:       <Overview navigate={handleNavClick} />,
-    risks:          <RiskRegister />,
-    vulns:          <Vulnerabilities />,
-    incidents:      <Incidents />,
-    policy:         <PolicyModule />,
-    thirdparty:     <ThirdParty />,
+    risks:          <RiskRegister focusId={focusId} />,
+    vulns:          <Vulnerabilities focusId={focusId} />,
+    incidents:      <Incidents focusId={focusId} />,
+    policy:         <PolicyModule focusId={focusId} />,
+    thirdparty:     <ThirdParty focusId={focusId} />,
     alignment:      <ControlAlignment />,
     compliance:     <Compliance />,
     audits:         <AuditManagement />,
