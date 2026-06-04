@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useContext, createContext, useRef, useCallback } from 'react';
-import { BarChart, Bar, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from 'recharts';
+import { BarChart, Bar, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import {
   Shield, AlertTriangle, TrendingUp, TrendingDown, CheckCircle,
   Grid, Search, Bell, Settings, User, Menu, Activity,
@@ -1124,7 +1124,6 @@ function Vulnerabilities({ focusId }) {
   const kevOpen   = open.filter(v => v.isCisaKev).length;
 
   const aiCtrl = ctrlMap['UCF.AI.03'];
-  const ctrl   = ctrlMap['UCF.03.02'];
 
   const data = vulns.filter(v =>
     (priorityFilter === 'All' || v.priority === priorityFilter) &&
@@ -1741,7 +1740,6 @@ function PolicyModule({ focusId }) {
 
       {/* Policy Next Action */}
       {(() => {
-        const todayStr = new Date().toISOString().slice(0,10);
         const missingAI = policies.filter(p => p.status === 'Missing' && p.ai)[0];
         const overduePolicy = policies.filter(p => p.status === 'Overdue')[0];
         const nextAction = missingAI
