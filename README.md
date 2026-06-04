@@ -126,26 +126,54 @@ Notion is ideal for the Policy module. Store your policy documents as a Notion d
 
 ```
 chris-grc-engineering/
-├── dashboard/                    # React application
+├── dashboard/                        # React application
 │   ├── src/
-│   │   ├── GRCDashboard.jsx      # Main dashboard - all modules
-│   │   ├── lib/
-│   │   │   ├── supabase.js       # Supabase client (null if unconfigured)
-│   │   │   └── api.js            # Data access layer with mock fallback
-│   │   └── data/                 # (mock data lives inline in GRCDashboard.jsx)
-│   ├── integrations/
-│   │   ├── jira.js               # Jira → incidents
-│   │   ├── qualys.js             # Qualys → vulnerabilities
-│   │   ├── splunk.js             # Splunk → incidents
-│   │   └── sync.js               # Sync runner
-│   ├── public/diagrams/          # Legacy interactive HTML diagrams
-│   └── .env.example              # Credential template
+│   │   ├── GRCDashboard.jsx          # All dashboard modules (single file)
+│   │   └── lib/
+│   │       ├── supabase.js           # Supabase client (null if unconfigured - demo mode)
+│   │       └── api.js                # Data layer with per-table mock fallback
+│   ├── integrations/                 # Node.js adapters - one file per source
+│   │   ├── jira.js                   # Jira → incidents
+│   │   ├── qualys.js                 # Qualys → vulnerabilities
+│   │   ├── splunk.js                 # Splunk → incidents
+│   │   ├── aws-security-hub.js       # AWS Security Hub → vulnerabilities
+│   │   ├── servicenow.js             # ServiceNow → incidents, policy
+│   │   ├── notion.js                 # Notion → policy
+│   │   ├── vanta.js                  # Vanta → controls
+│   │   └── sync.js                   # Runs all enabled adapters
+│   └── .env.example                  # Credential template
 ├── supabase/
 │   ├── migrations/
-│   │   └── 001_initial_schema.sql  # Full schema with RLS
-│   └── seed.sql                    # Demo data
-├── docs/                         # Supporting documentation
-└── case-study/                   # Implementation case study
+│   │   ├── 001_initial_schema.sql    # controls, vulns, incidents, policies, vendors + RLS
+│   │   └── 002_risks_table.sql       # risks table (risk.schema.json v1)
+│   └── seed.sql                      # Demo data
+├── deployment/
+│   └── AWS_DEPLOYMENT.md             # RDS + ECS + Lambda architecture
+├── docs/
+│   ├── ARCHITECTURE.md               # System design and data flow
+│   ├── METHODOLOGY.md                # GRC engineering approach and health score
+│   ├── RISK-METHODOLOGY.md           # Risk scoring, bands, SLAs, approval authority
+│   ├── Risk-Management-Framework.docx # Source risk framework document
+│   ├── VULNERABILITY-MANAGEMENT-PROGRAM.md  # Vuln program: scope, SLAs, lifecycle
+│   ├── DOCKER-INTEGRATION-ROADMAP.md # Scout, Build Cloud, Registry, runtime roadmap
+│   ├── THREAT-MODEL-DOCKER-SUPPLY-CHAIN.md  # STRIDE threat model for container pipeline
+│   ├── METRICS.md                    # KPIs, KRIs, and targets
+│   ├── QUICKSTART.md                 # Setup and key documents index
+│   └── FAQ.md                        # Common questions
+├── plugins/
+│   ├── connectors/                   # 16 tool connectors (AWS, GCP, Okta, Wiz, Tenable...)
+│   ├── frameworks/                   # 33 compliance framework plugins
+│   │   ├── soc2/  iso27001/  gdpr/   nist-800-53/  nist-csf-20/
+│   │   ├── nist-ai-rmf/  eu-ai-act/  iso42001/
+│   │   └── pci-dss/  us-hipaa-security/  cmmc/  ... (25 more)
+│   ├── risk-agent/                   # Risk assessment + Supabase integration
+│   ├── grc-tprm/                     # Third-party risk management
+│   ├── grc-reporter/                 # Report generation
+│   ├── oscal/                        # OSCAL SSP export
+│   └── trust-center/                 # Public-facing trust portal
+├── schemas/                          # JSON schemas (risk, finding, vendor, policy...)
+├── tests/fixtures/                   # Test data aligned to schemas
+└── case-study/                       # Implementation case study
 ```
 
 ---
@@ -219,11 +247,25 @@ AI-specific controls (UCF.AI.01–10) cover:
 
 ## Next steps
 
-- [ ] **P0 - Tighten RLS** - restrict `anon_read` policy so unauthenticated users cannot read security data
-- [ ] **P0 - Add authentication** - Supabase Auth or Okta SSO before connecting real data
-- [ ] **Create a Supabase project and go live** - follow the [Go live](#go-live-with-real-data) section above
-- [ ] **Add more integrations** - ServiceNow (incidents/policy), AWS Security Hub (vulnerabilities), Vanta (compliance), Notion (policy docs)
-- [ ] **Deploy for your team** - Vercel or Netlify for a shareable URL (add auth first), or serve internally via nginx behind your org's VPN
+**Production hardening (P0 before connecting real data)**
+- [ ] Tighten RLS - restrict `anon_read` policy so unauthenticated users cannot read security data
+- [ ] Add authentication - Supabase Auth or Okta SSO
+- [ ] Provision Supabase and run migrations - see [QUICKSTART.md](docs/QUICKSTART.md)
+
+**Docker integration (see [DOCKER-INTEGRATION-ROADMAP.md](docs/DOCKER-INTEGRATION-ROADMAP.md))**
+- [ ] Phase 2 - Docker Scout image scanning on every ECR push
+- [ ] Phase 3 - Registry compliance scoring, deployment block for non-compliant images
+- [ ] Phase 4 - Snyk runtime scanning, Falco behavioral monitoring
+
+**Vulnerability program (see [VULNERABILITY-MANAGEMENT-PROGRAM.md](docs/VULNERABILITY-MANAGEMENT-PROGRAM.md))**
+- [ ] Improve UCF.03.02 Patch Management (currently 41% - primary program gap)
+- [ ] Add Docker Scout credentials to activate container scanning track
+- [ ] Resolve EOL asset risks (Node.js 16, Python 3.8 in ML pipeline)
+
+**AWS deployment (see [deployment/AWS_DEPLOYMENT.md](deployment/AWS_DEPLOYMENT.md))**
+- [ ] Deploy to ECS Fargate + RDS
+- [ ] Configure Lambda adapters with EventBridge schedules
+- [ ] Set up CloudWatch alarms
 
 ---
 

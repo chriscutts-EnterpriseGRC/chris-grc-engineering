@@ -182,3 +182,16 @@ All AI agent access to GRC data flows through the MCP server — agents never ho
 | NIST AI RMF | Govern / Map / Measure / Manage | UCF.AI.01–10 controls tracked in GRC dashboard |
 
 For full AI security requirements see [SECURITY.md — AI security strategy](./SECURITY.md) and [LOGGING-STRATEGY.md — AI security logging](./LOGGING-STRATEGY.md).
+
+---
+
+## Related documents
+
+| Document | Purpose |
+|----------|---------|
+| [RISK-METHODOLOGY.md](RISK-METHODOLOGY.md) | Risk scoring model, bands, SLAs, approval authority |
+| [VULNERABILITY-MANAGEMENT-PROGRAM.md](VULNERABILITY-MANAGEMENT-PROGRAM.md) | Vulnerability program: scope, SLAs, lifecycle, container track |
+| [DOCKER-INTEGRATION-ROADMAP.md](DOCKER-INTEGRATION-ROADMAP.md) | Scout, Build Cloud, Registry, and runtime scanning phases |
+| [THREAT-MODEL-DOCKER-SUPPLY-CHAIN.md](THREAT-MODEL-DOCKER-SUPPLY-CHAIN.md) | STRIDE threat model for the container supply chain |
+| [../deployment/AWS_DEPLOYMENT.md](../deployment/AWS_DEPLOYMENT.md) | RDS + ECS + Lambda infrastructure |
+| [METRICS.md](METRICS.md) | KPIs, KRIs, and program targets |
