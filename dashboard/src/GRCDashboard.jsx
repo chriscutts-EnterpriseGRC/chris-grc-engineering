@@ -734,36 +734,7 @@ function Overview({ navigate }) {
         </div>
       </div>
 
-      {/* ── 2. Demo flow guide ──────────────────────────────────────────── */}
-      {(() => {
-        const steps = [
-          { num:1, label:'Overview',     sub:'Posture & priorities',  id:'overview',    active: true },
-          { num:2, label:'Risk Register',sub:'12 risks · 4 AI',       id:'risks',       active: false },
-          { num:3, label:'Vulnerabilities',sub:'P0 SLA breached',     id:'vulns',       active: false },
-          { num:4, label:'Compliance',   sub:'EU AI Act 22%',         id:'compliance',  active: false },
-          { num:5, label:'Scorecard',    sub:'Team accountability',   id:'scorecard',   active: false },
-        ];
-        return (
-          <div className="bg-white border border-gray-100 rounded-xl px-4 py-3 shadow-sm">
-            <div className="flex items-center gap-1 overflow-x-auto">
-              <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider whitespace-nowrap mr-2">Platform Tour</span>
-              {steps.map((s, i) => (
-                <React.Fragment key={s.id}>
-                  <button onClick={() => navigate(s.id)}
-                    className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-left transition-colors flex-shrink-0 ${s.active ? 'bg-blue-600 text-white' : 'hover:bg-gray-50 text-gray-700'}`}>
-                    <span className={`w-4 h-4 rounded-full text-[10px] font-bold flex items-center justify-center flex-shrink-0 ${s.active ? 'bg-white text-blue-600' : 'bg-gray-100 text-gray-500'}`}>{s.num}</span>
-                    <div>
-                      <p className={`text-xs font-semibold leading-none ${s.active ? 'text-white' : 'text-gray-800'}`}>{s.label}</p>
-                      <p className={`text-[10px] mt-0.5 ${s.active ? 'text-blue-200' : 'text-gray-400'}`}>{s.sub}</p>
-                    </div>
-                  </button>
-                  {i < steps.length - 1 && <ChevronRight size={12} className="text-gray-300 flex-shrink-0" />}
-                </React.Fragment>
-              ))}
-            </div>
-          </div>
-        );
-      })()}
+
 
       {/* ── 3. SLA breach alert ─────────────────────────────────────────── */}
       {breachedSLA.length > 0 && (
