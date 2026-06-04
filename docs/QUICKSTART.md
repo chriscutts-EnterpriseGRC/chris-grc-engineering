@@ -141,6 +141,7 @@ chris-grc-engineering/
 - [RISK-METHODOLOGY.md](RISK-METHODOLOGY.md) - scoring model, bands, SLAs, approval authority
 - [METHODOLOGY.md](METHODOLOGY.md) - GRC engineering approach and health score
 - [METRICS.md](METRICS.md) - KPIs, KRIs, and targets
+- [VULNERABILITY-MANAGEMENT-PROGRAM.md](VULNERABILITY-MANAGEMENT-PROGRAM.md) - vulnerability program: scope, SLAs, lifecycle, container track, exceptions
 - [DOCKER-INTEGRATION-ROADMAP.md](DOCKER-INTEGRATION-ROADMAP.md) - Docker Scout, Build Cloud, Registry, runtime scanning roadmap
 - [THREAT-MODEL-DOCKER-SUPPLY-CHAIN.md](THREAT-MODEL-DOCKER-SUPPLY-CHAIN.md) - STRIDE threat model for the container supply chain
 - [FAQ.md](FAQ.md) - common questions
