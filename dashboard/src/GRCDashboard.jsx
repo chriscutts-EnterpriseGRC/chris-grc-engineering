@@ -346,6 +346,23 @@ function ControlCell({ controlId }) {
   );
 }
 
+function relativeTime(date) {
+  const mins = Math.floor((Date.now() - date) / 60000);
+  if (mins < 1) return 'just now';
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  return `${Math.floor(hrs / 24)}d ago`;
+}
+
+function downloadCSV(filename, headers, rows) {
+  const escape = v => `"${String(v ?? '').replace(/"/g, '""')}"`;
+  const lines = [headers.map(escape).join(','), ...rows.map(r => r.map(escape).join(','))];
+  const blob = new Blob([lines.join('\n')], { type: 'text/csv' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+  a.download = filename; a.click(); URL.revokeObjectURL(a.href);
+}
+
 function Sparkline({ data, color = '#3B82F6', width = 60, height = 24 }) {
   return (
     <ResponsiveContainer width={width} height={height}>
@@ -493,7 +510,14 @@ function HealthRing({ score, size = 140 }) {
   );
 }
 
-function ModuleTable({ columns, rows, emptyMsg = 'No items found' }) {
+function ModuleTable({ columns, rows, emptyMsg = 'No items found', focusId }) {
+  const focusRef = useRef(null);
+
+  useEffect(() => {
+    if (!focusId || !focusRef.current) return;
+    requestAnimationFrame(() => focusRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }));
+  }, [focusId]);
+
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-sm">
@@ -507,13 +531,19 @@ function ModuleTable({ columns, rows, emptyMsg = 'No items found' }) {
         <tbody className="divide-y divide-gray-50">
           {rows.length === 0
             ? <tr><td colSpan={columns.length} className="px-4 py-8 text-center text-sm text-gray-400">{emptyMsg}</td></tr>
-            : rows.map((row, i) => (
-              <tr key={i} className="hover:bg-gray-50 transition-colors">
-                {columns.map(c => (
-                  <td key={c.key} className="px-4 py-3.5 align-middle">{c.render ? c.render(row) : row[c.key]}</td>
-                ))}
-              </tr>
-            ))
+            : rows.map((row, i) => {
+              const isFocused = focusId && row.id === focusId;
+              return (
+                <tr key={row.id ?? i}
+                  ref={isFocused ? focusRef : null}
+                  data-item-id={row.id}
+                  className={`transition-colors ${isFocused ? 'bg-amber-50 outline outline-2 outline-amber-400 outline-offset-[-2px]' : 'hover:bg-gray-50'}`}>
+                  {columns.map(c => (
+                    <td key={c.key} className="px-4 py-3.5 align-middle">{c.render ? c.render(row) : row[c.key]}</td>
+                  ))}
+                </tr>
+              );
+            })
           }
         </tbody>
       </table>
@@ -521,7 +551,14 @@ function ModuleTable({ columns, rows, emptyMsg = 'No items found' }) {
   );
 }
 
-function ModuleHeader({ title, subtitle, search, setSearch, filters, extra, syncedAt }) {
+function ModuleHeader({ title, subtitle, search, setSearch, filters, extra, syncedAt, onRefresh }) {
+  const [, tick] = useState(0);
+  useEffect(() => {
+    if (!syncedAt) return;
+    const t = setInterval(() => tick(n => n + 1), 60000);
+    return () => clearInterval(t);
+  }, [syncedAt]);
+
   return (
     <div className="p-5 border-b border-gray-100">
       <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
@@ -531,8 +568,8 @@ function ModuleHeader({ title, subtitle, search, setSearch, filters, extra, sync
           {syncedAt && (
             <p className="text-[10px] text-gray-400 mt-0.5 flex items-center gap-1">
               <RefreshCw size={9} />
-              Synced {syncedAt}
-              <button className="text-blue-400 hover:text-blue-600 ml-1 underline">Refresh</button>
+              Synced {relativeTime(syncedAt)}
+              {onRefresh && <button onClick={onRefresh} className="text-blue-400 hover:text-blue-600 ml-1 underline">Refresh</button>}
             </p>
           )}
         </div>
@@ -924,13 +961,13 @@ function AlertTray({ navigate }) {
 
   const alerts = [
     ...vulns.filter(v => v.priority === 'P0' && v.status !== 'Patched' && v.dueDate && daysFromToday(v.dueDate) < 0)
-      .map(v => ({ id: `p0-${v.id}`, level: 0, label: 'P0 SLA Breach', text: v.title, action: 'Declare incident or escalate now', nav: 'vulns', color: '#EF4444', bg: 'bg-red-50', border: 'border-red-200', textCol: 'text-red-800' })),
+      .map(v => ({ id: `p0-${v.id}`, itemId: v.id, level: 0, label: 'P0 SLA Breach', text: v.title, action: 'Declare incident or escalate now', nav: 'vulns', color: '#EF4444', bg: 'bg-red-50', border: 'border-red-200', textCol: 'text-red-800' })),
     ...incidents.filter(i => i.severity === 'Critical' && i.status !== 'Resolved')
-      .map(i => ({ id: `inc-${i.id}`, level: 0, label: 'Critical Incident', text: i.title, action: 'Incident commander sign-off required', nav: 'incidents', color: '#F97316', bg: 'bg-orange-50', border: 'border-orange-200', textCol: 'text-orange-800' })),
+      .map(i => ({ id: `inc-${i.id}`, itemId: i.id, level: 0, label: 'Critical Incident', text: i.title, action: 'Incident commander sign-off required', nav: 'incidents', color: '#F97316', bg: 'bg-orange-50', border: 'border-orange-200', textCol: 'text-orange-800' })),
     ...policies.filter(p => p.status === 'Missing')
-      .map(p => ({ id: `pol-${p.id}`, level: 1, label: 'Policy Missing', text: p.title, action: 'Create or approve policy — blocks compliance controls', nav: 'policy', color: '#7C3AED', bg: 'bg-purple-50', border: 'border-purple-200', textCol: 'text-purple-800' })),
+      .map(p => ({ id: `pol-${p.id}`, itemId: p.id, level: 1, label: 'Policy Missing', text: p.title, action: 'Create or approve policy — blocks compliance controls', nav: 'policy', color: '#7C3AED', bg: 'bg-purple-50', border: 'border-purple-200', textCol: 'text-purple-800' })),
     ...vendors.filter(v => v.status === 'No Contract')
-      .map(v => ({ id: `vnd-${v.id}`, level: 1, label: 'No Contract', text: `${v.name} — ${v.dataShared}`, action: 'Legal must initiate DPA before next data processing', nav: 'thirdparty', color: '#0891B2', bg: 'bg-cyan-50', border: 'border-cyan-200', textCol: 'text-cyan-800' })),
+      .map(v => ({ id: `vnd-${v.id}`, itemId: v.id, level: 1, label: 'No Contract', text: `${v.name} — ${v.dataShared}`, action: 'Legal must initiate DPA before next data processing', nav: 'thirdparty', color: '#0891B2', bg: 'bg-cyan-50', border: 'border-cyan-200', textCol: 'text-cyan-800' })),
   ].filter(a => !dismissed.includes(a.id)).sort((a, b) => a.level - b.level);
 
   return (
@@ -951,7 +988,7 @@ function AlertTray({ navigate }) {
       ) : (
         <div className="divide-y divide-gray-50 flex-1">
           {alerts.map(a => (
-            <button key={a.id} onClick={() => navigate(a.nav)}
+            <button key={a.id} onClick={() => navigate(a.nav, a.itemId)}
               className={`w-full flex items-start gap-3 px-5 py-3 ${a.bg} hover:brightness-95 transition-all text-left group`}>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-0.5">
@@ -978,15 +1015,15 @@ function DecisionsRequired({ navigate }) {
 
   const decisions = [
     ...vulns.filter(v => v.priority === 'P0' && v.status !== 'Patched' && v.dueDate && daysFromToday(v.dueDate) < 0)
-      .map(v => ({ id: v.id, icon: Bug, color: '#EF4444', title: `Escalate or declare incident: ${v.title}`, context: `P0 · ${Math.abs(daysFromToday(v.dueDate))}d past SLA · CISO sign-off required`, nav: 'vulns' })),
+      .map(v => ({ id: v.id, itemId: v.id, icon: Bug, color: '#EF4444', title: `Escalate or declare incident: ${v.title}`, context: `P0 · ${Math.abs(daysFromToday(v.dueDate))}d past SLA · CISO sign-off required`, nav: 'vulns' })),
     ...risks.filter(r => r.status === 'Open' && r.inherentScore > 19)
-      .map(r => ({ id: r.id, icon: AlertTriangle, color: '#EF4444', title: `Board-level risk: ${r.title}`, context: `Score ${r.inherentScore} — significantly exceeds risk appetite · ${r.owner}`, nav: 'risks' })),
+      .map(r => ({ id: r.id, itemId: r.id, icon: AlertTriangle, color: '#EF4444', title: `Board-level risk: ${r.title}`, context: `Score ${r.inherentScore} — significantly exceeds risk appetite · ${r.owner}`, nav: 'risks' })),
     ...incidents.filter(i => i.severity === 'Critical' && i.status !== 'Resolved')
-      .map(i => ({ id: i.id, icon: Flame, color: '#F97316', title: `Critical incident unresolved: ${i.title}`, context: `Detected ${i.detected} · ${i.systems} system${i.systems !== 1 ? 's' : ''} affected · IMT activation required`, nav: 'incidents' })),
+      .map(i => ({ id: i.id, itemId: i.id, icon: Flame, color: '#F97316', title: `Critical incident unresolved: ${i.title}`, context: `Detected ${i.detected} · ${i.systems} system${i.systems !== 1 ? 's' : ''} affected · IMT activation required`, nav: 'incidents' })),
     ...policies.filter(p => p.status === 'Missing').slice(0, 2)
-      .map(p => ({ id: p.id, icon: BookOpen, color: '#7C3AED', title: `Approve and ratify: ${p.title}`, context: `Missing — blocks EU AI Act, ISO 42001, and GDPR compliance · ${p.owner}`, nav: 'policy' })),
+      .map(p => ({ id: p.id, itemId: p.id, icon: BookOpen, color: '#7C3AED', title: `Approve and ratify: ${p.title}`, context: `Missing — blocks EU AI Act, ISO 42001, and GDPR compliance · ${p.owner}`, nav: 'policy' })),
     ...vendors.filter(v => v.status === 'No Contract')
-      .map(v => ({ id: v.id, icon: Building2, color: '#0891B2', title: `Offboard or contract: ${v.name}`, context: `No DPA — ${v.dataShared} being processed without legal basis · Legal sign-off required`, nav: 'thirdparty' })),
+      .map(v => ({ id: v.id, itemId: v.id, icon: Building2, color: '#0891B2', title: `Offboard or contract: ${v.name}`, context: `No DPA — ${v.dataShared} being processed without legal basis · Legal sign-off required`, nav: 'thirdparty' })),
   ];
 
   if (decisions.length === 0) return (
@@ -1010,7 +1047,7 @@ function DecisionsRequired({ navigate }) {
         {decisions.map(d => {
           const Icon = d.icon;
           return (
-            <button key={d.id} onClick={() => navigate(d.nav)}
+            <button key={d.id} onClick={() => navigate(d.nav, d.itemId)}
               className="w-full flex items-start gap-3 px-5 py-3.5 hover:bg-gray-50 transition-colors text-left group">
               <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5" style={{ background: d.color + '15' }}>
                 <Icon size={13} style={{ color: d.color }} />
@@ -1052,14 +1089,19 @@ function SectionContext({ what, why, ask, askUrgency = 'normal' }) {
   );
 }
 
-function Vulnerabilities() {
+function Vulnerabilities({ focusId }) {
   const { vulns, controls } = useGRCData();
   const ctrlMap = Object.fromEntries(controls.map(c => [c.id, c]));
   const [search, setSearch] = useState('');
   const [priorityFilter, setPriorityFilter] = useState('All');
   const [showAI, setShowAI] = useState(false);
   const [showEOL, setShowEOL] = useState(false);
+  const [lastSynced, setLastSynced] = useState(() => new Date(Date.now() - 2 * 3600000));
   const [tableExpanded, setTableExpanded] = useState(false);
+
+  useEffect(() => {
+    if (focusId) { setPriorityFilter('All'); setSearch(''); setShowAI(false); setShowEOL(false); }
+  }, [focusId]);
 
   const open = vulns.filter(v => v.status !== 'Patched');
 
@@ -1298,7 +1340,8 @@ function Vulnerabilities() {
           subtitle={`${data.length} vulnerabilities · Priority scored P0–P4 (VSRM)`}
           search={search}
           setSearch={setSearch}
-          syncedAt="2h ago"
+          syncedAt={lastSynced}
+          onRefresh={() => setLastSynced(new Date())}
           filters={<>
             <select value={priorityFilter} onChange={e => setPriorityFilter(e.target.value)} className="px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none">
               {['All','P0','P1','P2','P3','P4'].map(p => <option key={p}>{p}</option>)}
@@ -1311,6 +1354,13 @@ function Vulnerabilities() {
             </button>
             <button onClick={() => setTableExpanded(x => !x)} className="px-3 py-2 text-sm font-medium rounded-lg border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 transition-colors flex items-center gap-1.5">
               <Grid size={13} /> {tableExpanded ? 'Collapse' : 'All columns'}
+            </button>
+            <button onClick={() => downloadCSV(
+              `vulnerabilities-${new Date().toISOString().slice(0,10)}.csv`,
+              ['ID','Title','CVE','Priority','Status','SLA Due','Assigned To','Environment','Control'],
+              data.map(v => [v.id, v.title, v.cve||'', v.priority, v.status, v.dueDate||'', v.assignedTo||'Unassigned', v.environment||'', v.controlId||''])
+            )} className="px-3 py-2 text-sm font-medium rounded-lg border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 transition-colors flex items-center gap-1.5">
+              <Download size={13} /> Export CSV
             </button>
           </>}
         />
@@ -1367,6 +1417,7 @@ function Vulnerabilities() {
             ] : []),
           ]}
           rows={data}
+          focusId={focusId}
         />
       </div>
 
@@ -1392,13 +1443,18 @@ function Vulnerabilities() {
 
 // ─── Incidents ────────────────────────────────────────────────────────────────
 
-function Incidents() {
+function Incidents({ focusId }) {
   const { incidents, controls } = useGRCData();
   const ctrlMap = Object.fromEntries(controls.map(c => [c.id, c]));
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
   const [showAI, setShowAI] = useState(false);
   const [triageIncident, setTriageIncident] = useState(null);
+  const [lastSynced, setLastSynced] = useState(() => new Date(Date.now() - 45 * 60000));
+
+  useEffect(() => {
+    if (focusId) { setStatusFilter('All'); setSearch(''); setShowAI(false); }
+  }, [focusId]);
 
   const getTriageSteps = (incident) => {
     const steps = {
@@ -1467,7 +1523,8 @@ function Incidents() {
 
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm">
         <ModuleHeader title="Incident Register" subtitle={`${data.length} incidents`} search={search} setSearch={setSearch}
-          syncedAt="45m ago"
+          syncedAt={lastSynced}
+          onRefresh={() => setLastSynced(new Date())}
           filters={<>
             <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className="px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none">
               {['All','Open','Investigating','Contained','Resolved'].map(s => <option key={s}>{s}</option>)}
@@ -1498,6 +1555,7 @@ function Incidents() {
             ) : null },
           ]}
           rows={data}
+          focusId={focusId}
         />
       </div>
 
@@ -1639,13 +1697,18 @@ function PolicyDraftModal({ policy, onClose }) {
   );
 }
 
-function PolicyModule() {
+function PolicyModule({ focusId }) {
   const { policies, controls } = useGRCData();
   const ctrlMap = Object.fromEntries(controls.map(c => [c.id, c]));
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
   const [showAI, setShowAI] = useState(false);
   const [draftPolicy, setDraftPolicy] = useState(null);
+  const [lastSynced, setLastSynced] = useState(() => new Date(Date.now() - 24 * 3600000));
+
+  useEffect(() => {
+    if (focusId) { setStatusFilter('All'); setSearch(''); setShowAI(false); }
+  }, [focusId]);
 
   const getDraftText = (policy) => `# ${policy.title}\n\n**Status:** Draft v0.1 — AI-assisted\n**Owner:** ${policy.owner}\n**Category:** ${policy.category}\n\n## 1. Purpose\nThis policy establishes requirements for ${policy.title.toLowerCase()} within the GRC platform and all AI systems operated by the organisation.\n\n## 2. Scope\nApplies to all employees, contractors, and third parties who develop, operate, or interact with AI systems.\n\n## 3. Policy Requirements\n[Requirements to be completed by ${policy.owner} — framework references: ${ctrlMap[policy.controlId]?.frameworks?.join(', ') || 'UCF controls'}]\n\n## 4. Controls & Compliance\nLinked control: ${policy.controlId} — ${ctrlMap[policy.controlId]?.name}\n\n## 5. Review Cycle\nAnnual review or upon material change to AI systems.\n\n_This draft was generated to accelerate policy creation. Review and approval required before publishing._`;
 
@@ -1708,7 +1771,8 @@ function PolicyModule() {
 
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm">
         <ModuleHeader title="Policy Library" subtitle={`${data.length} policies`} search={search} setSearch={setSearch}
-          syncedAt="1d ago"
+          syncedAt={lastSynced}
+          onRefresh={() => setLastSynced(new Date())}
           filters={<>
             <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className="px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none">
               {['All','Current','Due for Review','Overdue','Missing'].map(s => <option key={s}>{s}</option>)}
@@ -1739,6 +1803,7 @@ function PolicyModule() {
             ) : null },
           ]}
           rows={data}
+          focusId={focusId}
         />
       </div>
 
@@ -1773,12 +1838,17 @@ function PolicyModule() {
 
 // ─── Third Party ──────────────────────────────────────────────────────────────
 
-function ThirdParty() {
+function ThirdParty({ focusId }) {
   const { vendors, controls } = useGRCData();
   const ctrlMap = Object.fromEntries(controls.map(c => [c.id, c]));
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
   const [showAI, setShowAI] = useState(false);
+  const [lastSynced, setLastSynced] = useState(() => new Date(Date.now() - 3 * 3600000));
+
+  useEffect(() => {
+    if (focusId) { setStatusFilter('All'); setSearch(''); setShowAI(false); }
+  }, [focusId]);
 
   const data = vendors.filter(v =>
     (statusFilter === 'All' || v.status === statusFilter) &&
@@ -1835,7 +1905,8 @@ function ThirdParty() {
 
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm">
         <ModuleHeader title="Third Party Register" subtitle={`${data.length} vendors`} search={search} setSearch={setSearch}
-          syncedAt="3h ago"
+          syncedAt={lastSynced}
+          onRefresh={() => setLastSynced(new Date())}
           filters={<>
             <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className="px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none">
               {['All','Compliant','Review Pending','Questionnaire Overdue','SLA Breach','No Contract'].map(s => <option key={s}>{s}</option>)}
@@ -1866,6 +1937,7 @@ function ThirdParty() {
             { key: 'eff',          label: 'Control Effectiveness', render: r => { const c = ctrlMap[r.controlId]; return c ? <EffectivenessBadge effectiveness={c.effectiveness} score={c.score} /> : null; } },
           ]}
           rows={data}
+          focusId={focusId}
         />
       </div>
     </div>
@@ -2153,19 +2225,101 @@ const computeBadges = (teamId, stats, hist) => {
 
 // ─── Leadership Scorecard ─────────────────────────────────────────────────────
 
+// Approval chain templates for common decision types
+const APPROVAL_CHAINS = {
+  'P0 Escalation':    [{ role: 'CISO', label: 'CISO Sign-off' }, { role: 'Board', label: 'Board Notification' }],
+  'EU AI Act Budget': [{ role: 'CISO', label: 'CISO Review' }, { role: 'Board', label: 'Board Ratification' }],
+  'Legal / DPA':      [{ role: 'Legal', label: 'Legal Review' }, { role: 'CISO', label: 'CISO Approval' }],
+  'Risk Acceptance':  [{ role: 'Risk Owner', label: 'Risk Owner Sign-off' }, { role: 'CISO', label: 'CISO Acceptance' }],
+  'Resource Decision':[{ role: 'CISO', label: 'CISO Approval' }, { role: 'CFO', label: 'CFO Budget Sign-off' }],
+  'CISO Only':        [{ role: 'CISO', label: 'CISO Decision' }],
+};
+
 function Scorecard({ onViewReport }) {
   const { controls, vulns, incidents, vendors } = useGRCData();
   const ctrlMap = Object.fromEntries(controls.map(c => [c.id, c]));
   const [expanded, setExpanded] = useState(null);
-  const [decisionLog, setDecisionLog] = useState([]);
+
+  // Persisted decision log
+  const [decisionLog, setDecisionLog] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('grc_decision_log') || '[]'); } catch { return []; }
+  });
+
+  // Workflow engine state
+  const [workflows, setWorkflows] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('grc_workflows') || '[]'); } catch { return []; }
+  });
+  const [routeModal, setRouteModal] = useState(null); // decision being routed
+  const [routeChain, setRouteChain] = useState('CISO Only');
+  const [routeDue, setRouteDue] = useState(() => {
+    const d = new Date(); d.setDate(d.getDate() + 3);
+    return d.toISOString().slice(0, 10);
+  });
+  const [routeExternalRef, setRouteExternalRef] = useState('');
+  const [actionNote, setActionNote] = useState({ wfId: null, action: null, text: '' });
+
+  const saveWorkflows = (next) => {
+    setWorkflows(next);
+    localStorage.setItem('grc_workflows', JSON.stringify(next));
+  };
+
+  const routeForReview = (decision) => {
+    const chain = APPROVAL_CHAINS[routeChain] ?? APPROVAL_CHAINS['CISO Only'];
+    const now = new Date();
+    const ym = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}`;
+    const refNo = `WF-${ym}-${String(workflows.length + 1).padStart(3, '0')}`;
+    const wf = {
+      id: `wf-${Date.now()}`,
+      refNo,
+      itemTitle: decision.title,
+      itemType: routeChain,
+      urgency: decision.urgency,
+      routedBy: 'You',
+      routedAt: new Date().toLocaleString(),
+      dueDate: routeDue,
+      externalRef: routeExternalRef.trim() || null,
+      steps: chain.map((s, idx) => ({ ...s, status: idx === 0 ? 'pending' : 'waiting', actedAt: null, note: null })),
+      currentStep: 0,
+      status: 'in_progress',
+    };
+    saveWorkflows([...workflows, wf]);
+    setRouteModal(null);
+    setRouteExternalRef('');
+  };
+
+  const advanceWorkflow = (wfId, action, note = '') => {
+    const next = workflows.map(wf => {
+      if (wf.id !== wfId) return wf;
+      const steps = [...wf.steps];
+      steps[wf.currentStep] = { ...steps[wf.currentStep], status: action.toLowerCase(), actedAt: new Date().toLocaleString(), note: note.trim() || null };
+      if (action === 'Approved' && wf.currentStep < steps.length - 1) {
+        steps[wf.currentStep + 1] = { ...steps[wf.currentStep + 1], status: 'pending' };
+        return { ...wf, steps, currentStep: wf.currentStep + 1, status: 'in_progress' };
+      }
+      return { ...wf, steps, status: action.toLowerCase() };
+    });
+    saveWorkflows(next);
+    setActionNote({ wfId: null, action: null, text: '' });
+  };
+
+  const dismissWorkflow = (wfId) => saveWorkflows(workflows.filter(w => w.id !== wfId));
 
   const logDecision = (decision, action) => {
-    setDecisionLog(prev => [...prev, {
-      id: decision.title,
-      action,
-      timestamp: new Date().toLocaleString(),
-      actor: 'CISO',
-    }]);
+    setDecisionLog(prev => {
+      const next = [...prev, {
+        id: decision.title,
+        action,
+        timestamp: new Date().toLocaleString(),
+        actor: 'CISO',
+      }];
+      localStorage.setItem('grc_decision_log', JSON.stringify(next));
+      return next;
+    });
+  };
+
+  const clearDecisionLog = () => {
+    setDecisionLog([]);
+    localStorage.removeItem('grc_decision_log');
   };
 
   const teamStats = teams.map(team => {
@@ -2295,6 +2449,10 @@ function Scorecard({ onViewReport }) {
                         className="px-2 py-0.5 bg-gray-100 text-gray-600 text-[10px] font-semibold rounded hover:bg-gray-200 transition-colors">
                         Defer 30d
                       </button>
+                      <button onClick={() => { setRouteModal(d); setRouteChain('CISO Only'); }}
+                        className="px-2 py-0.5 bg-blue-50 text-blue-700 text-[10px] font-semibold rounded border border-blue-200 hover:bg-blue-100 transition-colors flex items-center gap-1">
+                        <ArrowUpRight size={9} /> Route for Review
+                      </button>
                     </div>
                   </div>
                   <span className="flex-shrink-0 text-xs font-semibold px-2.5 py-1 rounded-lg border mt-0.5"
@@ -2311,11 +2469,14 @@ function Scorecard({ onViewReport }) {
       {/* Decision Log */}
       {decisionLog.length > 0 && (
         <div className="bg-white rounded-xl border border-gray-100 p-5 shadow-sm">
-          <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
-            <CheckSquare size={15} className="text-green-600" />
-            Decision Log
-            <span className="text-xs text-gray-400 font-normal ml-1">{decisionLog.length} recorded</span>
-          </h3>
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="font-semibold text-gray-900 flex items-center gap-2">
+              <CheckSquare size={15} className="text-green-600" />
+              Decision Log
+              <span className="text-xs text-gray-400 font-normal">{decisionLog.length} recorded · persisted</span>
+            </h3>
+            <button onClick={clearDecisionLog} className="text-xs text-gray-400 hover:text-red-500 transition-colors">Clear</button>
+          </div>
           <div className="space-y-2">
             {[...decisionLog].reverse().map((d, i) => (
               <div key={i} className="flex items-center gap-3 text-sm">
@@ -2328,6 +2489,176 @@ function Scorecard({ onViewReport }) {
                 <span className="text-xs text-gray-400 flex-shrink-0">{d.actor} · {d.timestamp}</span>
               </div>
             ))}
+          </div>
+        </div>
+      )}
+
+      {/* Pending Sign-offs — in-flight workflows */}
+      {workflows.filter(w => w.status === 'in_progress').length > 0 && (
+        <div className="bg-white rounded-xl border border-blue-200 shadow-sm overflow-hidden">
+          <div className="px-5 py-3 border-b border-blue-100 flex items-center gap-2 bg-blue-50">
+            <ArrowUpRight size={14} className="text-blue-600 flex-shrink-0" />
+            <h3 className="font-semibold text-blue-900 text-sm">Pending Sign-offs</h3>
+            <span className="px-2 py-0.5 bg-blue-200 text-blue-800 text-xs font-bold rounded-full">{workflows.filter(w=>w.status==='in_progress').length}</span>
+            <span className="ml-auto text-xs text-blue-400">Active approval workflows</span>
+          </div>
+          <div className="divide-y divide-gray-50">
+            {workflows.filter(w => w.status === 'in_progress').map(wf => {
+              const current = wf.steps[wf.currentStep];
+              const overdue = wf.dueDate && wf.dueDate < new Date().toISOString().slice(0,10);
+              const isActing = actionNote.wfId === wf.id;
+              return (
+                <div key={wf.id} className="px-5 py-4">
+                  <div className="flex items-start justify-between gap-4 mb-2">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-[10px] font-mono font-bold text-blue-600 bg-blue-50 border border-blue-200 px-1.5 py-0.5 rounded select-all">{wf.refNo || wf.id.slice(0,12)}</span>
+                        <p className="text-sm font-semibold text-gray-900 leading-snug">{wf.itemTitle}</p>
+                        <span className="text-[10px] font-bold px-1.5 py-0.5 bg-blue-50 text-blue-700 border border-blue-200 rounded">{wf.itemType}</span>
+                        {overdue && <span className="text-[10px] font-bold px-1.5 py-0.5 bg-red-50 text-red-700 border border-red-200 rounded">OVERDUE</span>}
+                      </div>
+                      <p className="text-xs text-gray-400 mt-0.5">
+                        Routed by {wf.routedBy} · {wf.routedAt} · Due {fmtDate(wf.dueDate)}
+                        {wf.externalRef && <> · <span className="font-mono text-violet-600 font-semibold">{wf.externalRef}</span></>}
+                      </p>
+                    </div>
+                    <button onClick={() => dismissWorkflow(wf.id)} className="text-gray-300 hover:text-gray-500 flex-shrink-0"><X size={13} /></button>
+                  </div>
+                  {/* Step chain */}
+                  <div className="flex items-center gap-1 mb-3 flex-wrap">
+                    {wf.steps.map((step, idx) => (
+                      <div key={idx} className="flex items-center gap-1">
+                        {idx > 0 && <div className="w-4 h-px bg-gray-200 flex-shrink-0" />}
+                        <span title={step.note ? `Note: ${step.note}` : undefined} className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${
+                          step.status === 'approved'  ? 'bg-green-50 text-green-700 border-green-200' :
+                          step.status === 'rejected'  ? 'bg-red-50 text-red-700 border-red-200' :
+                          step.status === 'deferred'  ? 'bg-gray-50 text-gray-500 border-gray-200' :
+                          step.status === 'pending'   ? 'bg-blue-50 text-blue-700 border-blue-300 animate-pulse' :
+                          'bg-gray-50 text-gray-400 border-gray-100'
+                        }`}>
+                          {step.label}
+                          {step.status !== 'waiting' && step.status !== 'pending' && ` · ${step.status}`}
+                          {step.note && ' ✎'}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                  {/* Action area for current step */}
+                  {current?.status === 'pending' && (
+                    isActing ? (
+                      <div className="bg-gray-50 rounded-lg p-3 space-y-2">
+                        <p className="text-xs font-semibold text-gray-700">
+                          {actionNote.action} — add a note <span className="font-normal text-gray-400">(optional)</span>
+                        </p>
+                        <textarea
+                          autoFocus
+                          value={actionNote.text}
+                          onChange={e => setActionNote(n => ({ ...n, text: e.target.value }))}
+                          placeholder="Reason, conditions, or context…"
+                          rows={2}
+                          className="w-full px-2.5 py-1.5 text-xs border border-gray-200 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-400"
+                        />
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => advanceWorkflow(wf.id, actionNote.action, actionNote.text)}
+                            className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors ${
+                              actionNote.action === 'Approved' ? 'bg-green-600 text-white hover:bg-green-700' :
+                              actionNote.action === 'Rejected' ? 'bg-red-600 text-white hover:bg-red-700' :
+                              'bg-gray-600 text-white hover:bg-gray-700'
+                            }`}>
+                            Confirm {actionNote.action}
+                          </button>
+                          <button
+                            onClick={() => setActionNote({ wfId: null, action: null, text: '' })}
+                            className="px-3 py-1.5 text-xs font-semibold text-gray-500 bg-white border border-gray-200 rounded-lg hover:bg-gray-50">
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-gray-500 font-medium">Awaiting {current.role}:</span>
+                        <button onClick={() => setActionNote({ wfId: wf.id, action: 'Approved', text: '' })}
+                          className="px-2.5 py-1 bg-green-600 text-white text-xs font-semibold rounded hover:bg-green-700 transition-colors">
+                          Approve
+                        </button>
+                        <button onClick={() => setActionNote({ wfId: wf.id, action: 'Rejected', text: '' })}
+                          className="px-2.5 py-1 bg-red-100 text-red-700 text-xs font-semibold rounded hover:bg-red-200 transition-colors">
+                          Reject
+                        </button>
+                        <button onClick={() => setActionNote({ wfId: wf.id, action: 'Deferred', text: '' })}
+                          className="px-2.5 py-1 bg-gray-100 text-gray-600 text-xs font-semibold rounded hover:bg-gray-200 transition-colors">
+                          Defer
+                        </button>
+                      </div>
+                    )
+                  )}
+                </div>
+              );
+            })}
+          </div>
+          {/* Completed workflows summary */}
+          {workflows.filter(w => w.status !== 'in_progress').length > 0 && (
+            <div className="px-5 py-2 bg-gray-50 border-t border-gray-100">
+              <p className="text-xs text-gray-400">{workflows.filter(w=>w.status!=='in_progress').length} completed workflow{workflows.filter(w=>w.status!=='in_progress').length!==1?'s':''} ·
+                <button onClick={() => saveWorkflows(workflows.filter(w => w.status === 'in_progress'))} className="text-blue-400 hover:text-blue-600 ml-1 underline">Clear completed</button>
+              </p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Route for Review modal */}
+      {routeModal && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={() => setRouteModal(null)}>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+              <div>
+                <h3 className="font-semibold text-gray-900 text-sm">Route for Review</h3>
+                <p className="text-xs text-gray-400 mt-0.5 truncate max-w-xs">{routeModal.title}</p>
+              </div>
+              <button onClick={() => setRouteModal(null)} className="text-gray-400 hover:text-gray-600"><X size={16} /></button>
+            </div>
+            <div className="p-5 space-y-4">
+              <div>
+                <label className="text-xs font-semibold text-gray-600 uppercase tracking-wider mb-1.5 block">Approval Chain</label>
+                <div className="grid grid-cols-2 gap-2">
+                  {Object.keys(APPROVAL_CHAINS).map(chain => (
+                    <button key={chain} onClick={() => setRouteChain(chain)}
+                      className={`text-left px-3 py-2 rounded-lg border text-xs font-medium transition-colors ${routeChain === chain ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-700 border-gray-200 hover:border-blue-300'}`}>
+                      <p className="font-semibold">{chain}</p>
+                      <p className={`text-[10px] mt-0.5 ${routeChain === chain ? 'text-blue-200' : 'text-gray-400'}`}>
+                        {APPROVAL_CHAINS[chain].map(s => s.role).join(' → ')}
+                      </p>
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-gray-600 uppercase tracking-wider mb-1.5 block">Due Date</label>
+                <input type="date" value={routeDue} onChange={e => setRouteDue(e.target.value)}
+                  className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-400" />
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-gray-600 uppercase tracking-wider mb-1.5 block">External Ticket Ref <span className="font-normal text-gray-400 normal-case tracking-normal">(optional)</span></label>
+                <input type="text" value={routeExternalRef} onChange={e => setRouteExternalRef(e.target.value)}
+                  placeholder="e.g. INC-12345 or RISK-678 or JIRA-90"
+                  className="w-full px-3 py-2 text-sm font-mono border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-200 focus:border-violet-400 placeholder:font-sans placeholder:text-gray-400" />
+              </div>
+              <div className="bg-blue-50 rounded-lg px-3 py-2">
+                <p className="text-xs text-blue-700 font-medium">Chain: {APPROVAL_CHAINS[routeChain]?.map(s => s.label).join(' → ')}</p>
+              </div>
+            </div>
+            <div className="px-5 py-4 border-t border-gray-100 flex gap-2">
+              <button onClick={() => routeForReview(routeModal)}
+                className="flex-1 px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-lg hover:bg-blue-700 transition-colors">
+                Route for Review
+              </button>
+              <button onClick={() => setRouteModal(null)}
+                className="px-4 py-2 bg-gray-100 text-gray-700 text-sm rounded-lg hover:bg-gray-200">
+                Cancel
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -3570,13 +3901,24 @@ const RISK_CAT_COLOR = {
 };
 
 // ─── Risk Register ────────────────────────────────────────────────────────────
-function RiskRegister() {
+function RiskRegister({ focusId }) {
   const [search, setSearch] = useState('');
   const [catFilter, setCatFilter] = useState('All');
   const [showAI, setShowAI] = useState(false);
   const [workflow, setWorkflow] = useState(null);
   const [activeView, setActiveView] = useState('register');
   const [showRiskNarrative, setShowRiskNarrative] = useState(false);
+  const focusRowRef = useRef(null);
+  const [lastSynced, setLastSynced] = useState(() => new Date(Date.now() - 2 * 3600000));
+
+  useEffect(() => {
+    if (focusId) { setCatFilter('All'); setSearch(''); setShowAI(false); setActiveView('register'); }
+  }, [focusId]);
+
+  useEffect(() => {
+    if (!focusId || !focusRowRef.current) return;
+    requestAnimationFrame(() => focusRowRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }));
+  }, [focusId]);
 
   const categories = ['All',...[...new Set(risks.map(r=>r.category))]];
   const filtered = risks.filter(r =>
@@ -3700,7 +4042,7 @@ function RiskRegister() {
       {activeView==='matrix' ? <HeatMatrix /> : (
         <div className="bg-white rounded-xl border border-gray-100 shadow-sm">
           <ModuleHeader title="Risk Register" subtitle={filtered.length+" risks"} search={search} setSearch={setSearch}
-            syncedAt="2h ago"
+            syncedAt={lastSynced} onRefresh={() => setLastSynced(new Date())}
             filters={<>
               <select value={catFilter} onChange={e=>setCatFilter(e.target.value)} className="px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none">
                 {categories.map(c=><option key={c}>{c}</option>)}
@@ -3710,11 +4052,20 @@ function RiskRegister() {
               </button>
             </>}
             extra={
-              <button onClick={() => setShowRiskNarrative(s => !s)}
-                className="flex items-center gap-1.5 px-3 py-2 bg-purple-50 text-purple-700 border border-purple-200 rounded-lg text-xs font-medium hover:bg-purple-100 transition-colors">
-                <Cpu size={12} />
-                Summarise for Board
-              </button>
+              <div className="flex items-center gap-2">
+                <button onClick={() => downloadCSV(
+                  `risk-register-${new Date().toISOString().slice(0,10)}.csv`,
+                  ['ID','Title','Category','Inherent Score','Residual Score','Appetite','Status','Owner','Review Date','AI Risk'],
+                  filtered.map(r => [r.id, r.title, r.category, r.inherentScore, r.residualScore, getAppetite(r.residualScore), r.status, r.owner, r.reviewDate||'', r.ai?'Yes':'No'])
+                )} className="flex items-center gap-1.5 px-3 py-2 bg-white text-gray-600 border border-gray-200 rounded-lg text-xs font-medium hover:bg-gray-50 transition-colors">
+                  <Download size={12} /> Export CSV
+                </button>
+                <button onClick={() => setShowRiskNarrative(s => !s)}
+                  className="flex items-center gap-1.5 px-3 py-2 bg-purple-50 text-purple-700 border border-purple-200 rounded-lg text-xs font-medium hover:bg-purple-100 transition-colors">
+                  <Cpu size={12} />
+                  Summarise for Board
+                </button>
+              </div>
             }
           />
           {showRiskNarrative && (() => {
@@ -3750,8 +4101,12 @@ function RiskRegister() {
                   const effBarColor = avgEff===null?'#94A3B8':avgEff>=70?'#22C55E':avgEff>=40?'#EAB308':'#EF4444';
                   const catClass = RISK_CAT_COLOR[r.category] ?? 'bg-slate-100 text-slate-600';
                   const bizImpact = getBusinessImpact(r.inherentScore);
+                  const isFocused = focusId && r.id === focusId;
                   return (
-                    <tr key={r.id} className="hover:bg-gray-50 transition-colors">
+                    <tr key={r.id}
+                      ref={isFocused ? focusRowRef : null}
+                      data-item-id={r.id}
+                      className={`transition-colors ${isFocused ? 'bg-amber-50 outline outline-2 outline-amber-400 outline-offset-[-2px]' : 'hover:bg-gray-50'}`}>
                       <td className="px-4 py-3.5 max-w-sm">
                         <div className="flex items-center gap-1.5 mb-0.5">
                           <span className="font-mono text-[10px] text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded">{r.id}</span>
@@ -3906,6 +4261,7 @@ function EvidenceLocker() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
   const [selectedCtrl, setSelectedCtrl] = useState(null);
+  const [lastSynced, setLastSynced] = useState(() => new Date(Date.now() - 6 * 3600000));
 
   const evByCtrl = controls.reduce((m,c)=>{m[c.id]=evidenceItems.filter(e=>e.controlId===c.id);return m;},{});
   const current  = evidenceItems.filter(e=>e.status==='Current').length;
@@ -3936,7 +4292,7 @@ function EvidenceLocker() {
       </div>
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm">
         <ModuleHeader title="Evidence Locker" subtitle={filteredControls.length+" controls"} search={search} setSearch={setSearch}
-          syncedAt="6h ago"
+          syncedAt={lastSynced} onRefresh={() => setLastSynced(new Date())}
           filters={
             <select value={statusFilter} onChange={e=>setStatusFilter(e.target.value)} className="px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none">
               {['All','Current','Expiring','Expired','Missing'].map(s=><option key={s}>{s}</option>)}
@@ -4524,8 +4880,11 @@ export default function GRCDashboard() {
     window.history.replaceState(null, '', window.location.pathname);
   };
 
-  const handleNavClick = (id) => {
+  const [focusId, setFocusId] = useState(null);
+
+  const handleNavClick = (id, itemId = null) => {
     setPage(id);
+    setFocusId(itemId);
     if (id !== 'leader-report') {
       setLeaderTeamId(null);
       window.history.replaceState(null, '', window.location.pathname);
@@ -4539,11 +4898,11 @@ export default function GRCDashboard() {
 
   const pageMap = {
     overview:       <Overview navigate={handleNavClick} />,
-    risks:          <RiskRegister />,
-    vulns:          <Vulnerabilities />,
-    incidents:      <Incidents />,
-    policy:         <PolicyModule />,
-    thirdparty:     <ThirdParty />,
+    risks:          <RiskRegister focusId={focusId} />,
+    vulns:          <Vulnerabilities focusId={focusId} />,
+    incidents:      <Incidents focusId={focusId} />,
+    policy:         <PolicyModule focusId={focusId} />,
+    thirdparty:     <ThirdParty focusId={focusId} />,
     alignment:      <ControlAlignment />,
     compliance:     <Compliance />,
     audits:         <AuditManagement />,

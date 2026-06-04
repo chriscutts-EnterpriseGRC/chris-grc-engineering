@@ -19,19 +19,32 @@ The Resilience Operations Dashboard is a three-layer system: a React frontend, a
 
 | Module | Description |
 |--------|-------------|
-| Overview | Resilience score ring, all control gaps by category, open risk register snapshot |
-| Risk Register | 5×5 heat matrix, inherent/residual scoring, response SLA, approval authority, workflow states |
-| Vulnerabilities | CVE register, CVSS scores, AI/LLM vulns, UCF control linkage |
-| Incidents | Active incidents, MTTR, AI data leaks, IR control effectiveness |
-| Policy | Policy library, overdue reviews, missing AI policies, document links |
-| Third Party | Vendor risk scores, contract expiry, AI vendor gaps |
-| Control Alignment | UCF crosswalk across 8 frameworks, OSCAL SSP export |
-| Compliance | Framework progress - SOC 2, ISO 27001, NIST CSF, GDPR, EU AI Act, ISO 42001 |
+| Overview | Resilience score ring, Alert Tray, Decisions Required Today (two-tile layout), AI control gaps, top risks — all items deep-link to source row |
+| Risk Register | 5×5 heat matrix, inherent/residual scoring, business impact bands, risk appetite, AI-flagged risks, CSV export |
+| Vulnerabilities | CVE register, VSRM priority bands (P0–P4), CVSS scores, predictive SLA breach alerts, AI/LLM vulns, CSV export |
+| Incidents | Active incidents, MTTR, AI data leaks, auto-triage severity classification |
+| Policy | Policy library, overdue reviews, missing AI policies, AI-assisted policy draft generation, live document links |
+| Third Party | Vendor risk scores, contract expiry, AI vendor gaps, DPA tracking |
+| Control Alignment | UCF crosswalk across 8 frameworks, gap analyser, OSCAL SSP export |
+| Compliance | Framework progress - SOC 2, ISO 27001, NIST CSF, GDPR, EU AI Act, ISO 42001 — per-framework gap analysis |
 | Audit Management | Audit schedule, readiness scores, scope, findings tracking |
-| Evidence Locker | Control evidence register, expiry tracking, upload history |
-| Scorecard | Per-team health %, Bronze/Silver/Gold/Platinum levels, leaderboard, achievement badges |
-| Monthly Report | Per-leader filtered report - controls, vulns, incidents, risks, actions. Shareable via `?leader=<id>` URL |
+| Evidence Locker | Control evidence register, expiry tracking, upload history, live sync status |
+| Scorecard | Per-team health %, Bronze/Silver/Gold/Platinum levels, leaderboard, achievement badges, AI risk narrative |
+| Leadership Decisions | Real-time decisions requiring CISO/Board sign-off; multi-step approval workflow engine; decision log (persisted); ServiceNow-compatible ref numbers, action notes, external ticket cross-reference |
+| Monthly Report | Per-leader filtered report — controls, vulns, incidents, risks, actions. Shareable via `?leader=<id>` URL |
 | Architecture | Signal pipeline, integration status, domain reviewer summary |
+
+**Frontend patterns:**
+
+| Pattern | Description |
+|---------|-------------|
+| `focusId` deep-link | `handleNavClick(page, itemId?)` stores `focusId` in root state; `ModuleTable` scrolls matching row into view via `requestAnimationFrame` and applies amber outline highlight; `RiskRegister` custom table implements same pattern with `useRef` + `useEffect` |
+| `ModuleTable` | Shared table component accepting `columns`, `rows`, `emptyMsg`, `focusId` — handles scroll/highlight for any focused item |
+| `ModuleHeader` | Accepts `syncedAt: Date` and `onRefresh: () => void`; renders relative time (`relativeTime()` helper, 60 s auto-tick) and Refresh button |
+| `localStorage` persistence | Three keys: `grc_decision_log` (array of decision records), `grc_workflows` (array of workflow objects), `grc_dismissed_alerts` (set of dismissed alert IDs) |
+| Workflow state machine | Draft → Pending → In Review → Approved/Rejected/Deferred; multi-step chains defined in `APPROVAL_CHAINS` constant; each step stores `status`, `actedAt`, and optional `note`; workflows carry `refNo` (WF-YYYYMM-NNN) and optional `externalRef` |
+| `downloadCSV` | `Blob` → anchor click pattern; headers and rows passed as arrays; used by Vulnerabilities and Risk Register export buttons |
+| `relativeTime(date)` | Computes human-readable relative time from a `Date` object; returns `just now` / `Xm ago` / `Xh ago` / `Xd ago` |
 
 ### 2. Backend - Supabase (PostgreSQL)
 

@@ -8,20 +8,28 @@ A central risk reporting platform for **Risk, Vulnerabilities, Incidents, Policy
 
 | Module | What it tracks | Control layer |
 |---|---|---|
-| **Risk Register** | Inherent risk scores (likelihood × impact), treatment plans, risk appetite, linked controls | Cross-module - links to vulns, incidents, policy, vendors |
-| **Vulnerabilities** | CVE register, CVSS scores, AI/LLM vulns | UCF.03.02 Patch Mgmt, UCF.AI.03 AI Security |
-| **Incidents** | Active incidents, MTTR, AI data leaks | UCF.04.01 IR Plan, UCF.AI.05 AI IR |
-| **Policy** | Policy library, overdue reviews, missing AI policies, live document links | UCF.07.01 Policy Review, UCF.AI.01–02 |
-| **Third Party** | Vendor risk scores, contracts, AI vendor gaps | UCF.06.01 TP Assessment, UCF.AI.04 |
-| **Control Alignment** | 25 controls cross-mapped to all frameworks | SOC 2, ISO 27001, NIST, GDPR, PCI DSS, EU AI Act |
-| **Compliance** | Framework coverage - including EU AI Act & ISO 42001 | Per-framework progress and gap analysis |
+| **Overview** | Resilience Score (0–100), Alert Tray, Decisions Required Today, AI control gaps, top risks — all items deep-link to the exact row they reference | Cross-module |
+| **Risk Register** | Inherent/residual scoring (likelihood × impact), business impact bands, risk appetite, treatment plans, AI-flagged risks — CSV export | Cross-module |
+| **Vulnerabilities** | CVE register, VSRM priority bands (P0–P4), CVSS scores, SLA tracking, AI/LLM vulns, predictive SLA breach alerts — CSV export | UCF.03.02 Patch Mgmt, UCF.AI.03 AI Security |
+| **Incidents** | Active incidents, MTTR, AI data leaks, auto-triage severity classification | UCF.04.01 IR Plan, UCF.AI.05 AI IR |
+| **Policy** | Policy library, overdue reviews, missing AI policies, AI-assisted policy draft generation, live document links | UCF.07.01 Policy Review, UCF.AI.01–02 |
+| **Third Party** | Vendor risk scores, contracts, AI vendor gaps, DPA tracking | UCF.06.01 TP Assessment, UCF.AI.04 |
+| **Control Alignment** | 25 UCF controls cross-mapped to all frameworks, gap analyser | SOC 2, ISO 27001, NIST, GDPR, PCI DSS, EU AI Act |
+| **Compliance** | Framework progress including EU AI Act & ISO 42001, gap analysis per framework | Per-framework progress |
 | **Audit Management** | Active audits, readiness scores, scope and timeline tracking | All frameworks |
-| **Evidence Locker** | Control evidence register, expiry tracking, upload history | Linked to UCF controls |
-| **Scorecard** | Per-team health scores, gamification, leaderboard | Leadership visibility |
-| **Monthly Report** | Per-leader monthly GRC report | Director / VP views |
-| **Architecture** | Signal pipeline, domain reviewers, integrations | Live status per stage |
+| **Evidence Locker** | Control evidence register, expiry tracking, upload history, live sync status | Linked to UCF controls |
+| **Scorecard** | Per-team health scores, gamification, leaderboard, AI risk narrative summary | Leadership visibility |
+| **Leadership Decisions** | Real-time decisions requiring CISO/Board sign-off, approval workflow engine with multi-step chains, decision log (persisted), ServiceNow-compatible ticket ref numbers and action notes | CISO / Board |
+| **Monthly Report** | Per-leader monthly GRC report, filterable by team | Director / VP views |
+| **Architecture** | Signal pipeline, domain reviewers, integrations, live status per stage | Operational |
 
-The **Overview** page shows a composite Resilience Score (0–100), surfaces AI control gaps, shows the top open risks, and lets you click through to any module directly.
+### Key capabilities
+
+- **Deep-link navigation** — every alert, decision, and AI insight links directly to its source row (scroll + highlight)
+- **Approval workflow engine** — route any leadership decision through a configurable multi-step chain (CISO Only, P0 Escalation, EU AI Act Budget, Legal/DPA, Risk Acceptance, Resource Decision); workflows persist across sessions with auto-generated reference numbers (`WF-YYYYMM-NNN`), action notes, and optional external ticket cross-reference (ServiceNow/Jira)
+- **CSV export** — one-click export for Risk Register and Vulnerabilities
+- **Live sync status** — each module shows relative last-synced time with a manual Refresh button
+- **localStorage persistence** — decision log, workflow state, and dismissed alerts survive page refresh
 
 ---
 

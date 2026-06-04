@@ -20,6 +20,53 @@ All notable changes follow the format from [Keep a Changelog](https://keepachang
 
 ---
 
+## [0.7.0] — 2026-06-04
+
+### Added
+
+- **Leadership approval workflow engine.** Route any decision through a configurable multi-step approval chain (CISO Only, P0 Escalation, EU AI Act Budget, Legal/DPA, Risk Acceptance, Resource Decision). Workflow state persists to `localStorage` (`grc_workflows` key) and survives page refresh. State machine: Draft → Pending → In Review → Approved/Rejected/Deferred across each chain step.
+
+- **ServiceNow-parity workflow enhancements:**
+  - Auto-generated reference numbers (`WF-YYYYMM-NNN`) displayed as monospace badges on every in-flight workflow — suitable for cross-referencing in meetings, email, and audit trails.
+  - Inline action notes — clicking Approve/Reject/Defer reveals an optional textarea for reviewer rationale before the action is committed; notes stored per step and shown as a tooltip indicator (`✎`) on the step chain.
+  - External ticket cross-reference field in the Route modal — paste a ServiceNow, Jira, or other ticketing system reference (`INC-12345`, `RISK-678`); stored on the workflow object and displayed in violet monospace alongside routing metadata.
+
+- **Decision Log persistence.** Approve/Reject/Defer actions from the Leadership Decisions panel are recorded to `localStorage` (`grc_decision_log`) and survive reload. Decision log displays actor, timestamp, and action with a Clear button.
+
+- **Deep-link navigation.** Every alert, AI insight, and decision item navigates to its exact source row in the relevant module. `ModuleTable` accepts a `focusId` prop; matching rows scroll into view and receive an amber outline highlight via `requestAnimationFrame`. `RiskRegister` (custom table) implements the same pattern with `useRef` + `useEffect`.
+
+- **Alert Tray + Decisions Required Today — two-tile layout.** Overview page renders both tiles side-by-side (equal columns, `lg:grid-cols-2`). All items are actionable buttons; dismiss uses `e.stopPropagation()` to avoid triggering navigation.
+
+- **CSV export.** One-click browser download for:
+  - Vulnerabilities: ID, title, CVE, priority, status, SLA due, assignee, environment, control.
+  - Risk Register: ID, title, category, inherent/residual scores, appetite, status, owner, review date, AI flag.
+
+- **Live sync status.** Each module (`Vulnerabilities`, `Incidents`, `Policy`, `ThirdParty`, `RiskRegister`, `EvidenceLocker`) tracks a `lastSynced` Date in state. `ModuleHeader` shows relative time (`just now`, `5m ago`, `2h ago`) via `relativeTime()` helper, auto-ticking on a 60 s interval. A Refresh button calls `setLastSynced(new Date())`.
+
+- **Predictive SLA breach alerts.** Vulnerabilities with SLA due within 48 hours surface in the Alert Tray and deep-link to the specific row.
+
+- **Business Impact Bands.** Risk Register rows display a colour-coded business impact band alongside inherent/residual scores.
+
+- **AI Copilot.** Contextual AI insights surfaced on Overview, Risk Register, and Compliance modules — each with a navigate-and-focus action.
+
+- **Incident auto-triage.** Incidents panel includes AI-assisted severity classification for new or unclassified incidents.
+
+- **AI-assisted policy draft generation.** Policy module exposes a "Draft with AI" action for overdue or missing policies.
+
+- **Gap Analyser.** Compliance module includes a per-framework gap analysis view.
+
+- **Risk Narrative.** Scorecard AI narrative summarises program risk posture in plain language for leadership briefings.
+
+### Changed
+
+- **`ModuleHeader`** — extended with `syncedAt: Date` and `onRefresh: () => void` props; renders relative time and Refresh button when provided.
+- **`ModuleTable`** — extended with `focusId` prop; matching row scrolls into view and receives amber outline highlight.
+- **`handleNavClick`** — extended to `(page, itemId?)` signature; stores `focusId` in root state; threads to all five section components.
+- **`AlertTray`** — rewritten from `<div>` list to `<button>` rows with `navigate` prop; amber header; always expanded on Overview.
+- **Overview layout** — Decisions Required Today and Alert Tray rendered as equal side-by-side tiles.
+
+---
+
 ## [0.5.0] — 2026-06-01
 
 ### Added
