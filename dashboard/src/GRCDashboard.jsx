@@ -346,6 +346,15 @@ function ControlCell({ controlId }) {
   );
 }
 
+function relativeTime(date) {
+  const mins = Math.floor((Date.now() - date) / 60000);
+  if (mins < 1) return 'just now';
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  return `${Math.floor(hrs / 24)}d ago`;
+}
+
 function Sparkline({ data, color = '#3B82F6', width = 60, height = 24 }) {
   return (
     <ResponsiveContainer width={width} height={height}>
@@ -534,7 +543,14 @@ function ModuleTable({ columns, rows, emptyMsg = 'No items found', focusId }) {
   );
 }
 
-function ModuleHeader({ title, subtitle, search, setSearch, filters, extra, syncedAt }) {
+function ModuleHeader({ title, subtitle, search, setSearch, filters, extra, syncedAt, onRefresh }) {
+  const [, tick] = useState(0);
+  useEffect(() => {
+    if (!syncedAt) return;
+    const t = setInterval(() => tick(n => n + 1), 60000);
+    return () => clearInterval(t);
+  }, [syncedAt]);
+
   return (
     <div className="p-5 border-b border-gray-100">
       <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
@@ -544,8 +560,8 @@ function ModuleHeader({ title, subtitle, search, setSearch, filters, extra, sync
           {syncedAt && (
             <p className="text-[10px] text-gray-400 mt-0.5 flex items-center gap-1">
               <RefreshCw size={9} />
-              Synced {syncedAt}
-              <button className="text-blue-400 hover:text-blue-600 ml-1 underline">Refresh</button>
+              Synced {relativeTime(syncedAt)}
+              {onRefresh && <button onClick={onRefresh} className="text-blue-400 hover:text-blue-600 ml-1 underline">Refresh</button>}
             </p>
           )}
         </div>
@@ -1101,6 +1117,7 @@ function Vulnerabilities({ focusId }) {
   const [priorityFilter, setPriorityFilter] = useState('All');
   const [showAI, setShowAI] = useState(false);
   const [showEOL, setShowEOL] = useState(false);
+  const [lastSynced, setLastSynced] = useState(() => new Date(Date.now() - 2 * 3600000));
   const [tableExpanded, setTableExpanded] = useState(false);
 
   useEffect(() => {
@@ -1344,7 +1361,8 @@ function Vulnerabilities({ focusId }) {
           subtitle={`${data.length} vulnerabilities · Priority scored P0–P4 (VSRM)`}
           search={search}
           setSearch={setSearch}
-          syncedAt="2h ago"
+          syncedAt={lastSynced}
+          onRefresh={() => setLastSynced(new Date())}
           filters={<>
             <select value={priorityFilter} onChange={e => setPriorityFilter(e.target.value)} className="px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none">
               {['All','P0','P1','P2','P3','P4'].map(p => <option key={p}>{p}</option>)}
@@ -1446,6 +1464,7 @@ function Incidents({ focusId }) {
   const [statusFilter, setStatusFilter] = useState('All');
   const [showAI, setShowAI] = useState(false);
   const [triageIncident, setTriageIncident] = useState(null);
+  const [lastSynced, setLastSynced] = useState(() => new Date(Date.now() - 45 * 60000));
 
   useEffect(() => {
     if (focusId) { setStatusFilter('All'); setSearch(''); setShowAI(false); }
@@ -1518,7 +1537,8 @@ function Incidents({ focusId }) {
 
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm">
         <ModuleHeader title="Incident Register" subtitle={`${data.length} incidents`} search={search} setSearch={setSearch}
-          syncedAt="45m ago"
+          syncedAt={lastSynced}
+          onRefresh={() => setLastSynced(new Date())}
           filters={<>
             <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className="px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none">
               {['All','Open','Investigating','Contained','Resolved'].map(s => <option key={s}>{s}</option>)}
@@ -1698,6 +1718,7 @@ function PolicyModule({ focusId }) {
   const [statusFilter, setStatusFilter] = useState('All');
   const [showAI, setShowAI] = useState(false);
   const [draftPolicy, setDraftPolicy] = useState(null);
+  const [lastSynced, setLastSynced] = useState(() => new Date(Date.now() - 24 * 3600000));
 
   useEffect(() => {
     if (focusId) { setStatusFilter('All'); setSearch(''); setShowAI(false); }
@@ -1764,7 +1785,8 @@ function PolicyModule({ focusId }) {
 
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm">
         <ModuleHeader title="Policy Library" subtitle={`${data.length} policies`} search={search} setSearch={setSearch}
-          syncedAt="1d ago"
+          syncedAt={lastSynced}
+          onRefresh={() => setLastSynced(new Date())}
           filters={<>
             <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className="px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none">
               {['All','Current','Due for Review','Overdue','Missing'].map(s => <option key={s}>{s}</option>)}
@@ -1836,6 +1858,7 @@ function ThirdParty({ focusId }) {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
   const [showAI, setShowAI] = useState(false);
+  const [lastSynced, setLastSynced] = useState(() => new Date(Date.now() - 3 * 3600000));
 
   useEffect(() => {
     if (focusId) { setStatusFilter('All'); setSearch(''); setShowAI(false); }
@@ -1896,7 +1919,8 @@ function ThirdParty({ focusId }) {
 
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm">
         <ModuleHeader title="Third Party Register" subtitle={`${data.length} vendors`} search={search} setSearch={setSearch}
-          syncedAt="3h ago"
+          syncedAt={lastSynced}
+          onRefresh={() => setLastSynced(new Date())}
           filters={<>
             <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className="px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none">
               {['All','Compliant','Review Pending','Questionnaire Overdue','SLA Breach','No Contract'].map(s => <option key={s}>{s}</option>)}
@@ -2219,15 +2243,26 @@ function Scorecard({ onViewReport }) {
   const { controls, vulns, incidents, vendors } = useGRCData();
   const ctrlMap = Object.fromEntries(controls.map(c => [c.id, c]));
   const [expanded, setExpanded] = useState(null);
-  const [decisionLog, setDecisionLog] = useState([]);
+  const [decisionLog, setDecisionLog] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('grc_decision_log') || '[]'); } catch { return []; }
+  });
 
   const logDecision = (decision, action) => {
-    setDecisionLog(prev => [...prev, {
-      id: decision.title,
-      action,
-      timestamp: new Date().toLocaleString(),
-      actor: 'CISO',
-    }]);
+    setDecisionLog(prev => {
+      const next = [...prev, {
+        id: decision.title,
+        action,
+        timestamp: new Date().toLocaleString(),
+        actor: 'CISO',
+      }];
+      localStorage.setItem('grc_decision_log', JSON.stringify(next));
+      return next;
+    });
+  };
+
+  const clearDecisionLog = () => {
+    setDecisionLog([]);
+    localStorage.removeItem('grc_decision_log');
   };
 
   const teamStats = teams.map(team => {
@@ -2373,11 +2408,14 @@ function Scorecard({ onViewReport }) {
       {/* Decision Log */}
       {decisionLog.length > 0 && (
         <div className="bg-white rounded-xl border border-gray-100 p-5 shadow-sm">
-          <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
-            <CheckSquare size={15} className="text-green-600" />
-            Decision Log
-            <span className="text-xs text-gray-400 font-normal ml-1">{decisionLog.length} recorded</span>
-          </h3>
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="font-semibold text-gray-900 flex items-center gap-2">
+              <CheckSquare size={15} className="text-green-600" />
+              Decision Log
+              <span className="text-xs text-gray-400 font-normal">{decisionLog.length} recorded · persisted</span>
+            </h3>
+            <button onClick={clearDecisionLog} className="text-xs text-gray-400 hover:text-red-500 transition-colors">Clear</button>
+          </div>
           <div className="space-y-2">
             {[...decisionLog].reverse().map((d, i) => (
               <div key={i} className="flex items-center gap-3 text-sm">
@@ -3640,6 +3678,7 @@ function RiskRegister({ focusId }) {
   const [activeView, setActiveView] = useState('register');
   const [showRiskNarrative, setShowRiskNarrative] = useState(false);
   const focusRowRef = useRef(null);
+  const [lastSynced, setLastSynced] = useState(() => new Date(Date.now() - 2 * 3600000));
 
   useEffect(() => {
     if (focusId) { setCatFilter('All'); setSearch(''); setShowAI(false); setActiveView('register'); }
@@ -3772,7 +3811,7 @@ function RiskRegister({ focusId }) {
       {activeView==='matrix' ? <HeatMatrix /> : (
         <div className="bg-white rounded-xl border border-gray-100 shadow-sm">
           <ModuleHeader title="Risk Register" subtitle={filtered.length+" risks"} search={search} setSearch={setSearch}
-            syncedAt="2h ago"
+            syncedAt={lastSynced} onRefresh={() => setLastSynced(new Date())}
             filters={<>
               <select value={catFilter} onChange={e=>setCatFilter(e.target.value)} className="px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none">
                 {categories.map(c=><option key={c}>{c}</option>)}
@@ -3982,6 +4021,7 @@ function EvidenceLocker() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
   const [selectedCtrl, setSelectedCtrl] = useState(null);
+  const [lastSynced, setLastSynced] = useState(() => new Date(Date.now() - 6 * 3600000));
 
   const evByCtrl = controls.reduce((m,c)=>{m[c.id]=evidenceItems.filter(e=>e.controlId===c.id);return m;},{});
   const current  = evidenceItems.filter(e=>e.status==='Current').length;
@@ -4012,7 +4052,7 @@ function EvidenceLocker() {
       </div>
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm">
         <ModuleHeader title="Evidence Locker" subtitle={filteredControls.length+" controls"} search={search} setSearch={setSearch}
-          syncedAt="6h ago"
+          syncedAt={lastSynced} onRefresh={() => setLastSynced(new Date())}
           filters={
             <select value={statusFilter} onChange={e=>setStatusFilter(e.target.value)} className="px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none">
               {['All','Current','Expiring','Expired','Missing'].map(s=><option key={s}>{s}</option>)}
