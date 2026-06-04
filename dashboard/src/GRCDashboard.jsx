@@ -2284,6 +2284,8 @@ function Scorecard({ onViewReport }) {
     const d = new Date(); d.setDate(d.getDate() + 3);
     return d.toISOString().slice(0, 10);
   });
+  const [routeExternalRef, setRouteExternalRef] = useState('');
+  const [actionNote, setActionNote] = useState({ wfId: null, action: null, text: '' });
 
   const saveWorkflows = (next) => {
     setWorkflows(next);
@@ -2292,27 +2294,33 @@ function Scorecard({ onViewReport }) {
 
   const routeForReview = (decision) => {
     const chain = APPROVAL_CHAINS[routeChain] ?? APPROVAL_CHAINS['CISO Only'];
+    const now = new Date();
+    const ym = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}`;
+    const refNo = `WF-${ym}-${String(workflows.length + 1).padStart(3, '0')}`;
     const wf = {
       id: `wf-${Date.now()}`,
+      refNo,
       itemTitle: decision.title,
       itemType: routeChain,
       urgency: decision.urgency,
       routedBy: 'You',
       routedAt: new Date().toLocaleString(),
       dueDate: routeDue,
-      steps: chain.map((s, idx) => ({ ...s, status: idx === 0 ? 'pending' : 'waiting', actedAt: null })),
+      externalRef: routeExternalRef.trim() || null,
+      steps: chain.map((s, idx) => ({ ...s, status: idx === 0 ? 'pending' : 'waiting', actedAt: null, note: null })),
       currentStep: 0,
       status: 'in_progress',
     };
     saveWorkflows([...workflows, wf]);
     setRouteModal(null);
+    setRouteExternalRef('');
   };
 
-  const advanceWorkflow = (wfId, action) => {
+  const advanceWorkflow = (wfId, action, note = '') => {
     const next = workflows.map(wf => {
       if (wf.id !== wfId) return wf;
       const steps = [...wf.steps];
-      steps[wf.currentStep] = { ...steps[wf.currentStep], status: action.toLowerCase(), actedAt: new Date().toLocaleString() };
+      steps[wf.currentStep] = { ...steps[wf.currentStep], status: action.toLowerCase(), actedAt: new Date().toLocaleString(), note: note.trim() || null };
       if (action === 'Approved' && wf.currentStep < steps.length - 1) {
         steps[wf.currentStep + 1] = { ...steps[wf.currentStep + 1], status: 'pending' };
         return { ...wf, steps, currentStep: wf.currentStep + 1, status: 'in_progress' };
@@ -2320,6 +2328,7 @@ function Scorecard({ onViewReport }) {
       return { ...wf, steps, status: action.toLowerCase() };
     });
     saveWorkflows(next);
+    setActionNote({ wfId: null, action: null, text: '' });
   };
 
   const dismissWorkflow = (wfId) => saveWorkflows(workflows.filter(w => w.id !== wfId));
@@ -2526,16 +2535,21 @@ function Scorecard({ onViewReport }) {
             {workflows.filter(w => w.status === 'in_progress').map(wf => {
               const current = wf.steps[wf.currentStep];
               const overdue = wf.dueDate && wf.dueDate < new Date().toISOString().slice(0,10);
+              const isActing = actionNote.wfId === wf.id;
               return (
                 <div key={wf.id} className="px-5 py-4">
-                  <div className="flex items-start justify-between gap-4 mb-3">
+                  <div className="flex items-start justify-between gap-4 mb-2">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-[10px] font-mono font-bold text-blue-600 bg-blue-50 border border-blue-200 px-1.5 py-0.5 rounded select-all">{wf.refNo || wf.id.slice(0,12)}</span>
                         <p className="text-sm font-semibold text-gray-900 leading-snug">{wf.itemTitle}</p>
                         <span className="text-[10px] font-bold px-1.5 py-0.5 bg-blue-50 text-blue-700 border border-blue-200 rounded">{wf.itemType}</span>
                         {overdue && <span className="text-[10px] font-bold px-1.5 py-0.5 bg-red-50 text-red-700 border border-red-200 rounded">OVERDUE</span>}
                       </div>
-                      <p className="text-xs text-gray-400 mt-0.5">Routed by {wf.routedBy} · {wf.routedAt} · Due {fmtDate(wf.dueDate)}</p>
+                      <p className="text-xs text-gray-400 mt-0.5">
+                        Routed by {wf.routedBy} · {wf.routedAt} · Due {fmtDate(wf.dueDate)}
+                        {wf.externalRef && <> · <span className="font-mono text-violet-600 font-semibold">{wf.externalRef}</span></>}
+                      </p>
                     </div>
                     <button onClick={() => dismissWorkflow(wf.id)} className="text-gray-300 hover:text-gray-500 flex-shrink-0"><X size={13} /></button>
                   </div>
@@ -2544,7 +2558,7 @@ function Scorecard({ onViewReport }) {
                     {wf.steps.map((step, idx) => (
                       <div key={idx} className="flex items-center gap-1">
                         {idx > 0 && <div className="w-4 h-px bg-gray-200 flex-shrink-0" />}
-                        <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${
+                        <span title={step.note ? `Note: ${step.note}` : undefined} className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${
                           step.status === 'approved'  ? 'bg-green-50 text-green-700 border-green-200' :
                           step.status === 'rejected'  ? 'bg-red-50 text-red-700 border-red-200' :
                           step.status === 'deferred'  ? 'bg-gray-50 text-gray-500 border-gray-200' :
@@ -2553,27 +2567,60 @@ function Scorecard({ onViewReport }) {
                         }`}>
                           {step.label}
                           {step.status !== 'waiting' && step.status !== 'pending' && ` · ${step.status}`}
+                          {step.note && ' ✎'}
                         </span>
                       </div>
                     ))}
                   </div>
-                  {/* Action buttons for current step */}
+                  {/* Action area for current step */}
                   {current?.status === 'pending' && (
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs text-gray-500 font-medium">Awaiting {current.role}:</span>
-                      <button onClick={() => advanceWorkflow(wf.id, 'Approved')}
-                        className="px-2.5 py-1 bg-green-600 text-white text-xs font-semibold rounded hover:bg-green-700 transition-colors">
-                        Approve
-                      </button>
-                      <button onClick={() => advanceWorkflow(wf.id, 'Rejected')}
-                        className="px-2.5 py-1 bg-red-100 text-red-700 text-xs font-semibold rounded hover:bg-red-200 transition-colors">
-                        Reject
-                      </button>
-                      <button onClick={() => advanceWorkflow(wf.id, 'Deferred')}
-                        className="px-2.5 py-1 bg-gray-100 text-gray-600 text-xs font-semibold rounded hover:bg-gray-200 transition-colors">
-                        Defer
-                      </button>
-                    </div>
+                    isActing ? (
+                      <div className="bg-gray-50 rounded-lg p-3 space-y-2">
+                        <p className="text-xs font-semibold text-gray-700">
+                          {actionNote.action} — add a note <span className="font-normal text-gray-400">(optional)</span>
+                        </p>
+                        <textarea
+                          autoFocus
+                          value={actionNote.text}
+                          onChange={e => setActionNote(n => ({ ...n, text: e.target.value }))}
+                          placeholder="Reason, conditions, or context…"
+                          rows={2}
+                          className="w-full px-2.5 py-1.5 text-xs border border-gray-200 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-400"
+                        />
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => advanceWorkflow(wf.id, actionNote.action, actionNote.text)}
+                            className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors ${
+                              actionNote.action === 'Approved' ? 'bg-green-600 text-white hover:bg-green-700' :
+                              actionNote.action === 'Rejected' ? 'bg-red-600 text-white hover:bg-red-700' :
+                              'bg-gray-600 text-white hover:bg-gray-700'
+                            }`}>
+                            Confirm {actionNote.action}
+                          </button>
+                          <button
+                            onClick={() => setActionNote({ wfId: null, action: null, text: '' })}
+                            className="px-3 py-1.5 text-xs font-semibold text-gray-500 bg-white border border-gray-200 rounded-lg hover:bg-gray-50">
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-gray-500 font-medium">Awaiting {current.role}:</span>
+                        <button onClick={() => setActionNote({ wfId: wf.id, action: 'Approved', text: '' })}
+                          className="px-2.5 py-1 bg-green-600 text-white text-xs font-semibold rounded hover:bg-green-700 transition-colors">
+                          Approve
+                        </button>
+                        <button onClick={() => setActionNote({ wfId: wf.id, action: 'Rejected', text: '' })}
+                          className="px-2.5 py-1 bg-red-100 text-red-700 text-xs font-semibold rounded hover:bg-red-200 transition-colors">
+                          Reject
+                        </button>
+                        <button onClick={() => setActionNote({ wfId: wf.id, action: 'Deferred', text: '' })}
+                          className="px-2.5 py-1 bg-gray-100 text-gray-600 text-xs font-semibold rounded hover:bg-gray-200 transition-colors">
+                          Defer
+                        </button>
+                      </div>
+                    )
                   )}
                 </div>
               );
@@ -2620,6 +2667,12 @@ function Scorecard({ onViewReport }) {
                 <label className="text-xs font-semibold text-gray-600 uppercase tracking-wider mb-1.5 block">Due Date</label>
                 <input type="date" value={routeDue} onChange={e => setRouteDue(e.target.value)}
                   className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-400" />
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-gray-600 uppercase tracking-wider mb-1.5 block">External Ticket Ref <span className="font-normal text-gray-400 normal-case tracking-normal">(optional)</span></label>
+                <input type="text" value={routeExternalRef} onChange={e => setRouteExternalRef(e.target.value)}
+                  placeholder="e.g. INC-12345 or RISK-678 or JIRA-90"
+                  className="w-full px-3 py-2 text-sm font-mono border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-200 focus:border-violet-400 placeholder:font-sans placeholder:text-gray-400" />
               </div>
               <div className="bg-blue-50 rounded-lg px-3 py-2">
                 <p className="text-xs text-blue-700 font-medium">Chain: {APPROVAL_CHAINS[routeChain]?.map(s => s.label).join(' → ')}</p>
