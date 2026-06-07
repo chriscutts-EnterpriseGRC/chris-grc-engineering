@@ -11,6 +11,7 @@ import {
 import { api } from './lib/api';
 import { isLive } from './lib/supabase';
 import { daysFromToday, PRIORITY_NAMES, PRIORITY_COLOR, SLA_DAYS } from './lib/vsrm';
+import brand from './lib/brand';
 
 // ─── Data Context ─────────────────────────────────────────────────────────────
 const DataContext = createContext(null);
@@ -3158,7 +3159,7 @@ function ControlAlignment() {
         uuid: crypto.randomUUID(),
         metadata: { title: "chris-grc-engineering SSP", version: "1.0", "last-modified": new Date().toISOString() },
         "system-characteristics": {
-          "system-name": "Resilience Operations Platform",
+          "system-name": brand.name,
           description: "GRC dashboard and control management system.",
           "security-sensitivity-level": "moderate",
         },
@@ -4925,7 +4926,7 @@ export default function GRCDashboard() {
       `}>
         <div className="flex items-center gap-3 px-4 py-5 border-b border-slate-800 flex-shrink-0">
           <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center flex-shrink-0"><Shield size={16} className="text-white" /></div>
-          {(!sidebarCollapsed || sidebarOpen) && <div className="min-w-0"><p className="text-white font-semibold text-sm leading-tight truncate">Resilience Ops</p><p className="text-slate-400 text-xs truncate">GRC Platform</p></div>}
+          {(!sidebarCollapsed || sidebarOpen) && <div className="min-w-0"><p className="text-white font-semibold text-sm leading-tight truncate">{brand.tagline}</p><p className="text-slate-400 text-xs truncate">{brand.subtitle}</p></div>}
         </div>
         <nav className="flex-1 px-2 py-4 overflow-y-auto">
           {navGroups.map(group => (
