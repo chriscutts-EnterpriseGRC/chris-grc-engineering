@@ -4800,7 +4800,8 @@ export default function GRCDashboard() {
   const urlParam       = new URLSearchParams(window.location.search).get('leader');
   const [page, setPage]           = useState('overview');
   const [leaderTeamId, setLeaderTeamId] = useState(urlParam ?? null);
-  const [sidebarOpen, setSidebarOpen]   = useState(true);
+  const [sidebarOpen, setSidebarOpen]   = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [liveData, setLiveData]         = useState(null);
   const [dataLoading, setDataLoading]   = useState(isLive);
 
@@ -4908,43 +4909,66 @@ export default function GRCDashboard() {
   return (
     <DataContext.Provider value={liveData}>
     <div className="flex h-screen bg-gray-50 font-sans overflow-hidden">
-      <aside className={`${sidebarOpen?'w-56':'w-16'} flex-shrink-0 bg-slate-900 flex flex-col transition-all duration-200`}>
-        <div className="flex items-center gap-3 px-4 py-5 border-b border-slate-800">
+
+      {/* Mobile backdrop */}
+      {sidebarOpen && (
+        <div className="fixed inset-0 bg-black/50 z-40 lg:hidden" onClick={() => setSidebarOpen(false)} />
+      )}
+
+      {/* Sidebar — overlay on mobile, flex item on desktop */}
+      <aside className={`
+        fixed inset-y-0 left-0 z-50 flex flex-col bg-slate-900 transition-all duration-200
+        lg:relative lg:translate-x-0 lg:z-auto
+        ${sidebarOpen ? 'translate-x-0 w-64' : '-translate-x-full'}
+        ${!sidebarOpen ? 'lg:flex' : ''}
+        ${sidebarCollapsed ? 'lg:w-16' : 'lg:w-56'}
+      `}>
+        <div className="flex items-center gap-3 px-4 py-5 border-b border-slate-800 flex-shrink-0">
           <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center flex-shrink-0"><Shield size={16} className="text-white" /></div>
-          {sidebarOpen && <div className="min-w-0"><p className="text-white font-semibold text-sm leading-tight truncate">Resilience Ops</p><p className="text-slate-400 text-xs truncate">GRC Platform</p></div>}
+          {(!sidebarCollapsed || sidebarOpen) && <div className="min-w-0"><p className="text-white font-semibold text-sm leading-tight truncate">Resilience Ops</p><p className="text-slate-400 text-xs truncate">GRC Platform</p></div>}
         </div>
         <nav className="flex-1 px-2 py-4 overflow-y-auto">
           {navGroups.map(group => (
             <div key={group.label} className="mb-4">
-              {sidebarOpen && <p className="px-3 py-1 text-xs font-semibold text-slate-500 uppercase tracking-wider">{group.label}</p>}
+              {(!sidebarCollapsed || sidebarOpen) && <p className="px-3 py-1 text-xs font-semibold text-slate-500 uppercase tracking-wider">{group.label}</p>}
               <div className="space-y-0.5">
                 {group.items.map(({ id, label, icon: Icon }) => (
-                  <button key={id} onClick={() => handleNavClick(id)}
+                  <button key={id} onClick={() => { handleNavClick(id); setSidebarOpen(false); }}
                     className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${page===id?'bg-blue-600 text-white':'text-slate-400 hover:bg-slate-800 hover:text-white'}`}>
                     <Icon size={15} className="flex-shrink-0" />
-                    {sidebarOpen && <span>{label}</span>}
+                    {(!sidebarCollapsed || sidebarOpen) && <span>{label}</span>}
                   </button>
                 ))}
               </div>
             </div>
           ))}
         </nav>
-        <div className="px-2 py-4 border-t border-slate-800 space-y-0.5">
-          <button className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-slate-400 hover:bg-slate-800 hover:text-white transition-colors"><Settings size={15} className="flex-shrink-0" />{sidebarOpen&&<span>Settings</span>}</button>
-          <button onClick={() => setSidebarOpen(o => !o)} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-slate-400 hover:bg-slate-800 hover:text-white transition-colors"><Menu size={15} className="flex-shrink-0" />{sidebarOpen&&<span>Collapse</span>}</button>
+        <div className="px-2 py-4 border-t border-slate-800 space-y-0.5 flex-shrink-0">
+          <button className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-slate-400 hover:bg-slate-800 hover:text-white transition-colors">
+            <Settings size={15} className="flex-shrink-0" />{(!sidebarCollapsed || sidebarOpen) && <span>Settings</span>}
+          </button>
+          <button onClick={() => setSidebarCollapsed(c => !c)} className="hidden lg:flex w-full items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-slate-400 hover:bg-slate-800 hover:text-white transition-colors">
+            <Menu size={15} className="flex-shrink-0" />{!sidebarCollapsed && <span>Collapse</span>}
+          </button>
         </div>
       </aside>
 
+      {/* Main content */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        <header className="bg-white border-b border-gray-100 px-6 py-4 flex items-center justify-between flex-shrink-0">
-          <div>
-            <h1 className="font-semibold text-gray-900">{currentNav?.label}</h1>
-            <p className="text-xs text-gray-400">Last updated: {new Date().toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}</p>
+        <header className="bg-white border-b border-gray-100 px-4 lg:px-6 py-3 lg:py-4 flex items-center justify-between flex-shrink-0">
+          <div className="flex items-center gap-3 min-w-0">
+            <button onClick={() => setSidebarOpen(o => !o)} className="lg:hidden p-1.5 text-gray-500 hover:bg-gray-100 rounded-lg flex-shrink-0">
+              <Menu size={20} />
+            </button>
+            <div className="min-w-0">
+              <h1 className="font-semibold text-gray-900 text-sm lg:text-base truncate">{currentNav?.label}</h1>
+              <p className="text-xs text-gray-400 hidden sm:block">Last updated: {new Date().toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}</p>
+            </div>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 lg:gap-3 flex-shrink-0">
             {dataLoading
-              ? <span className="text-xs text-gray-400 animate-pulse">Connecting…</span>
-              : <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${liveData ? 'bg-emerald-50 text-emerald-700' : 'bg-blue-50 text-blue-600'}`}>{liveData ? '● Live' : '◉ Sample Data'}</span>
+              ? <span className="text-xs text-gray-400 animate-pulse hidden sm:block">Connecting…</span>
+              : <span className={`px-2 py-1 rounded-full text-xs font-semibold hidden sm:inline-flex ${liveData ? 'bg-emerald-50 text-emerald-700' : 'bg-blue-50 text-blue-600'}`}>{liveData ? '● Live' : '◉ Demo'}</span>
             }
             <button onClick={() => setCopilotOpen(o => !o)}
               className={`p-2 rounded-lg transition-colors ${copilotOpen ? 'bg-purple-100 text-purple-700' : 'hover:bg-gray-100 text-gray-400'}`}
@@ -4959,15 +4983,15 @@ export default function GRCDashboard() {
                 </span>
               )}
             </button>
-            <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center"><User size={14} className="text-white" /></div>
+            <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center flex-shrink-0"><User size={14} className="text-white" /></div>
           </div>
         </header>
-        <main className="flex-1 overflow-y-auto p-6">{pageMap[page]}</main>
+        <main className="flex-1 overflow-y-auto p-4 lg:p-6">{pageMap[page]}</main>
       </div>
 
       {/* AI Copilot Panel */}
       {copilotOpen && (
-        <div className="fixed right-0 top-0 h-full w-96 bg-white border-l border-gray-200 shadow-2xl z-50 flex flex-col">
+        <div className="fixed right-0 top-0 h-full w-full sm:w-96 bg-white border-l border-gray-200 shadow-2xl z-50 flex flex-col">
           {/* Header */}
           <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 bg-gradient-to-r from-purple-900 to-slate-900">
             <div className="flex items-center gap-2">
