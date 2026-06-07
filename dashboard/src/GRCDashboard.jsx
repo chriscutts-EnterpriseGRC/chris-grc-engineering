@@ -2236,8 +2236,6 @@ const APPROVAL_CHAINS = {
 function Scorecard({ onViewReport }) {
   const { controls, vulns, incidents, vendors } = useGRCData();
   const ctrlMap = Object.fromEntries(controls.map(c => [c.id, c]));
-  const [expanded, setExpanded] = useState(null);
-
   // Persisted decision log
   const [decisionLog, setDecisionLog] = useState(() => {
     try { return JSON.parse(localStorage.getItem('grc_decision_log') || '[]'); } catch { return []; }
@@ -2341,8 +2339,6 @@ function Scorecard({ onViewReport }) {
   const criticalTeams = teamStats.filter(t => t.health < 50).length;
   const totalGaps     = teamStats.reduce((s, t) => s + t.gaps, 0);
   const avgHealth     = Math.round(teamStats.reduce((s, t) => s + t.health, 0) / teamStats.length);
-  const healthColor   = (h) => h >= 80 ? 'text-emerald-600' : h >= 60 ? 'text-amber-500' : 'text-red-500';
-  const healthBorder  = (h) => h >= 80 ? 'border-emerald-200' : h >= 60 ? 'border-amber-200' : 'border-red-200';
 
   // Trend vs prior month
   const prevAvgHealth  = Math.round(Object.values(monthlyHistory).reduce((s, h) => s + (h[h.length - 2]?.health ?? 0), 0) / Object.values(monthlyHistory).length);
@@ -2748,7 +2744,6 @@ function Scorecard({ onViewReport }) {
           {sorted.map((team, rank) => {
             const Icon = team.icon;
             const lvl  = team.level;
-            const nextLvl = LEVELS[Math.min(LEVELS.indexOf(lvl) + 1, LEVELS.length - 1)];
             return (
               <div key={team.id} className="flex items-center gap-4 px-5 py-3 hover:bg-gray-50">
                 <span className="text-base font-bold text-gray-300 w-6 flex-shrink-0">#{rank + 1}</span>
@@ -2900,7 +2895,6 @@ function LeaderReport({ teamId: initialTeamId, onBack }) {
   const myVulns     = vulns.filter(v => owned.some(c => c.id === v.controlId) && v.status !== 'Patched');
   const myIncidents = incidents.filter(i => owned.some(c => c.id === i.controlId) && i.status !== 'Resolved');
   const myPolicies  = policies.filter(p => p.owner === team.lead);
-  const myVendors   = vendors.filter(v => owned.some(c => c.id === v.controlId));
   const myRisks     = risks.filter(r => r.owner === team.lead || owned.some(c => r.controlIds.includes(c.id)));
 
   const actions = [
@@ -3534,6 +3528,7 @@ const nistAIFunctions = [
   },
 ];
 
+// eslint-disable-next-line no-unused-vars
 function _AIGovernanceLegacy() {
   const { controls } = useGRCData();
   const ctrlMap = Object.fromEntries(controls.map(c => [c.id, c]));
