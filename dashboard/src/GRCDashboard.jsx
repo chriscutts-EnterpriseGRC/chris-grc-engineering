@@ -277,6 +277,26 @@ const risks = riskSeed.map(r => {
   return { ...r, inherentScore, residualScore, residualBand };
 });
 
+// ─── Risk ↔ linked-item maps (drives RiskDetailDrawer drill-down) ─────────────
+const RISK_VULN_MAP = {
+  'RISK-2026-0042': ['V-001','V-002','V-005','V-006','V-010'],
+  'RISK-2026-0043': ['V-003'],
+  'RISK-2026-0044': ['V-004','V-008','V-011'],
+  'RISK-2026-0045': ['V-004','V-008','V-009'],
+};
+const RISK_VENDOR_MAP = {
+  'RISK-2026-0042': ['TP-003'],
+  'RISK-2026-0043': ['TP-001','TP-002','TP-005','TP-006','TP-009'],
+  'RISK-2026-0044': ['TP-007','TP-008'],
+  'RISK-2026-0045': ['TP-007','TP-008'],
+};
+const RISK_POLICY_MAP = {
+  'RISK-2026-0042': ['POL-001','POL-003','POL-004','POL-006'],
+  'RISK-2026-0043': ['POL-002','POL-005'],
+  'RISK-2026-0044': ['POL-007','POL-008'],
+  'RISK-2026-0045': ['POL-007','POL-009'],
+};
+
 // ─── Audit Management Data ────────────────────────────────────────────────────
 const audits = [
   { id:'AUD-001', name:'CIS Docker Benchmark Assessment',          framework:'CIS Docker Benchmark', auditor:'Internal',        status:'In Progress',    startDate:'2026-06-01', endDate:'2026-06-30', readiness:52, scope:'Docker Engine, daemon config, host hardening',              color:'#059669' },
@@ -4016,6 +4036,9 @@ function RiskDetailDrawer({ risk: r, onClose }) {
   const reductionPct = r.inherentScore > 0 ? Math.round(((r.inherentScore - r.residualScore) / r.inherentScore) * 100) : 0;
   const headerBg = getRiskColor(r.inherentScore) + '08';
   const headerBorder = getRiskColor(r.inherentScore) + '25';
+  const linkedVulns    = (RISK_VULN_MAP[r.id]   || []).map(id => vulns.find(v => v.id === id)).filter(Boolean);
+  const linkedVendors  = (RISK_VENDOR_MAP[r.id]  || []).map(id => vendors.find(v => v.id === id)).filter(Boolean);
+  const linkedPolicies = (RISK_POLICY_MAP[r.id]  || []).map(id => policies.find(p => p.id === id)).filter(Boolean);
   return (
     <div className="fixed right-0 top-0 h-full w-[480px] max-w-[95vw] bg-white border-l border-gray-200 shadow-2xl z-50 flex flex-col">
       {/* Header */}
@@ -4130,6 +4153,78 @@ function RiskDetailDrawer({ risk: r, onClose }) {
                     <span className="text-[10px] text-red-600 font-medium">{c.requirement}</span>
                   </div>
                   <p className="text-[10px] text-red-800 leading-snug">{c.gap}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Linked Vulnerabilities */}
+        {linkedVulns.length > 0 && (
+          <div>
+            <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-2">Linked Vulnerabilities ({linkedVulns.length})</p>
+            <div className="space-y-1.5">
+              {linkedVulns.map(v => (
+                <div key={v.id} className={`p-3 rounded-lg border ${v.severity==='Critical'?'bg-red-50 border-red-200':v.severity==='High'?'bg-orange-50 border-orange-200':'bg-amber-50 border-amber-200'}`}>
+                  <div className="flex items-center justify-between mb-1.5 flex-wrap gap-1">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="font-mono text-[10px] bg-white/80 px-1.5 py-0.5 rounded border border-gray-200 text-gray-500">{v.id}</span>
+                      {v.cve && <span className="font-mono text-[10px] bg-blue-50 px-1.5 py-0.5 rounded border border-blue-200 text-blue-700">{v.cve}</span>}
+                      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${v.priority==='P0'?'bg-red-700 text-white':v.priority==='P1'?'bg-red-100 text-red-700':v.priority==='P2'?'bg-orange-100 text-orange-700':'bg-amber-100 text-amber-700'}`}>{v.priority}</span>
+                      {v.isCisaKev && <span className="text-[10px] bg-red-700 text-white px-1.5 py-0.5 rounded font-bold">KEV</span>}
+                      {v.eol && <span className="text-[10px] bg-gray-700 text-white px-1.5 py-0.5 rounded font-semibold">EoL</span>}
+                      {v.ai && <span className="text-[10px] bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded font-semibold">AI</span>}
+                    </div>
+                    <StatusBadge status={v.status} />
+                  </div>
+                  <p className="text-xs font-semibold text-gray-800 leading-snug">{v.title}</p>
+                  <p className="text-[10px] text-gray-500 mt-0.5">{v.asset} · CVSS {v.cvss ?? 'N/A'} · Due: {v.dueDate}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Linked Third-Party Vendors */}
+        {linkedVendors.length > 0 && (
+          <div>
+            <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-2">Third-Party Vendors ({linkedVendors.length})</p>
+            <div className="space-y-1.5">
+              {linkedVendors.map(v => (
+                <div key={v.id} className={`p-3 rounded-lg border ${v.riskScore>=70?'bg-red-50 border-red-200':v.riskScore>=50?'bg-orange-50 border-orange-200':'bg-gray-50 border-gray-100'}`}>
+                  <div className="flex items-center justify-between mb-1">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="font-mono text-[10px] bg-white/80 px-1.5 py-0.5 rounded border border-gray-200 text-gray-500">{v.id}</span>
+                      {v.ai && <span className="text-[10px] bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded font-semibold">AI</span>}
+                      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${v.status==='No Contract'?'bg-red-100 text-red-700':v.status==='Questionnaire Overdue'?'bg-orange-100 text-orange-700':v.status==='Review Pending'?'bg-amber-100 text-amber-700':'bg-green-100 text-green-700'}`}>{v.status}</span>
+                    </div>
+                    <span className={`text-sm font-bold ${v.riskScore>=70?'text-red-600':v.riskScore>=50?'text-orange-600':'text-green-600'}`}>{v.riskScore}</span>
+                  </div>
+                  <p className="text-xs font-semibold text-gray-800">{v.name}</p>
+                  <p className="text-[10px] text-gray-500 mt-0.5">{v.category} · Data shared: {v.dataShared}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Policy Coverage */}
+        {linkedPolicies.length > 0 && (
+          <div>
+            <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-2">Policy Coverage ({linkedPolicies.length})</p>
+            <div className="space-y-1.5">
+              {linkedPolicies.map(p => (
+                <div key={p.id} className={`p-3 rounded-lg border ${p.status==='Missing'?'bg-red-50 border-red-200':p.status==='Overdue'?'bg-orange-50 border-orange-200':p.status==='Due for Review'?'bg-amber-50 border-amber-200':'bg-gray-50 border-gray-100'}`}>
+                  <div className="flex items-center justify-between mb-1 flex-wrap gap-1">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="font-mono text-[10px] bg-white/80 px-1.5 py-0.5 rounded border border-gray-200 text-gray-500">{p.id}</span>
+                      {p.ai && <span className="text-[10px] bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded font-semibold">AI</span>}
+                      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${p.status==='Missing'?'bg-red-100 text-red-700':p.status==='Overdue'?'bg-orange-100 text-orange-700':p.status==='Due for Review'?'bg-amber-100 text-amber-700':'bg-green-100 text-green-700'}`}>{p.status}</span>
+                    </div>
+                    {p.exceptions > 0 && <span className="text-[10px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded font-semibold">{p.exceptions} exception{p.exceptions>1?'s':''}</span>}
+                  </div>
+                  <p className="text-xs font-semibold text-gray-800">{p.title}</p>
+                  <p className="text-[10px] text-gray-500 mt-0.5">{p.category} · Owner: {p.owner}{p.reviewDate?` · Review: ${p.reviewDate}`:' · No review date set'}</p>
                 </div>
               ))}
             </div>
@@ -4526,7 +4621,8 @@ function RiskRegister({ focusId }) {
                     <tr key={r.id}
                       ref={isFocused ? focusRowRef : null}
                       data-item-id={r.id}
-                      className={`transition-colors ${isFocused ? 'bg-amber-50 outline outline-2 outline-amber-400 outline-offset-[-2px]' : 'hover:bg-gray-50'}`}>
+                      onClick={() => openDetail(r)}
+                      className={`transition-colors cursor-pointer ${isFocused ? 'bg-amber-50 outline outline-2 outline-amber-400 outline-offset-[-2px]' : 'hover:bg-blue-50'}`}>
                       <td className="px-4 py-3.5 max-w-sm">
                         <div className="flex items-center gap-1.5 mb-0.5 flex-wrap">
                           <span className="font-mono text-[10px] text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded">{r.id}</span>
@@ -4586,9 +4682,9 @@ function RiskRegister({ focusId }) {
                         <p className="text-[10px] text-gray-400">{ACCEPT_AUTH[getRiskRating(r.inherentScore)]}</p>
                       </td>
                       <td className="px-4 py-3.5">
-                        <div className="flex gap-1.5">
-                          <button onClick={() => openDetail(r)} className="px-3 py-1 text-xs font-medium bg-slate-50 text-slate-600 rounded-lg hover:bg-slate-100 transition-colors whitespace-nowrap border border-slate-200">Detail</button>
-                          <button onClick={()=>setWorkflow(r)} className="px-3 py-1 text-xs font-medium bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors whitespace-nowrap">Actions</button>
+                        <div className="flex gap-1.5" onClick={e => e.stopPropagation()}>
+                          <button onClick={() => openDetail(r)} className="px-3 py-1 text-xs font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors whitespace-nowrap">Drill Down</button>
+                          <button onClick={()=>setWorkflow(r)} className="px-3 py-1 text-xs font-medium bg-slate-50 text-slate-600 rounded-lg hover:bg-slate-100 transition-colors whitespace-nowrap border border-slate-200">Actions</button>
                         </div>
                       </td>
                     </tr>
