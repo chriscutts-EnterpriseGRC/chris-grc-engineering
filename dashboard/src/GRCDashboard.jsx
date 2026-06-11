@@ -14,6 +14,10 @@ import { daysFromToday, PRIORITY_NAMES, PRIORITY_COLOR, SLA_DAYS } from './lib/v
 import brand from './lib/brand';
 import { riskSeed, computeHealthScore } from './data/riskRegister';
 
+// ─── Risk Detail Context ───────────────────────────────────────────────────────
+const RiskDetailContext = createContext(null);
+const useRiskDetail = () => useContext(RiskDetailContext);
+
 // ─── Data Context ─────────────────────────────────────────────────────────────
 const DataContext = createContext(null);
 
@@ -583,6 +587,7 @@ function ModuleHeader({ title, subtitle, search, setSearch, filters, extra, sync
 
 function Overview({ navigate }) {
   const { controls, vulns, incidents, policies, vendors } = useGRCData();
+  const openDetail = useRiskDetail();
   const [score, setScore] = useState(0);
   const healthScore = computeHealthScore(risks);
   useEffect(() => { const t = setTimeout(() => setScore(healthScore), 300); return () => clearTimeout(t); }, [healthScore]);
@@ -882,7 +887,7 @@ function Overview({ navigate }) {
         </div>
         <div className="divide-y divide-gray-50">
           {topRisks.map(r => (
-            <div key={r.id} className="flex items-center justify-between px-5 py-3.5 hover:bg-gray-50 transition-colors">
+            <div key={r.id} onClick={() => openDetail(r)} className="flex items-center justify-between px-5 py-3.5 hover:bg-blue-50 transition-colors cursor-pointer">
               <div className="flex items-center gap-3 min-w-0">
                 <div className="flex-shrink-0 w-9 text-center">
                   <p className="text-lg font-bold leading-none" style={{ color: getRiskColor(r.inherentScore) }}>{r.inherentScore}</p>
@@ -1087,6 +1092,7 @@ function SectionContext({ what, why, ask, askUrgency = 'normal' }) {
 
 function Vulnerabilities({ focusId }) {
   const { vulns, controls } = useGRCData();
+  const openDetail = useRiskDetail();
   const ctrlMap = Object.fromEntries(controls.map(c => [c.id, c]));
   const [search, setSearch] = useState('');
   const [priorityFilter, setPriorityFilter] = useState('All');
@@ -1159,7 +1165,7 @@ function Vulnerabilities({ focusId }) {
           </div>
           <div className="divide-y divide-gray-50">
             {vulnRisks.map(r => (
-              <div key={r.id} className="px-5 py-3 flex items-start gap-3">
+              <div key={r.id} onClick={() => openDetail(r)} className="px-5 py-3 flex items-start gap-3 cursor-pointer hover:bg-blue-50 transition-colors">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-0.5 flex-wrap">
                     <span className="font-mono text-[10px] text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded">{r.id}</span>
@@ -1473,6 +1479,7 @@ function Vulnerabilities({ focusId }) {
 
 function Incidents({ focusId }) {
   const { incidents, controls } = useGRCData();
+  const openDetail = useRiskDetail();
   const ctrlMap = Object.fromEntries(controls.map(c => [c.id, c]));
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
@@ -1563,7 +1570,7 @@ function Incidents({ focusId }) {
             </div>
             <div className="divide-y divide-gray-50">
               {escalatable.map(r => (
-                <div key={r.id} className="px-5 py-3 flex items-start gap-3">
+                <div key={r.id} onClick={() => openDetail(r)} className="px-5 py-3 flex items-start gap-3 cursor-pointer hover:bg-blue-50 transition-colors">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-0.5 flex-wrap">
                       <span className="font-mono text-[10px] text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded">{r.id}</span>
@@ -1758,6 +1765,7 @@ function PolicyDraftModal({ policy, onClose }) {
 }
 
 function PolicyModule({ focusId }) {
+  const openDetail = useRiskDetail();
   const { policies, controls } = useGRCData();
   const ctrlMap = Object.fromEntries(controls.map(c => [c.id, c]));
   const [search, setSearch] = useState('');
@@ -1812,7 +1820,7 @@ function PolicyModule({ focusId }) {
             </div>
             <div className="divide-y divide-gray-50">
               {aiGovRisks.map(r => (
-                <div key={r.id} className="px-5 py-3 flex items-start gap-3">
+                <div key={r.id} onClick={() => openDetail(r)} className="px-5 py-3 flex items-start gap-3 cursor-pointer hover:bg-blue-50 transition-colors">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-0.5 flex-wrap">
                       <span className="font-mono text-[10px] text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded">{r.id}</span>
@@ -1977,6 +1985,7 @@ function PolicyModule({ focusId }) {
 // ─── Third Party ──────────────────────────────────────────────────────────────
 
 function ThirdParty({ focusId }) {
+  const openDetail = useRiskDetail();
   const { vendors, controls } = useGRCData();
   const ctrlMap = Object.fromEntries(controls.map(c => [c.id, c]));
   const [search, setSearch] = useState('');
@@ -2026,7 +2035,7 @@ function ThirdParty({ focusId }) {
           </div>
           <div className="divide-y divide-gray-50">
             {scRisks.map(r => (
-              <div key={r.id} className="px-5 py-3 flex items-start gap-3">
+              <div key={r.id} onClick={() => openDetail(r)} className="px-5 py-3 flex items-start gap-3 cursor-pointer hover:bg-blue-50 transition-colors">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-0.5 flex-wrap">
                     <span className="font-mono text-[10px] text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded">{r.id}</span>
@@ -3334,6 +3343,7 @@ function LeaderReport({ teamId: initialTeamId, onBack }) {
 
 function ControlAlignment() {
   const { controls } = useGRCData();
+  const openDetail = useRiskDetail();
   const ctrlMap = Object.fromEntries(controls.map(c => [c.id, c]));
   const [activeFramework, setActiveFramework] = useState('ALL');
   const [activeNistFn, setActiveNistFn] = useState('GOVERN');
@@ -3635,7 +3645,7 @@ function ControlAlignment() {
                         {(() => {
                           const linked = risks.filter(r => r.controlIds.includes(ctrl.id));
                           return linked.length > 0
-                            ? <div className="flex gap-1 flex-wrap">{linked.map(r => <span key={r.id} className={`text-[10px] font-mono px-1.5 py-0.5 rounded border ${r.residualScore >= 12 ? 'bg-red-50 text-red-600 border-red-100' : 'bg-amber-50 text-amber-600 border-amber-100'}`}>{r.id}</span>)}</div>
+                            ? <div className="flex gap-1 flex-wrap">{linked.map(r => <span key={r.id} onClick={e => { e.stopPropagation(); openDetail(r); }} className={`text-[10px] font-mono px-1.5 py-0.5 rounded border cursor-pointer hover:opacity-75 transition-opacity ${r.residualScore >= 12 ? 'bg-red-50 text-red-600 border-red-100' : 'bg-amber-50 text-amber-600 border-amber-100'}`}>{r.id}</span>)}</div>
                             : <span className="text-xs text-gray-300">—</span>;
                         })()}
                       </td>
@@ -3993,6 +4003,141 @@ function _AIGovernanceLegacy() {
   );
 }
 
+// ─── Risk Detail Drawer ───────────────────────────────────────────────────────
+function RiskDetailDrawer({ risk: r, onClose }) {
+  const reductionPct = r.inherentScore > 0 ? Math.round(((r.inherentScore - r.residualScore) / r.inherentScore) * 100) : 0;
+  const headerBg = getRiskColor(r.inherentScore) + '08';
+  const headerBorder = getRiskColor(r.inherentScore) + '25';
+  return (
+    <div className="fixed right-0 top-0 h-full w-[480px] max-w-[95vw] bg-white border-l border-gray-200 shadow-2xl z-50 flex flex-col">
+      {/* Header */}
+      <div className="flex items-start justify-between px-6 py-5 border-b flex-shrink-0" style={{ background: headerBg, borderBottomColor: headerBorder }}>
+        <div className="flex-1 min-w-0 pr-4">
+          <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+            <span className="font-mono text-xs text-gray-500 bg-white/80 px-2 py-0.5 rounded border border-gray-200">{r.id}</span>
+            <span className="text-xs font-semibold px-2 py-0.5 rounded" style={{ background: getRiskColor(r.residualScore)+'20', color: getRiskColor(r.residualScore) }}>{getRiskRating(r.residualScore)} residual</span>
+            {r.ai && <span className="px-1.5 py-0.5 bg-purple-100 text-purple-700 text-xs rounded font-semibold">AI</span>}
+            {r.signalSource && <span className={`text-xs px-1.5 py-0.5 rounded font-semibold ${r.signalSource==='vulnerability'?'bg-red-100 text-red-700':r.signalSource==='supply_chain'?'bg-orange-100 text-orange-700':'bg-purple-100 text-purple-700'}`}>{r.signalSource.replace('_',' ')}</span>}
+          </div>
+          <h2 className="text-base font-semibold text-gray-900 leading-snug">{r.title}</h2>
+          <p className="text-xs text-gray-500 mt-1">{r.owner} · {r.category} · Review: {r.reviewDate}</p>
+        </div>
+        <button onClick={onClose} className="p-1 text-gray-400 hover:text-gray-700 flex-shrink-0 rounded-lg hover:bg-white/80 transition-colors"><X size={18} /></button>
+      </div>
+
+      {/* Scrollable body */}
+      <div className="flex-1 overflow-y-auto p-6 space-y-6">
+
+        {/* Score summary — 3 cells */}
+        <div className="grid grid-cols-3 gap-3">
+          <div className="p-3 rounded-xl border text-center" style={{ borderColor: getRiskColor(r.inherentScore)+'40', background: getRiskColor(r.inherentScore)+'0C' }}>
+            <p className="text-2xl font-bold" style={{ color: getRiskColor(r.inherentScore) }}>{r.inherentScore}</p>
+            <p className="text-xs text-gray-600 mt-0.5 font-medium">Inherent</p>
+            <p className="text-[10px] text-gray-400">{r.likelihood}L × {r.impact}I</p>
+          </div>
+          <div className="p-3 rounded-xl border border-emerald-100 bg-emerald-50 text-center">
+            <p className="text-2xl font-bold text-emerald-700">{reductionPct}%</p>
+            <p className="text-xs text-gray-600 mt-0.5 font-medium">Reduced</p>
+            <p className="text-[10px] text-gray-400">{r.controlIds.length} control{r.controlIds.length !== 1 ? 's' : ''}</p>
+          </div>
+          <div className="p-3 rounded-xl border text-center" style={{ borderColor: getRiskColor(r.residualScore)+'40', background: getRiskColor(r.residualScore)+'0C' }}>
+            <p className="text-2xl font-bold" style={{ color: getRiskColor(r.residualScore) }}>{r.residualScore}</p>
+            <p className="text-xs text-gray-600 mt-0.5 font-medium">Residual</p>
+            <p className="text-[10px] text-gray-400">{getRiskRating(r.residualScore)} band</p>
+          </div>
+        </div>
+
+        {/* Why it matters */}
+        {r.whyItMatters && (
+          <div className="p-4 rounded-xl bg-blue-50 border border-blue-100">
+            <p className="text-[10px] font-semibold text-blue-600 uppercase tracking-wider mb-1">Why it matters</p>
+            <p className="text-sm text-blue-900 leading-relaxed">{r.whyItMatters}</p>
+          </div>
+        )}
+
+        {/* Threat Analysis */}
+        {(r.threatAgent || r.threatVector || r.vulnerability || r.assetAtRisk || r.existingExposure) && (
+          <div>
+            <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-2">Threat Analysis — ISO 27005</p>
+            <div className="space-y-1.5">
+              {[
+                ['Threat Agent',      r.threatAgent],
+                ['Attack Vector',     r.threatVector],
+                ['Vulnerability',     r.vulnerability],
+                ['Asset at Risk',     r.assetAtRisk],
+                ['Existing Exposure', r.existingExposure],
+              ].filter(([, v]) => v).map(([label, val]) => (
+                <div key={label} className="p-3 rounded-lg bg-gray-50 border border-gray-100">
+                  <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-0.5">{label}</p>
+                  <p className="text-xs text-gray-700 leading-relaxed">{val}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Treatment */}
+        <div>
+          <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-2">Treatment — {r.treatment}</p>
+          <div className="p-3 rounded-xl border border-amber-200 bg-amber-50">
+            <p className="text-xs text-amber-900 leading-relaxed">{r.treatmentPlan}</p>
+          </div>
+          <div className="flex items-center gap-2 mt-2 flex-wrap">
+            <span className="text-[10px] bg-gray-100 text-gray-600 px-2 py-0.5 rounded">SLA: {r.slaDays} days</span>
+            <span className="text-[10px] bg-gray-100 text-gray-600 px-2 py-0.5 rounded">Owner: {r.owner}</span>
+            <StatusBadge status={r.status} />
+          </div>
+        </div>
+
+        {/* Control effectiveness breakdown */}
+        {r.controlEffectiveness?.length > 0 && (
+          <div>
+            <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-2">Control Effectiveness Breakdown</p>
+            <div className="space-y-2">
+              {r.controlEffectiveness.map(ce => (
+                <div key={ce.control} className="p-3 rounded-lg border border-gray-100 bg-white">
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="text-xs font-semibold text-gray-700">{ce.control}</span>
+                    <span className={`text-xs font-bold ${ce.effectiveness >= 70 ? 'text-emerald-600' : ce.effectiveness >= 40 ? 'text-amber-600' : 'text-red-600'}`}>{ce.effectiveness}%</span>
+                  </div>
+                  <div className="w-full bg-gray-100 rounded-full h-1.5 mb-1.5">
+                    <div className="h-1.5 rounded-full transition-all" style={{ width: ce.effectiveness + '%', background: ce.effectiveness >= 70 ? '#22C55E' : ce.effectiveness >= 40 ? '#EAB308' : '#EF4444' }} />
+                  </div>
+                  <p className="text-[10px] text-gray-400 leading-snug">{ce.note}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Framework control gaps */}
+        {r.controls?.length > 0 && (
+          <div>
+            <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-2">Framework Control Gaps ({r.controls.length})</p>
+            <div className="space-y-1.5">
+              {r.controls.map(c => (
+                <div key={c.framework} className="p-3 rounded-lg bg-red-50 border border-red-100">
+                  <div className="flex items-center gap-1.5 mb-1 flex-wrap">
+                    <span className="text-[10px] font-semibold text-red-700 bg-red-100 px-1.5 py-0.5 rounded">{c.framework}</span>
+                    <span className="text-[10px] text-red-600 font-medium">{c.requirement}</span>
+                  </div>
+                  <p className="text-[10px] text-red-800 leading-snug">{c.gap}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Footer */}
+      <div className="p-5 border-t border-gray-100 flex gap-2 flex-shrink-0">
+        <button className="flex-1 py-2.5 bg-blue-600 text-white text-sm font-semibold rounded-lg hover:bg-blue-700 transition-colors">Open Treatment Workflow</button>
+        <button onClick={onClose} className="px-4 py-2.5 border border-gray-200 text-gray-600 text-sm font-medium rounded-lg hover:bg-gray-50 transition-colors">Close</button>
+      </div>
+    </div>
+  );
+}
+
 // ─── Sidebar Nav ──────────────────────────────────────────────────────────────
 
 // ─── Control Chip with inline dropdown ───────────────────────────────────────
@@ -4150,6 +4295,7 @@ const RISK_CAT_COLOR = {
 
 // ─── Risk Register ────────────────────────────────────────────────────────────
 function RiskRegister({ focusId }) {
+  const openDetail = useRiskDetail();
   const [search, setSearch] = useState('');
   const [catFilter, setCatFilter] = useState('All');
   const [showAI, setShowAI] = useState(false);
@@ -4432,7 +4578,10 @@ function RiskRegister({ focusId }) {
                         <p className="text-[10px] text-gray-400">{ACCEPT_AUTH[getRiskRating(r.inherentScore)]}</p>
                       </td>
                       <td className="px-4 py-3.5">
-                        <button onClick={()=>setWorkflow(r)} className="px-3 py-1 text-xs font-medium bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors whitespace-nowrap">Actions</button>
+                        <div className="flex gap-1.5">
+                          <button onClick={() => openDetail(r)} className="px-3 py-1 text-xs font-medium bg-slate-50 text-slate-600 rounded-lg hover:bg-slate-100 transition-colors whitespace-nowrap border border-slate-200">Detail</button>
+                          <button onClick={()=>setWorkflow(r)} className="px-3 py-1 text-xs font-medium bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors whitespace-nowrap">Actions</button>
+                        </div>
                       </td>
                     </tr>
                   );
@@ -4449,6 +4598,7 @@ function RiskRegister({ focusId }) {
 // ─── Audit Management ─────────────────────────────────────────────────────────
 function AuditManagement() {
   const { controls } = useGRCData();
+  const openDetail = useRiskDetail();
   const ctrlMap = Object.fromEntries(controls.map(c=>[c.id,c]));
   const [selectedAudit, setSelectedAudit] = useState(null);
   const [workflow, setWorkflow] = useState(null);
@@ -4531,7 +4681,7 @@ function AuditManagement() {
             { key:"sev",     label:"Severity",    render:r=><SeverityBadge severity={r.severity}/> },
             { key:"ctrl",    label:"Control",     render:r=>{const c=ctrlMap[r.controlId];return c?<div><span className="font-mono text-xs text-gray-400">{r.controlId}</span><p className="text-xs text-gray-500 truncate max-w-xs">{c.name}</p></div>:null} },
             { key:"eff",     label:"Effectiveness", render:r=>{const c=ctrlMap[r.controlId];return c?<EffectivenessBadge effectiveness={c.effectiveness} score={c.score}/>:null} },
-            { key:"risk",    label:"Linked Risk",  render:r=>{const linked=risks.find(risk=>risk.controlIds.includes(r.controlId));return linked?<span className={`font-mono text-[10px] px-1.5 py-0.5 rounded border ${linked.residualScore>=12?'bg-red-50 text-red-600 border-red-100':'bg-amber-50 text-amber-600 border-amber-100'}`}>{linked.id}</span>:null;} },
+            { key:"risk",    label:"Linked Risk",  render:r=>{const linked=risks.find(risk=>risk.controlIds.includes(r.controlId));return linked?<span onClick={()=>openDetail(linked)} className={`font-mono text-[10px] px-1.5 py-0.5 rounded border cursor-pointer hover:opacity-75 transition-opacity ${linked.residualScore>=12?'bg-red-50 text-red-600 border-red-100':'bg-amber-50 text-amber-600 border-amber-100'}`}>{linked.id}</span>:null;} },
             { key:"status",  label:"Status",      render:r=><StatusBadge status={r.status}/> },
             { key:"due",     label:"Due",         render:r=>{
               const todayStr = new Date().toISOString().slice(0,10);
@@ -4558,6 +4708,7 @@ function AuditManagement() {
 // ─── Evidence Locker ──────────────────────────────────────────────────────────
 function EvidenceLocker() {
   const { controls } = useGRCData();
+  const openDetail = useRiskDetail();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
   const [selectedCtrl, setSelectedCtrl] = useState(null);
@@ -4629,7 +4780,7 @@ function EvidenceLocker() {
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className="font-mono text-xs text-gray-400">{ctrl.id}</span>
                         {ctrl.ai&&<span className="px-1.5 py-0.5 bg-purple-100 text-purple-700 text-xs rounded font-medium">AI</span>}
-                        {riskCriticalIds.includes(ctrl.id) && <span className="px-1.5 py-0.5 bg-red-50 text-red-500 text-[10px] rounded border border-red-100 font-semibold">risk-critical</span>}
+                        {riskCriticalIds.includes(ctrl.id) && (() => { const r = risks.find(x => x.controlIds.includes(ctrl.id)); return <span onClick={e => { e.stopPropagation(); if (r) openDetail(r); }} className="px-1.5 py-0.5 bg-red-50 text-red-500 text-[10px] rounded border border-red-100 font-semibold cursor-pointer hover:bg-red-100 transition-colors">risk-critical</span>; })()}
                       </div>
                       <p className="text-sm font-medium text-gray-800 truncate">{ctrl.name}</p>
                     </div>
@@ -4840,6 +4991,7 @@ function Architecture() {
   const [archView, setArchView] = useState('flow');
   const statusDot = s => ({ healthy:'bg-emerald-500', warning:'bg-amber-400', disconnected:'bg-red-500' }[s]||'bg-gray-300');
 
+  const openDetail = useRiskDetail();
   const categoryToDomain = { 'Vuln Mgmt':'Infrastructure', 'Third Party':'Supply Chain', 'AI Governance':'AI & Application', 'AI Security':'AI & Application' };
   const risksByDomain = risks.reduce((m, r) => {
     const d = categoryToDomain[r.category] || 'Governance & Compliance';
@@ -5073,7 +5225,7 @@ function Architecture() {
                 {risksByDomain[d.name] && (
                   <div className="flex gap-1 flex-wrap mb-3">
                     {risksByDomain[d.name].map(r => (
-                      <span key={r.id} title={r.title} className={`text-[10px] font-mono px-1.5 py-0.5 rounded border cursor-default ${r.residualScore >= 12 ? 'bg-red-50 text-red-600 border-red-100' : 'bg-amber-50 text-amber-600 border-amber-100'}`}>{r.id}</span>
+                      <span key={r.id} title={r.title} onClick={() => openDetail(r)} className={`text-[10px] font-mono px-1.5 py-0.5 rounded border cursor-pointer hover:opacity-75 transition-opacity ${r.residualScore >= 12 ? 'bg-red-50 text-red-600 border-red-100' : 'bg-amber-50 text-amber-600 border-amber-100'}`}>{r.id}</span>
                     ))}
                   </div>
                 )}
@@ -5218,6 +5370,7 @@ export default function GRCDashboard() {
   };
 
   const [focusId, setFocusId] = useState(null);
+  const [detailRisk, setDetailRisk] = useState(null);
 
   const handleNavClick = (id, itemId = null) => {
     setPage(id);
@@ -5250,7 +5403,14 @@ export default function GRCDashboard() {
   };
 
   return (
+    <RiskDetailContext.Provider value={setDetailRisk}>
     <DataContext.Provider value={liveData}>
+    {detailRisk && (
+      <>
+        <div className="fixed inset-0 bg-black/30 z-40" onClick={() => setDetailRisk(null)} />
+        <RiskDetailDrawer risk={detailRisk} onClose={() => setDetailRisk(null)} />
+      </>
+    )}
     <div className="flex h-screen bg-gray-50 font-sans overflow-hidden">
 
       {/* Mobile backdrop */}
@@ -5384,5 +5544,6 @@ export default function GRCDashboard() {
       )}
     </div>
     </DataContext.Provider>
+    </RiskDetailContext.Provider>
   );
 }
