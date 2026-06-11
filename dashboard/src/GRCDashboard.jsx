@@ -12,6 +12,7 @@ import { api } from './lib/api';
 import { isLive } from './lib/supabase';
 import { daysFromToday, PRIORITY_NAMES, PRIORITY_COLOR, SLA_DAYS } from './lib/vsrm';
 import brand from './lib/brand';
+import { riskSeed, computeHealthScore } from './data/riskRegister';
 
 // ─── Data Context ─────────────────────────────────────────────────────────────
 const DataContext = createContext(null);
@@ -241,16 +242,15 @@ const teams = [
 ];
 
 // ─── Risk Register Data ───────────────────────────────────────────────────────
-// Risk bands per Risk Management Framework v1.0 (doc/Risk-Management-Framework.docx)
-// Critical=25, Severe=16-24, High=10-15, Moderate=5-9, Low=1-4
-const RISK_APPETITE = { moderate: 9, high: 15, severe: 24 };
-const getRiskRating = s => s === 25 ? 'Critical' : s >= 16 ? 'Severe' : s >= 10 ? 'High' : s >= 5 ? 'Moderate' : 'Low';
-const getRiskColor  = s => s === 25 ? '#7F1D1D' : s >= 16 ? '#EF4444' : s >= 10 ? '#F97316' : s >= 5 ? '#EAB308' : '#22C55E';
-const getAppetite   = s => s > RISK_APPETITE.severe ? 'Significantly Exceeds' : s > RISK_APPETITE.high ? 'Exceeds' : s > RISK_APPETITE.moderate ? 'Approaches' : 'Within';
-// Response Decision SLAs (doc §6, Step 3)
-const RESPONSE_SLA  = { Critical:'7 days', Severe:'30 days', High:'60 days', Moderate:'90 days', Low:'180 days' };
-// Approval authority for risk acceptance (doc §6, Step 5)
-const ACCEPT_AUTH   = { Critical:'C-Suite / SVP+', Severe:'VP+', High:'Director+', Moderate:'Sr Manager+', Low:'Manager+' };
+// PRD bands (ISO 31000): Critical 20-25, High 12-19, Medium 6-11, Low 2-5
+const RISK_APPETITE = { medium: 11, high: 19, critical: 24 };
+const getRiskRating = s => s >= 20 ? 'Critical' : s >= 12 ? 'High' : s >= 6 ? 'Medium' : 'Low';
+const getRiskColor  = s => s >= 20 ? '#EF4444' : s >= 12 ? '#F97316' : s >= 6 ? '#EAB308' : '#22C55E';
+const getAppetite   = s => s > RISK_APPETITE.critical ? 'Significantly Exceeds' : s > RISK_APPETITE.high ? 'Exceeds' : s > RISK_APPETITE.medium ? 'Approaches' : 'Within';
+// Response Decision SLAs
+const RESPONSE_SLA  = { Critical:'7 days', High:'30 days', Medium:'60 days', Low:'90 days' };
+// Approval authority for risk acceptance
+const ACCEPT_AUTH   = { Critical:'C-Suite / SVP+', High:'VP+', Medium:'Director+', Low:'Manager+' };
 const CTRL_EFF = {'UCF.01.01':92,'UCF.01.02':38,'UCF.02.02':45,'UCF.03.02':41,'UCF.AI.02':33,'UCF.AI.03':0,'UCF.AI.04':51,'UCF.AI.05':0,'UCF.04.01':87,'UCF.05.01':71,'UCF.06.01':63,'UCF.06.02':62,'UCF.07.01':74,'UCF.09.01':69,'UCF.AI.01':29};
 const getBusinessImpact = (score) => {
   if (score >= 20) return { label: 'Existential',  color: 'bg-red-100 text-red-800',      hint: 'Potential fines >€20M or operational shutdown' };
@@ -260,25 +260,14 @@ const getBusinessImpact = (score) => {
   return               { label: 'Negligible',  color: 'bg-gray-100 text-gray-600',     hint: 'Minimal business impact' };
 };
 
-const _rawRisks = [
-  { id:'RSK-001', title:'Privileged accounts without MFA',               category:'Access Control', asset:'Identity Platform',       owner:'J. Martinez', likelihood:4, impact:5, controlIds:['UCF.01.01','UCF.01.02'], treatment:'Mitigate', treatmentPlan:'Enforce Okta MFA for all admin accounts by 2026-06-15',              status:'Mitigating',  reviewDate:'2026-06-15', linkedModule:'vulns',      ai:false },
-  { id:'RSK-002', title:'AI model training data exfiltration risk',      category:'AI Governance',  asset:'ML Training Environment', owner:'A. Patel',    likelihood:3, impact:5, controlIds:['UCF.AI.02','UCF.AI.03'], treatment:'Mitigate', treatmentPlan:'Implement strict access controls on ML environments',                status:'In Review',   reviewDate:'2026-06-30', linkedModule:'incidents',  ai:true  },
-  { id:'RSK-003', title:'Critical vulnerabilities unpatched >30 days',   category:'Vuln Mgmt',      asset:'Production Systems',      owner:'T. Williams', likelihood:4, impact:4, controlIds:['UCF.03.02'],             treatment:'Mitigate', treatmentPlan:'Deploy automated patch pipeline and enforce 14-day SLA',            status:'Mitigating',  reviewDate:'2026-06-20', linkedModule:'vulns',      ai:false },
-  { id:'RSK-004', title:'OpenAI vendor · no contract or DPA',            category:'Third Party',    asset:'AI Chat Features',        owner:'S. Chen',     likelihood:3, impact:4, controlIds:['UCF.AI.04','UCF.06.01'], treatment:'Mitigate', treatmentPlan:'Execute DPA and security addendum with OpenAI by 2026-07-01',      status:'Mitigating',  reviewDate:'2026-07-01', linkedModule:'thirdparty', ai:true  },
-  { id:'RSK-005', title:'DLP controls ineffective · cloud storage gaps', category:'Data Protection', asset:'AWS S3 / GCS Buckets',   owner:'A. Patel',    likelihood:3, impact:4, controlIds:['UCF.02.02'],             treatment:'Mitigate', treatmentPlan:'Deploy cloud DLP scanning across all storage tiers',               status:'Open',        reviewDate:'2026-07-15', linkedModule:'vulns',      ai:false },
-  { id:'RSK-006', title:'No AI usage or governance policy in place',     category:'AI Governance',  asset:'All AI Systems',          owner:'A. Patel',    likelihood:4, impact:3, controlIds:['UCF.AI.01'],             treatment:'Mitigate', treatmentPlan:'Draft, ratify and publish AI Usage and Ethics Policies',           status:'Open',        reviewDate:'2026-06-30', linkedModule:'policy',     ai:true  },
-  { id:'RSK-007', title:'AI incident response plan never tested',        category:'AI Security',    asset:'AI Systems',              owner:'K. Thompson', likelihood:3, impact:4, controlIds:['UCF.AI.05','UCF.04.01'], treatment:'Mitigate', treatmentPlan:'Run AI-specific tabletop exercise Q3 2026',                        status:'Open',        reviewDate:'2026-08-30', linkedModule:'incidents',  ai:true  },
-  { id:'RSK-008', title:'Vendor questionnaire backlog · 18 vendors',    category:'Third Party',    asset:'18 Vendor Relationships', owner:'S. Chen',     likelihood:3, impact:3, controlIds:['UCF.06.02'],             treatment:'Mitigate', treatmentPlan:'Automate questionnaire distribution via Vanta integration',        status:'In Treatment',reviewDate:'2026-08-01', linkedModule:'thirdparty', ai:false },
-  { id:'RSK-009', title:'Prompt injection in public AI endpoint',        category:'AI Security',    asset:'AI Assistant API',        owner:'T. Williams', likelihood:4, impact:4, controlIds:['UCF.AI.03'],             treatment:'Mitigate', treatmentPlan:'Implement input validation and OWASP LLM Top 10 controls',         status:'Open',        reviewDate:'2026-06-15', linkedModule:'vulns',      ai:true  },
-  { id:'RSK-010', title:'Password policy · 4 outstanding exceptions',   category:'Access Control', asset:'Employee Accounts',       owner:'J. Martinez', likelihood:2, impact:3, controlIds:['UCF.01.01'],             treatment:'Accept',   treatmentPlan:'Review all 4 exceptions for documented business justification',    status:'Accepting/Monitoring', reviewDate:'2026-09-30', linkedModule:'policy',     ai:false },
-  { id:'RSK-011', title:'Business continuity plan not validated',        category:'BCM',            asset:'Critical Systems',        owner:'K. Thompson', likelihood:2, impact:4, controlIds:['UCF.09.01'],             treatment:'Mitigate', treatmentPlan:'Conduct DR test and tabletop exercise by end Q3 2026',            status:'Open',        reviewDate:'2026-09-01', linkedModule:'policy',     ai:false },
-  { id:'RSK-012', title:'Employee offboarding access revocation lag',    category:'Access Control', asset:'All Systems',             owner:'J. Martinez', likelihood:2, impact:2, controlIds:['UCF.01.01','UCF.01.02'], treatment:'Accept',   treatmentPlan:'Current 24h SLA acceptable · review quarterly',                   status:'Accepting/Monitoring', reviewDate:'2026-10-01', linkedModule:'incidents',  ai:false },
-];
-const risks = _rawRisks.map(r => {
+// Four canonical risk records — single source of truth for all panels.
+// Sample / illustrative data built from public threat intelligence.
+const risks = riskSeed.map(r => {
   const inherentScore = r.likelihood * r.impact;
   const reductionFactor = r.controlIds.reduce((f,id) => f * (1 - ((CTRL_EFF[id]??50)/100)*0.5), 1);
   const residualScore = Math.max(2, Math.round(inherentScore * reductionFactor));
-  return { ...r, inherentScore, residualScore };
+  const residualBand = getRiskRating(residualScore).toLowerCase();
+  return { ...r, inherentScore, residualScore, residualBand };
 });
 
 // ─── Audit Management Data ────────────────────────────────────────────────────
@@ -595,7 +584,8 @@ function ModuleHeader({ title, subtitle, search, setSearch, filters, extra, sync
 function Overview({ navigate }) {
   const { controls, vulns, incidents, policies, vendors } = useGRCData();
   const [score, setScore] = useState(0);
-  useEffect(() => { const t = setTimeout(() => setScore(71), 300); return () => clearTimeout(t); }, []);
+  const healthScore = computeHealthScore(risks);
+  useEffect(() => { const t = setTimeout(() => setScore(healthScore), 300); return () => clearTimeout(t); }, [healthScore]);
 
   // Derived metrics
   const allGaps      = controls.filter(c => c.effectiveness === 'ineffective' || c.effectiveness === 'not_tested');
@@ -640,7 +630,7 @@ function Overview({ navigate }) {
     { id:'thirdparty', label:'Third Party',      icon: Building2, color:'#0891B2', stat: `${highVendors.length} high risk`, detail: `${vendors.filter(v=>v.status==='No Contract').length} no contract / DPA`, ctrlId:'UCF.06.01' },
   ];
 
-  const riskBandBg = s => s >= 16 ? 'bg-red-50 text-red-700' : s >= 10 ? 'bg-orange-50 text-orange-700' : s >= 5 ? 'bg-amber-50 text-amber-700' : 'bg-green-50 text-green-700';
+  const riskBandBg = s => s >= 20 ? 'bg-red-50 text-red-700' : s >= 12 ? 'bg-orange-50 text-orange-700' : s >= 6 ? 'bg-amber-50 text-amber-700' : 'bg-green-50 text-green-700';
 
   // ── Executive Briefing bullets (computed from live data) ──────────────────
   const execBullets = [];
@@ -1142,6 +1132,8 @@ function Vulnerabilities({ focusId }) {
       ? `Assign upgrade owners to ${eolUnassigned} EOL component${eolUnassigned>1?'s':''} — these cannot be patched, only migrated.`
       : 'No critical blockers. Review P1/P2 SLA compliance and confirm upgrade timelines.';
   const vulnUrgency = p0OverdueCount > 0 ? 'critical' : eolUnassigned > 0 ? 'high' : 'normal';
+  // Risks with signalSource === 'vulnerability' surface here
+  const vulnRisks = risks.filter(r => r.signalSource === 'vulnerability');
 
   return (
     <div className="space-y-4">
@@ -1151,6 +1143,37 @@ function Vulnerabilities({ focusId }) {
         ask={vulnAsk}
         askUrgency={vulnUrgency}
       />
+
+      {/* Risk-Register signal: vulnerability risks */}
+      {vulnRisks.length > 0 && (
+        <div className="bg-white rounded-xl border border-red-100 shadow-sm">
+          <div className="px-5 py-3 border-b border-red-50 flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-red-500" />
+            <span className="text-sm font-semibold text-gray-800">Risk Register — Vulnerability Signals</span>
+            <span className="ml-auto text-[10px] text-gray-400 italic">sample · illustrative data</span>
+          </div>
+          <div className="divide-y divide-gray-50">
+            {vulnRisks.map(r => (
+              <div key={r.id} className="px-5 py-3 flex items-start gap-3">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-0.5 flex-wrap">
+                    <span className="font-mono text-[10px] text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded">{r.id}</span>
+                    <span className="text-xs font-semibold text-red-600 bg-red-50 px-1.5 py-0.5 rounded">{getRiskRating(r.residualScore)} residual</span>
+                    <span className="text-[10px] text-gray-500">SLA: {r.slaDays}d · {r.owner}</span>
+                  </div>
+                  <p className="text-sm font-medium text-gray-800">{r.title}</p>
+                  <p className="text-xs text-gray-500 mt-0.5">{r.whyItMatters}</p>
+                </div>
+                <div className="text-right flex-shrink-0">
+                  <p className="text-xs text-gray-400">Inherent → Residual</p>
+                  <p className="text-sm font-bold text-gray-800">{r.inherentScore} <span className="text-gray-400">→</span> {r.residualScore}</p>
+                  <StatusBadge status={r.status} />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* KRI panel */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -1739,6 +1762,48 @@ function PolicyModule({ focusId }) {
         </div>
       </div>
 
+      {/* Risk-Register signal: AI governance risks */}
+      {(() => {
+        const aiGovRisks = risks.filter(r => r.signalSource === 'ai_governance');
+        if (aiGovRisks.length === 0) return null;
+        return (
+          <div className="bg-white rounded-xl border border-purple-100 shadow-sm">
+            <div className="px-5 py-3 border-b border-purple-50 flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-purple-500" />
+              <span className="text-sm font-semibold text-gray-800">Risk Register — AI Governance Signals</span>
+              <span className="ml-auto text-[10px] text-gray-400 italic">sample · illustrative data</span>
+            </div>
+            <div className="divide-y divide-gray-50">
+              {aiGovRisks.map(r => (
+                <div key={r.id} className="px-5 py-3 flex items-start gap-3">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-0.5 flex-wrap">
+                      <span className="font-mono text-[10px] text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded">{r.id}</span>
+                      <span className="text-xs font-semibold text-purple-600 bg-purple-50 px-1.5 py-0.5 rounded">ai governance</span>
+                      <span className="text-[10px] text-gray-500">SLA: {r.slaDays}d · {r.owner}</span>
+                    </div>
+                    <p className="text-sm font-medium text-gray-800">{r.title}</p>
+                    <p className="text-xs text-gray-500 mt-0.5">{r.whyItMatters}</p>
+                    {r.controls && r.controls.length > 0 && (
+                      <div className="flex gap-1 flex-wrap mt-1.5">
+                        {r.controls.map(c => (
+                          <span key={c.framework} className="text-[10px] bg-slate-50 text-slate-600 border border-slate-100 px-1.5 py-0.5 rounded">{c.framework}</span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <div className="text-right flex-shrink-0">
+                    <p className="text-xs text-gray-400">Inherent → Residual</p>
+                    <p className="text-sm font-bold text-gray-800">{r.inherentScore} <span className="text-gray-400">→</span> {r.residualScore}</p>
+                    <StatusBadge status={r.status} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      })()}
+
       {/* Policy Next Action */}
       {(() => {
         const missingAI = policies.filter(p => p.status === 'Missing' && p.ai)[0];
@@ -1806,6 +1871,43 @@ function PolicyModule({ focusId }) {
         />
       </div>
 
+      {/* Policy Exceptions — derived from risk register */}
+      {(() => {
+        const exceptions = risks.filter(r => r.isException);
+        return (
+          <div className="bg-white rounded-xl border border-gray-100 shadow-sm">
+            <div className="px-5 py-3 border-b border-gray-50 flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-gray-300" />
+              <span className="text-sm font-semibold text-gray-800">Policy Exceptions</span>
+              <span className="ml-auto text-[10px] text-gray-400 italic">derived from risk register</span>
+            </div>
+            {exceptions.length === 0 ? (
+              <div className="px-5 py-8 text-center">
+                <CheckCircle size={20} className="text-green-400 mx-auto mb-2" />
+                <p className="text-sm text-gray-500">No active policy exceptions</p>
+                <p className="text-xs text-gray-400 mt-1">Exceptions surface automatically when a risk record has isException: true</p>
+              </div>
+            ) : (
+              <div className="divide-y divide-gray-50">
+                {exceptions.map(r => (
+                  <div key={r.id} className="px-5 py-3 flex items-start gap-3">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-0.5">
+                        <span className="font-mono text-[10px] text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded">{r.id}</span>
+                        <span className="text-[10px] bg-amber-50 text-amber-600 px-1.5 py-0.5 rounded font-semibold">exception</span>
+                      </div>
+                      <p className="text-sm font-medium text-gray-800">{r.title}</p>
+                      {r.exceptionExpiry && <p className="text-xs text-gray-500 mt-0.5">Expires: {r.exceptionExpiry} · {r.owner}</p>}
+                    </div>
+                    <StatusBadge status={r.status} />
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        );
+      })()}
+
       {/* Policy Draft Modal */}
       {draftPolicy && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setDraftPolicy(null)}>
@@ -1865,6 +1967,9 @@ function ThirdParty({ focusId }) {
       ? `${noContract} vendor${noContract>1?'s':''} without active contracts. Procurement sign-off required before these vendors process any company data.`
       : 'Vendor contracts in order. Schedule annual risk re-assessments for high-risk vendors.';
 
+  // Risks with signalSource === 'supply_chain' surface here
+  const scRisks = risks.filter(r => r.signalSource === 'supply_chain');
+
   return (
     <div className="space-y-4">
       <SectionContext
@@ -1873,6 +1978,45 @@ function ThirdParty({ focusId }) {
         ask={tpAsk}
         askUrgency={aiNoDpa > 0 ? 'critical' : noContract > 0 ? 'high' : 'normal'}
       />
+
+      {/* Risk-Register signal: supply chain risks */}
+      {scRisks.length > 0 && (
+        <div className="bg-white rounded-xl border border-orange-100 shadow-sm">
+          <div className="px-5 py-3 border-b border-orange-50 flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-orange-500" />
+            <span className="text-sm font-semibold text-gray-800">Risk Register — Supply Chain Signals</span>
+            <span className="ml-auto text-[10px] text-gray-400 italic">sample · illustrative data</span>
+          </div>
+          <div className="divide-y divide-gray-50">
+            {scRisks.map(r => (
+              <div key={r.id} className="px-5 py-3 flex items-start gap-3">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-0.5 flex-wrap">
+                    <span className="font-mono text-[10px] text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded">{r.id}</span>
+                    <span className="text-xs font-semibold text-orange-600 bg-orange-50 px-1.5 py-0.5 rounded">{getRiskRating(r.residualScore)} residual</span>
+                    <span className="text-[10px] text-gray-500">SLA: {r.slaDays}d · {r.owner}</span>
+                  </div>
+                  <p className="text-sm font-medium text-gray-800">{r.title}</p>
+                  <p className="text-xs text-gray-500 mt-0.5">{r.whyItMatters}</p>
+                  {r.controls && r.controls.length > 0 && (
+                    <div className="flex gap-1 flex-wrap mt-1.5">
+                      {r.controls.map(c => (
+                        <span key={c.framework} className="text-[10px] bg-slate-50 text-slate-600 border border-slate-100 px-1.5 py-0.5 rounded">{c.framework}</span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <div className="text-right flex-shrink-0">
+                  <p className="text-xs text-gray-400">Inherent → Residual</p>
+                  <p className="text-sm font-bold text-gray-800">{r.inherentScore} <span className="text-gray-400">→</span> {r.residualScore}</p>
+                  <StatusBadge status={r.status} />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <KPICard title="High-Risk Vendors"  value={highRisk}    icon={Building2}     color="#EF4444" subtitle="risk score ≥ 60" />
         <KPICard title="No Contract"        value={noContract}  icon={AlertTriangle} color="#F97316" subtitle="uncontracted AI vendors" />
@@ -2061,6 +2205,40 @@ function Compliance() {
           </div>
         </div>
       </div>
+
+      {/* Risk-mapped control hotspots from risk register */}
+      {(() => {
+        const fwCount = {};
+        risks.forEach(r => (r.controls || []).forEach(c => { if (!fwCount[c.framework]) fwCount[c.framework] = { count: 0, gaps: [], risks: [] }; fwCount[c.framework].count++; fwCount[c.framework].gaps.push(c.gap); fwCount[c.framework].risks.push(r.id); }));
+        const hotspots = Object.entries(fwCount).filter(([,v]) => v.count > 1).sort((a,b) => b[1].count - a[1].count).slice(0, 4);
+        if (hotspots.length === 0) return null;
+        return (
+          <div className="bg-white rounded-xl border border-gray-100 shadow-sm">
+            <div className="px-5 py-3 border-b border-gray-50 flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-blue-500" />
+              <span className="text-sm font-semibold text-gray-800">Risk-Mapped Control Hotspots</span>
+              <span className="text-xs text-gray-400 ml-1">· framework requirements referenced by multiple risks</span>
+              <span className="ml-auto text-[10px] text-gray-400 italic">sample data</span>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-px bg-gray-50">
+              {hotspots.map(([fw, v]) => (
+                <div key={fw} className="bg-white p-4">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-xs font-semibold text-gray-700 font-mono">{fw}</span>
+                    <span className="text-[10px] bg-orange-50 text-orange-600 px-1.5 py-0.5 rounded font-semibold">{v.count} risks</span>
+                  </div>
+                  <p className="text-[10px] text-gray-400 mb-1.5">{v.risks.join(' · ')}</p>
+                  <ul className="space-y-0.5">
+                    {[...new Set(v.gaps)].slice(0,2).map(g => (
+                      <li key={g} className="text-[10px] text-gray-500 flex items-start gap-1"><span className="text-red-400 flex-shrink-0">▸</span>{g}</li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Framework cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
@@ -3921,10 +4099,10 @@ function RiskRegister({ focusId }) {
     r.title.toLowerCase().includes(search.toLowerCase())
   ).sort((a,b)=>b.inherentScore-a.inherentScore);
 
-  const critical = risks.filter(r=>r.inherentScore>=16).length;
+  const critical = risks.filter(r=>r.inherentScore>=20).length;
   const exceedsAppetite = risks.filter(r=>getAppetite(r.residualScore)!=='Within').length;
   const aiRisks = risks.filter(r=>r.ai).length;
-  const open = risks.filter(r=>!['Done','Accepting/Monitoring'].includes(r.status)).length;
+  const open = risks.filter(r=>!['Done','Accepting/Monitoring','closed'].includes(r.status)).length;
 
   const HeatMatrix = () => (
     <div className="bg-white rounded-xl border border-gray-100 p-5 shadow-sm">
@@ -3948,7 +4126,7 @@ function RiskRegister({ focusId }) {
             <div key={l} className="flex gap-1" style={{height:40}}>
               {[1,2,3,4,5].map(i=>{
                 const score=l*i;
-                const bg=score===25?'#FCA5A5':score>=16?'#FEE2E2':score>=10?'#FFEDD5':score>=5?'#FEF9C3':'#DCFCE7';
+                const bg=score>=20?'#FCA5A5':score>=12?'#FEE2E2':score>=6?'#FFEDD5':score>=2?'#DCFCE7':'#F0FDF4';
                 const cellRisks=risks.filter(r=>r.likelihood===l&&r.impact===i);
                 return (
                   <div key={i} className="flex-1 rounded flex items-center justify-center flex-wrap gap-0.5 p-0.5" style={{background:bg}}>
@@ -3957,7 +4135,7 @@ function RiskRegister({ focusId }) {
                         className="w-5 h-5 rounded-full flex items-center justify-center text-white font-bold cursor-pointer hover:scale-125 transition-transform shadow-sm"
                         style={{background:getRiskColor(r.inherentScore),fontSize:'8px'}}
                         onClick={()=>setWorkflow(r)}>
-                        {r.id.replace('RSK-','')}
+                        {r.id.replace('RISK-2026-','').replace('RSK-','')}
                       </span>
                     ))}
                   </div>
@@ -3972,7 +4150,7 @@ function RiskRegister({ focusId }) {
         </div>
       </div>
       <div className="flex gap-3 mt-3 flex-wrap">
-        {[['Critical (25)','#FCA5A5'],['Severe (16–24)','#FEE2E2'],['High (10–15)','#FFEDD5'],['Moderate (5–9)','#FEF9C3'],['Low (1–4)','#DCFCE7']].map(([l,c])=>(
+        {[['Critical (20–25)','#FCA5A5'],['High (12–19)','#FEE2E2'],['Medium (6–11)','#FFEDD5'],['Low (2–5)','#DCFCE7']].map(([l,c])=>(
           <div key={l} className="flex items-center gap-1"><span className="w-3 h-3 rounded" style={{background:c}}/><span className="text-xs text-gray-500">{l}</span></div>
         ))}
       </div>
@@ -3989,6 +4167,24 @@ function RiskRegister({ focusId }) {
 
   return (
     <div className="space-y-4">
+      {/* One-system explainer */}
+      <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 flex items-start gap-3">
+        <Database size={15} className="text-slate-500 flex-shrink-0 mt-0.5" />
+        <div className="flex-1 min-w-0">
+          <p className="text-xs font-semibold text-slate-700 mb-1">One system — all panels derive from these four records</p>
+          <div className="flex items-center gap-1.5 flex-wrap text-[10px] text-slate-500">
+            {[['vulnerability','bg-red-50 text-red-600','Vulnerabilities panel'],['supply_chain','bg-orange-50 text-orange-600','Third Party / Supply Chain'],['ai_governance','bg-purple-50 text-purple-600','AI Governance panel']].map(([src,cls,label])=>(
+              <span key={src} className="flex items-center gap-1">
+                <span className={`px-1.5 py-0.5 rounded font-semibold ${cls}`}>{src.replace('_',' ')}</span>
+                <span className="text-slate-400">→ {label}</span>
+                <span className="text-slate-300 mx-1">·</span>
+              </span>
+            ))}
+            <span className="text-slate-400 italic">Sample data — built from public threat intelligence</span>
+          </div>
+        </div>
+      </div>
+
       <SectionContext
         what="All identified risks in formal treatment — each with a VSRM-style inherent and residual score, owner, treatment plan, and review date. Heat matrix shows likelihood × impact across the full portfolio."
         why="Untreated high-impact risks compound over time. The risk register is the source of truth for audit evidence, insurance underwriting, and budget justification for security investment."
@@ -4027,7 +4223,7 @@ function RiskRegister({ focusId }) {
         </div>
         <div className="flex items-center gap-4 text-xs text-gray-500">
           <span className="text-gray-400 font-medium uppercase tracking-wider text-[10px]">Appetite</span>
-          {[['Within','text-green-600','≤9'],['Approaches','text-amber-600','10–15'],['Exceeds','text-orange-600','16–24'],['Sig. Exceeds','text-red-600','>24']].map(([l,c,r])=>(
+          {[['Within','text-green-600','≤11'],['Approaches','text-amber-600','12–19'],['Exceeds','text-orange-600','20–24'],['Sig. Exceeds','text-red-600','25']].map(([l,c,r])=>(
             <span key={l}><span className={c+" font-semibold"}>{l}</span> <span className="text-gray-400">{r}</span></span>
           ))}
         </div>
@@ -4102,12 +4298,18 @@ function RiskRegister({ focusId }) {
                       data-item-id={r.id}
                       className={`transition-colors ${isFocused ? 'bg-amber-50 outline outline-2 outline-amber-400 outline-offset-[-2px]' : 'hover:bg-gray-50'}`}>
                       <td className="px-4 py-3.5 max-w-sm">
-                        <div className="flex items-center gap-1.5 mb-0.5">
+                        <div className="flex items-center gap-1.5 mb-0.5 flex-wrap">
                           <span className="font-mono text-[10px] text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded">{r.id}</span>
                           {r.ai&&<span className="px-1.5 py-0.5 bg-purple-100 text-purple-700 text-[10px] rounded font-semibold">AI</span>}
+                          {r.signalSource && (
+                            <span className={`px-1.5 py-0.5 text-[10px] rounded font-semibold ${r.signalSource==='vulnerability'?'bg-red-50 text-red-600':r.signalSource==='supply_chain'?'bg-orange-50 text-orange-600':r.signalSource==='ai_governance'?'bg-purple-50 text-purple-600':'bg-gray-50 text-gray-500'}`}>
+                              {r.signalSource.replace('_',' ')}
+                            </span>
+                          )}
                         </div>
                         <p className="text-sm font-medium text-gray-800 leading-snug">{r.title}</p>
                         <p className="text-xs text-gray-400 mt-0.5">{r.asset}</p>
+                        {r.whyItMatters && <p className="text-[10px] text-blue-600 mt-0.5 italic leading-snug">{r.whyItMatters}</p>}
                       </td>
                       <td className="px-4 py-3.5 whitespace-nowrap">
                         <span className={"text-xs font-medium px-2 py-0.5 rounded-full "+catClass}>{r.category}</span>
