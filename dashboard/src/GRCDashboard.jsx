@@ -68,146 +68,149 @@ const controls = [
 
 const ctrlMap = Object.fromEntries(controls.map(c => [c.id, c]));
 
-// ─── Module Data ──────────────────────────────────────────────────────────────
+// ─── Module Data — Docker / Container Security ────────────────────────────────
 
 const vulns = [
   // VSRM: Production + Public + CVSS 10.0 + Actively Exploited → P0
-  { id: 'V-001', cve: 'CVE-2024-1234', title: 'Log4Shell RCE in log4j-core',
-    severity: 'Critical', cvss: 10.0, status: 'Open', asset: 'prod-api-01',
-    controlId: 'UCF.03.02', discovered: '2026-05-10',
+  { id: 'V-001', cve: 'CVE-2026-34040', title: 'Docker Engine AuthZ Plugin Bypass',
+    severity: 'Critical', cvss: 10.0, status: 'Open', asset: 'prod-docker-hosts (all)',
+    controlId: 'UCF.03.02', discovered: '2026-06-10',
     priority: 'P0', secTier: 0, environment: 'Production', exposure: 'Public',
     exploitability: 'Actively Exploited', isCisaKev: true,
-    assignedTo: 'T. Williams', dueDate: '2026-05-11' },
+    assignedTo: 'T. Williams', dueDate: '2026-06-24',
+    notes: 'HTTP request >1 MB bypasses AuthZ plugin. Upgrade to Docker ≥ v27.3 immediately.' },
 
-  // VSRM: Production + Public + CVSS 8.1 + Actively Exploited → P1
-  { id: 'V-002', cve: 'CVE-2024-5678', title: 'OpenSSL buffer overflow',
-    severity: 'High', cvss: 8.1, status: 'In Progress', asset: 'auth-service',
-    controlId: 'UCF.03.02', discovered: '2026-05-12',
-    priority: 'P1', secTier: 0, environment: 'Production', exposure: 'Public',
+  // VSRM: Production + Internal + CVSS 8.6 + Mature Exploit → P1
+  { id: 'V-002', cve: 'CVE-2024-21626', title: 'runc container escape via /proc/self/fd',
+    severity: 'High', cvss: 8.6, status: 'In Progress', asset: 'k8s-node-pool',
+    controlId: 'UCF.03.02', discovered: '2026-05-28',
+    priority: 'P1', secTier: 0, environment: 'Production', exposure: 'Internal',
+    exploitability: 'Mature Exploit', isCisaKev: true,
+    assignedTo: 'T. Williams', dueDate: '2026-06-11' },
+
+  // VSRM: Production + Internal + CVSS 9.1 + Mature Exploit → P1 (supply chain)
+  { id: 'V-003', cve: null, title: 'Malicious npm preinstall hook in CI base image',
+    severity: 'Critical', cvss: 9.1, status: 'Open', asset: 'ci-build-containers',
+    controlId: 'UCF.06.01', discovered: '2026-06-08',
+    priority: 'P1', secTier: 0, environment: 'Production', exposure: 'Internal',
     exploitability: 'Actively Exploited', isCisaKev: false,
-    assignedTo: 'T. Williams', dueDate: '2026-05-26' },
+    assignedTo: null, dueDate: '2026-06-18',
+    notes: 'TeamPCP supply chain worm. No hash-pinned lockfiles. Related to RISK-2026-0043.' },
 
-  // VSRM: Production + Internal + CVSS 9.3 + Mature Exploit → P2
-  { id: 'V-003', cve: 'CVE-2024-9012', title: 'SMB lateral movement path',
-    severity: 'Critical', cvss: 9.3, status: 'Open', asset: 'corp-workstations',
-    controlId: 'UCF.05.01', discovered: '2026-05-08',
+  // VSRM: Production + Public + CVSS 8.0 + Mature Exploit → P1 (AI socket mount)
+  { id: 'V-004', cve: null, title: 'Docker socket mounted in AI agent sidecar container',
+    severity: 'High', cvss: 8.0, status: 'Open', asset: 'ai-agent-pods',
+    controlId: 'UCF.01.02', discovered: '2026-06-05',
+    priority: 'P1', secTier: 0, environment: 'Production', exposure: 'Internal',
+    exploitability: 'Mature Exploit', isCisaKev: false, ai: true,
+    assignedTo: 'A. Patel', dueDate: '2026-06-19',
+    notes: 'AI agent running under engineer credentials with full Docker API access. RISK-2026-0044.' },
+
+  // VSRM: Production + Internal + CVSS 7.5 + POC → P2
+  { id: 'V-005', cve: 'CVE-2025-44411', title: 'containerd image config tampering (TOCTOU)',
+    severity: 'High', cvss: 7.5, status: 'Open', asset: 'container-runtime',
+    controlId: 'UCF.03.02', discovered: '2026-05-30',
     priority: 'P2', secTier: 1, environment: 'Production', exposure: 'Internal',
-    exploitability: 'Mature Exploit', isCisaKev: false,
-    assignedTo: null, dueDate: '2026-06-07' },
-
-  // VSRM: Production + Public + CVSS 6.5 + POC → P3 (Patched)
-  { id: 'V-004', cve: 'CVE-2024-3456', title: 'nginx path traversal',
-    severity: 'Medium', cvss: 6.5, status: 'Patched', asset: 'web-proxy',
-    controlId: 'UCF.03.01', discovered: '2026-05-15', patchedDate: '2026-05-22',
-    priority: 'P3', secTier: 0, environment: 'Production', exposure: 'Public',
     exploitability: 'POC', isCisaKev: false,
-    assignedTo: 'T. Williams', dueDate: '2026-07-13' },
+    assignedTo: null, dueDate: '2026-06-29' },
 
-  // VSRM: Production + Internet + CVSS 8.8 + Mature Exploit → P2
-  { id: 'V-005', cve: 'CVE-2024-7890', title: 'AWS IAM privilege escalation',
-    severity: 'High', cvss: 8.8, status: 'Open', asset: 'aws-prod',
-    controlId: 'UCF.01.02', discovered: '2026-05-14',
+  // VSRM: Production + Internet + CVSS 9.8 + POC → P2 (daemon exposed)
+  { id: 'V-006', cve: null, title: 'Docker daemon API port 2375 exposed without TLS',
+    severity: 'Critical', cvss: 9.8, status: 'Open', asset: 'docker-daemon-prod',
+    controlId: 'UCF.05.01', discovered: '2026-06-01',
     priority: 'P2', secTier: 0, environment: 'Production', exposure: 'Internet',
-    exploitability: 'Mature Exploit', isCisaKev: false,
-    assignedTo: 'J. Martinez', dueDate: '2026-06-13' },
-
-  // VSRM: Production + Internal + CVSS 7.9 + POC → P3
-  { id: 'V-006', cve: 'CVE-2024-2468', title: 'Docker container escape',
-    severity: 'High', cvss: 7.9, status: 'In Progress', asset: 'k8s-cluster',
-    controlId: 'UCF.05.01', discovered: '2026-05-18',
-    priority: 'P3', secTier: 1, environment: 'Production', exposure: 'Internal',
     exploitability: 'POC', isCisaKev: false,
-    assignedTo: 'T. Williams', dueDate: '2026-07-17' },
+    assignedTo: 'T. Williams', dueDate: '2026-07-01' },
 
-  // VSRM: Dev/Stage + Any + CVSS 6.2 + No Exploit → P4
-  { id: 'V-007', cve: 'CVE-2024-1357', title: 'Unencrypted secrets in env vars',
-    severity: 'Medium', cvss: 6.2, status: 'Open', asset: 'ci-pipeline',
-    controlId: 'UCF.02.01', discovered: '2026-05-20',
+  // VSRM: Dev/Stage + Internal + CVSS 6.5 + No Exploit → P4
+  { id: 'V-007', cve: null, title: 'Secrets hardcoded in Dockerfile ARGs exposed in image layers',
+    severity: 'Medium', cvss: 6.5, status: 'Open', asset: 'ci-pipeline-images',
+    controlId: 'UCF.02.02', discovered: '2026-05-25',
     priority: 'P4', secTier: 2, environment: 'Dev/Stage', exposure: 'Internal',
     exploitability: 'No Exploit', isCisaKev: false,
-    assignedTo: null, dueDate: '2026-08-18' },
+    assignedTo: null, dueDate: '2026-08-23' },
 
-  // VSRM: Production + Internet + CVSS 8.0 + Mature Exploit → P2 (AI)
-  { id: 'V-008', cve: 'LLM-2024-001', title: 'Prompt injection in AI chat endpoint',
-    severity: 'High', cvss: 8.0, status: 'Open', asset: 'ai-assistant-api',
-    controlId: 'UCF.AI.03', discovered: '2026-05-25', ai: true,
+  // VSRM: Production + Internet + CVSS 7.8 + Mature Exploit → P2 (AI)
+  { id: 'V-008', cve: 'LLM-2026-001', title: 'Prompt injection via unsanitised container logs to LLM',
+    severity: 'High', cvss: 7.8, status: 'Open', asset: 'ai-log-analyser',
+    controlId: 'UCF.AI.03', discovered: '2026-06-02', ai: true,
     priority: 'P2', secTier: 0, environment: 'Production', exposure: 'Internet',
     exploitability: 'Mature Exploit', isCisaKev: false,
-    assignedTo: 'A. Patel', dueDate: '2026-06-24' },
+    assignedTo: 'A. Patel', dueDate: '2026-07-02' },
 
-  // VSRM: Dev/Stage + Any + CVSS 9.1 + POC → P3 (AI)
-  { id: 'V-009', cve: 'LLM-2024-002', title: 'AI model training data exfiltration',
-    severity: 'Critical', cvss: 9.1, status: 'Open', asset: 'ml-training-env',
-    controlId: 'UCF.AI.02', discovered: '2026-05-28', ai: true,
+  // VSRM: Dev/Stage + Internal + CVSS 8.1 + POC → P3 (AI)
+  { id: 'V-009', cve: 'LLM-2026-002', title: 'LLM API key exposed in container environment dump',
+    severity: 'High', cvss: 8.1, status: 'Investigating', asset: 'ai-inference-service',
+    controlId: 'UCF.AI.02', discovered: '2026-06-03', ai: true,
     priority: 'P3', secTier: 1, environment: 'Dev/Stage', exposure: 'Internal',
     exploitability: 'POC', isCisaKev: false,
-    assignedTo: null, dueDate: '2026-07-27' },
+    assignedTo: null, dueDate: '2026-07-02' },
 
-  // EOL: Production public-facing runtime — P1 (no patch path, permanent exposure)
-  { id: 'V-010', cve: null, title: 'Node.js 16 — End of Life (Apr 2024)',
-    severity: 'High', cvss: null, status: 'Open', asset: 'api-gateway',
-    controlId: 'UCF.03.02', discovered: '2026-05-30', eol: true, eolDate: '2024-04-30',
+  // EOL: Production public-facing runtime — P1
+  { id: 'V-010', cve: null, title: 'Docker Engine 24.0.x — End of Life (Feb 2026)',
+    severity: 'High', cvss: null, status: 'Open', asset: 'legacy-prod-hosts (6)',
+    controlId: 'UCF.03.02', discovered: '2026-06-01', eol: true, eolDate: '2026-02-01',
     priority: 'P1', secTier: 0, environment: 'Production', exposure: 'Public',
     exploitability: 'No patch path', isCisaKev: false,
-    assignedTo: null, dueDate: '2026-06-13',
-    eolNote: 'No security patches issued after Apr 2024. All new CVEs permanently unmitigable. Upgrade to Node.js 20 LTS required.' },
+    assignedTo: null, dueDate: '2026-06-25',
+    eolNote: 'No security patches for Docker 24.0.x after Feb 2026. Upgrade to 27.3+ required — directly remediates CVE-2026-34040.' },
 
-  // EOL: AI/ML runtime in Dev/Stage — P2 (internal exposure, AI dependency)
-  { id: 'V-011', cve: null, title: 'Python 3.8 — End of Life (Oct 2024)',
-    severity: 'High', cvss: null, status: 'Open', asset: 'ml-training-env',
+  // EOL: AI/ML runtime — P2
+  { id: 'V-011', cve: null, title: 'Python 3.8 in ML base image — End of Life (Oct 2024)',
+    severity: 'High', cvss: null, status: 'Open', asset: 'ml-inference-containers',
     controlId: 'UCF.AI.02', discovered: '2026-05-30', eol: true, eolDate: '2024-10-31', ai: true,
     priority: 'P2', secTier: 1, environment: 'Dev/Stage', exposure: 'Internal',
     exploitability: 'No patch path', isCisaKev: false,
     assignedTo: null, dueDate: '2026-07-01',
-    eolNote: 'ML training pipeline runtime. No security patches. Upgrade to Python 3.11 LTS. Blocks EU AI Act Art. 9 risk management requirements.' },
+    eolNote: 'All AI containers use python:3.8 base. Upgrade to python:3.11-slim. Blocks EU AI Act Art. 9 risk management.' },
 ];
 
 const incidents = [
-  { id: 'INC-001', title: 'Unauthorized SSH access attempt',           severity: 'Critical', status: 'Resolved',     type: 'Intrusion',     detected: '2026-05-28', mttr: '4h',  controlId: 'UCF.01.01', systems: 3 },
-  { id: 'INC-002', title: 'Sensitive data exfiltration alert',         severity: 'High',     status: 'Investigating', type: 'Data Breach',   detected: '2026-05-30', mttr: null,  controlId: 'UCF.02.02', systems: 1 },
-  { id: 'INC-003', title: 'Ransomware execution blocked',              severity: 'Critical', status: 'Contained',    type: 'Malware',       detected: '2026-05-29', mttr: null,  controlId: 'UCF.08.01', systems: 2 },
-  { id: 'INC-004', title: 'Phishing campaign · 12 users clicked',      severity: 'Medium',   status: 'Resolved',     type: 'Phishing',      detected: '2026-05-27', mttr: '2h',  controlId: 'UCF.07.02', systems: 12 },
-  { id: 'INC-005', title: 'Vendor API key exposed in logs',            severity: 'High',     status: 'Open',         type: 'Data Exposure', detected: '2026-05-31', mttr: null,  controlId: 'UCF.06.02', systems: 1 },
-  { id: 'INC-006', title: 'Privileged account anomaly detected',       severity: 'High',     status: 'Investigating', type: 'Insider Threat',detected: '2026-05-30', mttr: null,  controlId: 'UCF.01.02', systems: 4 },
-  { id: 'INC-007', title: 'AI model returned PII in response',         severity: 'High',     status: 'Open',         type: 'AI Data Leak',  detected: '2026-05-31', mttr: null,  controlId: 'UCF.AI.02', systems: 1, ai: true },
-  { id: 'INC-008', title: 'LLM hallucination caused compliance error', severity: 'Medium',   status: 'Investigating', type: 'AI Governance', detected: '2026-05-29', mttr: null,  controlId: 'UCF.AI.01', systems: 1, ai: true },
+  { id: 'INC-001', title: 'Docker daemon API port 2375 probed by external IP',     severity: 'Critical', status: 'Resolved',      type: 'Intrusion',      detected: '2026-06-02', mttr: '3h',  controlId: 'UCF.05.01', systems: 4 },
+  { id: 'INC-002', title: 'Container escape attempt via runc /proc/self/fd',        severity: 'High',     status: 'Investigating',  type: 'Intrusion',      detected: '2026-06-05', mttr: null,  controlId: 'UCF.03.02', systems: 1 },
+  { id: 'INC-003', title: 'Malicious npm preinstall script executed in CI build',   severity: 'Critical', status: 'Contained',     type: 'Malware',        detected: '2026-06-08', mttr: null,  controlId: 'UCF.06.01', systems: 3 },
+  { id: 'INC-004', title: 'Unsigned Docker Hub image pulled to production registry', severity: 'Medium',  status: 'Resolved',      type: 'Data Exposure',  detected: '2026-05-29', mttr: '6h',  controlId: 'UCF.06.02', systems: 1 },
+  { id: 'INC-005', title: 'OpenAI API key leaked in container environment dump',    severity: 'High',     status: 'Open',          type: 'Data Exposure',  detected: '2026-06-06', mttr: null,  controlId: 'UCF.AI.04', systems: 1 },
+  { id: 'INC-006', title: 'AI agent accessed host filesystem via Docker socket',    severity: 'High',     status: 'Investigating',  type: 'Insider Threat', detected: '2026-06-07', mttr: null,  controlId: 'UCF.01.02', systems: 2 },
+  { id: 'INC-007', title: 'LLM agent returned internal container IPs in response', severity: 'High',     status: 'Open',          type: 'AI Data Leak',   detected: '2026-06-09', mttr: null,  controlId: 'UCF.AI.02', systems: 1, ai: true },
+  { id: 'INC-008', title: 'AI coding assistant committed secrets to Dockerfile',    severity: 'Medium',   status: 'Investigating',  type: 'AI Governance',  detected: '2026-06-07', mttr: null,  controlId: 'UCF.AI.01', systems: 1, ai: true },
 ];
 
 const policies = [
-  { id: 'POL-001', title: 'Acceptable Use Policy',             category: 'Security',          owner: 'J. Martinez', status: 'Current',         reviewDate: '2026-09-30', exceptions: 2, controlId: 'UCF.07.02', version: 'v3.2' },
-  { id: 'POL-002', title: 'Password & Authentication Policy',  category: 'Access Control',    owner: 'J. Martinez', status: 'Due for Review',   reviewDate: '2026-06-15', exceptions: 4, controlId: 'UCF.01.01', version: 'v2.8' },
-  { id: 'POL-003', title: 'Data Classification Policy',        category: 'Data Management',   owner: 'A. Patel',    status: 'Current',         reviewDate: '2026-08-20', exceptions: 1, controlId: 'UCF.02.01', version: 'v4.1' },
-  { id: 'POL-004', title: 'Incident Response Policy',          category: 'Security Ops',      owner: 'K. Thompson', status: 'Current',         reviewDate: '2026-10-01', exceptions: 0, controlId: 'UCF.04.01', version: 'v5.0' },
-  { id: 'POL-005', title: 'Third Party Management Policy',     category: 'Vendor Mgmt',       owner: 'S. Chen',     status: 'Overdue',         reviewDate: '2026-04-30', exceptions: 3, controlId: 'UCF.06.01', version: 'v2.1' },
-  { id: 'POL-006', title: 'Data Loss Prevention Policy',       category: 'Data Management',   owner: 'A. Patel',    status: 'Due for Review',   reviewDate: '2026-06-20', exceptions: 5, controlId: 'UCF.02.02', version: 'v1.9' },
-  { id: 'POL-007', title: 'AI Usage & Governance Policy',      category: 'AI Governance',     owner: 'A. Patel',    status: 'Overdue',         reviewDate: '2026-03-31', exceptions: 0, controlId: 'UCF.AI.01', version: 'v0.9', ai: true },
-  { id: 'POL-008', title: 'AI Ethics & Bias Policy',           category: 'AI Governance',     owner: 'A. Patel',    status: 'Missing',         reviewDate: null,         exceptions: 0, controlId: 'UCF.AI.02', version: null,   ai: true },
-  { id: 'POL-009', title: 'AI Vendor Risk Policy',             category: 'AI Governance',     owner: 'S. Chen',     status: 'Missing',         reviewDate: null,         exceptions: 0, controlId: 'UCF.AI.04', version: null,   ai: true },
+  { id: 'POL-001', title: 'Container Security Policy',                   category: 'Container Security', owner: 'T. Williams', status: 'Current',       reviewDate: '2026-10-01', exceptions: 1, controlId: 'UCF.03.02', version: 'v3.1' },
+  { id: 'POL-002', title: 'Image Signing & Supply Chain Verification',   category: 'Supply Chain',       owner: 'S. Chen',     status: 'Due for Review', reviewDate: '2026-06-30', exceptions: 3, controlId: 'UCF.06.02', version: 'v1.4' },
+  { id: 'POL-003', title: 'Container Registry Access Control Policy',    category: 'Access Control',     owner: 'J. Martinez', status: 'Current',       reviewDate: '2026-09-15', exceptions: 0, controlId: 'UCF.01.02', version: 'v2.0' },
+  { id: 'POL-004', title: 'Container Incident Response Playbook',        category: 'Incident Response',  owner: 'K. Thompson', status: 'Current',       reviewDate: '2026-11-01', exceptions: 0, controlId: 'UCF.04.01', version: 'v4.2' },
+  { id: 'POL-005', title: 'Third Party Container Image & Package Policy', category: 'Vendor Mgmt',      owner: 'S. Chen',     status: 'Overdue',       reviewDate: '2026-04-15', exceptions: 4, controlId: 'UCF.06.01', version: 'v1.8' },
+  { id: 'POL-006', title: 'Secrets Management in Containers Policy',     category: 'Data Management',    owner: 'A. Patel',    status: 'Due for Review', reviewDate: '2026-06-20', exceptions: 2, controlId: 'UCF.02.02', version: 'v2.3' },
+  { id: 'POL-007', title: 'AI/LLM API Usage & Gateway Policy',           category: 'AI Governance',     owner: 'A. Patel',    status: 'Overdue',       reviewDate: '2026-03-31', exceptions: 0, controlId: 'UCF.AI.01', version: 'v0.9', ai: true },
+  { id: 'POL-008', title: 'AI Agent Container Isolation Policy',         category: 'AI Governance',     owner: 'A. Patel',    status: 'Missing',       reviewDate: null,         exceptions: 0, controlId: 'UCF.AI.02', version: null,   ai: true },
+  { id: 'POL-009', title: 'LLM Vendor Risk & Due Diligence Policy',      category: 'AI Governance',     owner: 'S. Chen',     status: 'Missing',       reviewDate: null,         exceptions: 0, controlId: 'UCF.AI.04', version: null,   ai: true },
 ];
 
 const vendors = [
-  { id: 'TP-001', name: 'Salesforce',  category: 'SaaS · CRM',              tier: 1, riskScore: 72, status: 'Questionnaire Overdue', contractExpiry: '2026-12-31', dataShared: 'Customer PII',     controlId: 'UCF.06.02', lastAssessed: '2025-11-20', ai: false },
-  { id: 'TP-002', name: 'AWS',         category: 'Cloud Infrastructure',     tier: 1, riskScore: 35, status: 'Compliant',             contractExpiry: '2027-03-15', dataShared: 'All Prod Data',    controlId: 'UCF.06.01', lastAssessed: '2026-03-10', ai: false },
-  { id: 'TP-003', name: 'Accenture',   category: 'Professional Services',    tier: 2, riskScore: 58, status: 'Review Pending',        contractExpiry: '2026-09-30', dataShared: 'Project Data',     controlId: 'UCF.06.01', lastAssessed: '2026-01-15', ai: false },
-  { id: 'TP-004', name: 'CommsCo',     category: 'Communications',           tier: 1, riskScore: 67, status: 'SLA Breach',            contractExpiry: '2026-08-15', dataShared: 'Contact Data',     controlId: 'UCF.06.01', lastAssessed: '2026-02-28', ai: false },
-  { id: 'TP-005', name: 'Okta',        category: 'Identity Provider',        tier: 1, riskScore: 42, status: 'Compliant',             contractExpiry: '2027-01-01', dataShared: 'Identity Data',    controlId: 'UCF.01.01', lastAssessed: '2026-05-01', ai: false },
-  { id: 'TP-006', name: 'Snowflake',   category: 'Data Warehouse',           tier: 1, riskScore: 61, status: 'Review Pending',        contractExpiry: '2026-07-20', dataShared: 'Analytics Data',   controlId: 'UCF.02.01', lastAssessed: '2026-01-30', ai: false },
-  { id: 'TP-007', name: 'OpenAI',      category: 'AI · LLM Provider',        tier: 1, riskScore: 81, status: 'No Contract',           contractExpiry: null,         dataShared: 'Prompts & Data',   controlId: 'UCF.AI.04', lastAssessed: null,         ai: true },
-  { id: 'TP-008', name: 'Anthropic',   category: 'AI · LLM Provider',        tier: 1, riskScore: 74, status: 'Review Pending',        contractExpiry: '2026-09-01', dataShared: 'Prompts & Data',   controlId: 'UCF.AI.04', lastAssessed: '2026-04-01', ai: true },
-  { id: 'TP-009', name: 'Cohere',      category: 'AI · Embeddings',          tier: 2, riskScore: 68, status: 'Questionnaire Overdue', contractExpiry: '2026-10-31', dataShared: 'Text Data',        controlId: 'UCF.AI.04', lastAssessed: '2026-02-15', ai: true },
+  { id: 'TP-001', name: 'Docker Hub',        category: 'Container Registry',       tier: 1, riskScore: 68, status: 'Review Pending',        contractExpiry: '2026-12-31', dataShared: 'Container Images',  controlId: 'UCF.06.02', lastAssessed: '2026-02-10', ai: false },
+  { id: 'TP-002', name: 'GitHub (Actions)',  category: 'CI/CD Platform',           tier: 1, riskScore: 42, status: 'Compliant',             contractExpiry: '2027-06-01', dataShared: 'Source & Secrets',  controlId: 'UCF.06.01', lastAssessed: '2026-05-01', ai: false },
+  { id: 'TP-003', name: 'Snyk',             category: 'Container Vuln Scanning',  tier: 1, riskScore: 38, status: 'Compliant',             contractExpiry: '2027-01-15', dataShared: 'Image Manifests',   controlId: 'UCF.03.01', lastAssessed: '2026-04-20', ai: false },
+  { id: 'TP-004', name: 'HashiCorp Vault',  category: 'Secrets Management',       tier: 1, riskScore: 31, status: 'Compliant',             contractExpiry: '2027-03-01', dataShared: 'Secrets Metadata',  controlId: 'UCF.02.01', lastAssessed: '2026-05-10', ai: false },
+  { id: 'TP-005', name: 'JFrog Artifactory', category: 'Private Registry / Artifact Mgmt', tier: 1, riskScore: 44, status: 'Questionnaire Overdue', contractExpiry: '2026-10-01', dataShared: 'Build Artifacts', controlId: 'UCF.06.01', lastAssessed: '2026-01-30', ai: false },
+  { id: 'TP-006', name: 'npmjs.com (npm)',  category: 'Package Registry',         tier: 1, riskScore: 71, status: 'No Contract',           contractExpiry: null,         dataShared: 'Package Metadata',  controlId: 'UCF.06.02', lastAssessed: null,         ai: false },
+  { id: 'TP-007', name: 'OpenAI',           category: 'AI · LLM Provider',       tier: 1, riskScore: 81, status: 'No Contract',           contractExpiry: null,         dataShared: 'Prompts & Logs',    controlId: 'UCF.AI.04', lastAssessed: null,         ai: true },
+  { id: 'TP-008', name: 'Anthropic',        category: 'AI · LLM Provider',       tier: 1, riskScore: 74, status: 'Review Pending',        contractExpiry: '2026-09-01', dataShared: 'Prompts & Data',    controlId: 'UCF.AI.04', lastAssessed: '2026-04-01', ai: true },
+  { id: 'TP-009', name: 'PyPI',             category: 'Package Registry',         tier: 2, riskScore: 69, status: 'Questionnaire Overdue', contractExpiry: '2026-10-31', dataShared: 'Package Installs',  controlId: 'UCF.AI.04', lastAssessed: '2026-02-15', ai: false },
 ];
 
 // ─── Chart/Overview Data ──────────────────────────────────────────────────────
 
 const frameworks = [
-  { name: 'SOC 2 Type II', progress: 94, controls: 64, passing: 60, color: '#2563EB', status: 'Certified' },
-  { name: 'ISO 27001',     progress: 87, controls: 93, passing: 81, color: '#7C3AED', status: 'In Progress' },
-  { name: 'GDPR',          progress: 91, controls: 47, passing: 43, color: '#0891B2', status: 'Compliant' },
-  { name: 'HIPAA',         progress: 78, controls: 54, passing: 42, color: '#059669', status: 'In Progress' },
-  { name: 'PCI DSS',       progress: 83, controls: 89, passing: 74, color: '#D97706', status: 'Compliant' },
-  { name: 'NIST CSF',      progress: 88, controls: 108,passing: 95, color: '#DC2626', status: 'Compliant' },
-  { name: 'EU AI Act',     progress: 22, controls: 31, passing: 7,  color: '#9333EA', status: 'Gap' },
-  { name: 'ISO/IEC 42001', progress: 18, controls: 44, passing: 8,  color: '#0EA5E9', status: 'Gap' },
+  { name: 'SOC 2 Type II',        progress: 82, controls: 64,  passing: 52, color: '#2563EB', status: 'In Progress' },
+  { name: 'ISO 27001',            progress: 79, controls: 93,  passing: 73, color: '#7C3AED', status: 'In Progress' },
+  { name: 'CIS Docker Benchmark', progress: 52, controls: 24,  passing: 12, color: '#059669', status: 'Gap' },
+  { name: 'NIST CSF',             progress: 81, controls: 108, passing: 87, color: '#DC2626', status: 'Compliant' },
+  { name: 'EU AI Act',            progress: 22, controls: 31,  passing: 7,  color: '#9333EA', status: 'Gap' },
+  { name: 'SLSA (Supply Chain)',  progress: 18, controls: 18,  passing: 3,  color: '#D97706', status: 'Gap' },
+  { name: 'ISO/IEC 42001',        progress: 18, controls: 44,  passing: 8,  color: '#0EA5E9', status: 'Gap' },
+  { name: 'GDPR',                 progress: 88, controls: 47,  passing: 41, color: '#0891B2', status: 'Compliant' },
 ];
 
 // ─── Team Definitions (Leadership Scorecard) ─────────────────────────────────
@@ -276,32 +279,37 @@ const risks = riskSeed.map(r => {
 
 // ─── Audit Management Data ────────────────────────────────────────────────────
 const audits = [
-  { id:'AUD-001', name:'SOC 2 Type II Annual Audit',        framework:'SOC 2',     auditor:'Deloitte',  status:'Scheduled',      startDate:'2026-07-15', endDate:'2026-08-30', readiness:94, scope:'Security, Availability, Confidentiality', color:'#2563EB' },
-  { id:'AUD-002', name:'ISO 27001 Surveillance Audit',      framework:'ISO 27001', auditor:'BSI Group', status:'In Preparation', startDate:'2026-09-10', endDate:'2026-09-14', readiness:87, scope:'Full ISMS scope',                         color:'#7C3AED' },
-  { id:'AUD-003', name:'EU AI Act Compliance Review',       framework:'EU AI Act', auditor:'Internal',  status:'Planning',       startDate:'2026-10-01', endDate:'2026-10-31', readiness:22, scope:'High-risk AI systems',                   color:'#DC2626' },
-  { id:'AUD-004', name:'GDPR Annual Data Protection Audit', framework:'GDPR',      auditor:'PwC',       status:'Completed',      startDate:'2026-03-01', endDate:'2026-03-15', readiness:91, scope:'Data processing activities',             color:'#0891B2' },
-  { id:'AUD-005', name:'PCI DSS QSA Assessment',            framework:'PCI DSS',   auditor:'Trustwave', status:'Scheduled',      startDate:'2026-11-01', endDate:'2026-11-30', readiness:83, scope:'Cardholder data environment',            color:'#D97706' },
+  { id:'AUD-001', name:'CIS Docker Benchmark Assessment',          framework:'CIS Docker Benchmark', auditor:'Internal',        status:'In Progress',    startDate:'2026-06-01', endDate:'2026-06-30', readiness:52, scope:'Docker Engine, daemon config, host hardening',              color:'#059669' },
+  { id:'AUD-002', name:'Container Supply Chain Security Audit',    framework:'SLSA',                 auditor:'Internal',        status:'Planning',       startDate:'2026-07-01', endDate:'2026-07-21', readiness:18, scope:'Image provenance, build pipeline, package registries',      color:'#D97706' },
+  { id:'AUD-003', name:'EU AI Act / ISO 42001 Compliance Review',  framework:'EU AI Act',            auditor:'Internal',        status:'Planning',       startDate:'2026-08-01', endDate:'2026-08-31', readiness:22, scope:'AI agent workloads, LLM API usage, model governance',       color:'#9333EA' },
+  { id:'AUD-004', name:'SOC 2 Type II — Container Controls',       framework:'SOC 2',                auditor:'Deloitte',        status:'Scheduled',      startDate:'2026-09-10', endDate:'2026-10-25', readiness:82, scope:'Container security, access control, change management',    color:'#2563EB' },
+  { id:'AUD-005', name:'ISO 27001 Surveillance Audit',             framework:'ISO 27001',            auditor:'BSI Group',       status:'In Preparation', startDate:'2026-10-06', endDate:'2026-10-10', readiness:79, scope:'Full ISMS scope including container & AI workloads',        color:'#7C3AED' },
 ];
 const auditFindings = [
-  { id:'FND-001', auditId:'AUD-004', title:'Data retention schedule not enforced in S3',     severity:'High',   controlId:'UCF.02.01', status:'In Remediation', dueDate:'2026-06-30', owner:'A. Patel'    },
-  { id:'FND-002', auditId:'AUD-004', title:'Missing DPIA for new AI recommendation feature', severity:'High',   controlId:'UCF.AI.02', status:'Open',           dueDate:'2026-07-15', owner:'A. Patel'    },
-  { id:'FND-003', auditId:'AUD-004', title:'Third party processor agreement gaps',            severity:'Medium', controlId:'UCF.06.01', status:'Resolved',       dueDate:'2026-05-30', owner:'S. Chen'     },
-  { id:'FND-004', auditId:'AUD-004', title:'Cookie consent banners not granular enough',      severity:'Medium', controlId:'UCF.07.01', status:'In Remediation', dueDate:'2026-06-15', owner:'A. Patel'    },
-  { id:'FND-005', auditId:'AUD-001', title:'Patch management SLA not formally documented',    severity:'Low',    controlId:'UCF.03.02', status:'Open',           dueDate:'2026-07-01', owner:'T. Williams' },
+  { id:'FND-001', auditId:'AUD-001', title:'No hash-pinned lockfiles — npm packages pulled without integrity verification', severity:'Critical', controlId:'UCF.06.01', status:'Open',           dueDate:'2026-06-20', owner:'T. Williams', riskId:'RISK-2026-0043' },
+  { id:'FND-002', auditId:'AUD-001', title:'Docker daemon socket accessible without mTLS on 3 worker nodes',               severity:'Critical', controlId:'UCF.03.02', status:'In Remediation', dueDate:'2026-06-18', owner:'T. Williams', riskId:'RISK-2026-0042' },
+  { id:'FND-003', auditId:'AUD-001', title:'Containers running as root (no USER directive in 8 of 14 Dockerfiles)',        severity:'High',    controlId:'UCF.03.02', status:'In Remediation', dueDate:'2026-06-30', owner:'T. Williams', riskId:'RISK-2026-0042' },
+  { id:'FND-004', auditId:'AUD-001', title:'Missing SBOM for 6 production images — supply chain provenance unverifiable',  severity:'High',    controlId:'UCF.06.02', status:'Open',           dueDate:'2026-07-05', owner:'S. Chen',     riskId:'RISK-2026-0043' },
+  { id:'FND-005', auditId:'AUD-001', title:'AI API keys stored in container environment variables, not secrets manager',   severity:'High',    controlId:'UCF.AI.04', status:'Open',           dueDate:'2026-06-25', owner:'A. Patel',    riskId:'RISK-2026-0045' },
+  { id:'FND-006', auditId:'AUD-002', title:'No SLSA provenance attestation generated in CI pipeline',                       severity:'High',    controlId:'UCF.06.01', status:'Open',           dueDate:'2026-07-15', owner:'S. Chen',     riskId:'RISK-2026-0043' },
+  { id:'FND-007', auditId:'AUD-003', title:'AI agent container has no egress network policy — unrestricted outbound',       severity:'Critical', controlId:'UCF.AI.03', status:'Open',           dueDate:'2026-07-01', owner:'T. Williams', riskId:'RISK-2026-0044' },
+  { id:'FND-008', auditId:'AUD-003', title:'No LLM API gateway — agents call OpenAI/Anthropic directly without audit log',  severity:'High',    controlId:'UCF.AI.05', status:'Open',           dueDate:'2026-07-10', owner:'K. Thompson', riskId:'RISK-2026-0045' },
 ];
 
 // ─── Evidence Locker Data ─────────────────────────────────────────────────────
 const evidenceItems = [
-  { id:'EVD-001', controlId:'UCF.01.01', type:'Screenshot',     name:'Okta MFA enforcement config',          uploadedBy:'J. Martinez', uploadDate:'2026-05-15', expiryDate:'2026-11-15', status:'Current'  },
-  { id:'EVD-002', controlId:'UCF.01.01', type:'Policy Document', name:'Authentication Policy v2.8',           uploadedBy:'J. Martinez', uploadDate:'2026-04-01', expiryDate:'2026-10-01', status:'Current'  },
-  { id:'EVD-003', controlId:'UCF.03.01', type:'Test Result',     name:'Qualys scan report May 2026',          uploadedBy:'T. Williams', uploadDate:'2026-05-20', expiryDate:'2026-06-20', status:'Expiring' },
-  { id:'EVD-004', controlId:'UCF.08.01', type:'Configuration',   name:'Splunk SIEM alert rules export',       uploadedBy:'T. Williams', uploadDate:'2026-05-22', expiryDate:'2026-11-22', status:'Current'  },
-  { id:'EVD-005', controlId:'UCF.04.01', type:'Test Result',     name:'IR tabletop exercise results Apr-26',  uploadedBy:'K. Thompson', uploadDate:'2026-04-30', expiryDate:'2026-10-30', status:'Current'  },
-  { id:'EVD-006', controlId:'UCF.02.01', type:'Certificate',     name:'AWS KMS encryption compliance cert',   uploadedBy:'A. Patel',    uploadDate:'2026-04-20', expiryDate:'2026-04-20', status:'Expired'  },
-  { id:'EVD-007', controlId:'UCF.07.02', type:'Training Record', name:'Security awareness completion report', uploadedBy:'J. Martinez', uploadDate:'2026-05-10', expiryDate:'2026-11-10', status:'Current'  },
-  { id:'EVD-008', controlId:'UCF.06.01', type:'Assessment',      name:'AWS vendor risk assessment Q1-26',     uploadedBy:'S. Chen',     uploadDate:'2026-03-10', expiryDate:'2026-09-10', status:'Current'  },
-  { id:'EVD-009', controlId:'UCF.08.02', type:'Policy Document', name:'Change management procedure v3.5',     uploadedBy:'K. Thompson', uploadDate:'2026-05-18', expiryDate:'2026-11-18', status:'Current'  },
-  { id:'EVD-010', controlId:'UCF.AI.01', type:'Policy Document', name:'AI Governance Policy DRAFT v0.9',      uploadedBy:'A. Patel',    uploadDate:'2026-02-10', expiryDate:'2026-08-10', status:'Current'  },
+  { id:'EVD-001', controlId:'UCF.03.02', type:'Configuration',   name:'Docker daemon TLS config (dockerd --tlsverify)',         uploadedBy:'T. Williams', uploadDate:'2026-05-28', expiryDate:'2026-11-28', status:'Current'  },
+  { id:'EVD-002', controlId:'UCF.03.02', type:'Audit Report',    name:'CIS Docker Benchmark scan output — June 2026',           uploadedBy:'T. Williams', uploadDate:'2026-06-05', expiryDate:'2026-07-05', status:'Expiring' },
+  { id:'EVD-003', controlId:'UCF.06.01', type:'SBOM',            name:'Trivy SBOM export — prod image registry (2026-06-01)',   uploadedBy:'T. Williams', uploadDate:'2026-06-01', expiryDate:'2026-07-01', status:'Expiring' },
+  { id:'EVD-004', controlId:'UCF.06.02', type:'Screenshot',      name:'Docker Content Trust (DCT) enforcement policy in registry', uploadedBy:'S. Chen',  uploadDate:'2026-05-10', expiryDate:'2026-11-10', status:'Current'  },
+  { id:'EVD-005', controlId:'UCF.06.01', type:'Pipeline Config', name:'GitHub Actions pinned SHA workflow — ci-docker-build.yml', uploadedBy:'T. Williams', uploadDate:'2026-04-15', expiryDate:'2026-10-15', status:'Current'  },
+  { id:'EVD-006', controlId:'UCF.AI.04', type:'Policy Document', name:'AI/LLM API Gateway Policy DRAFT v0.3',                   uploadedBy:'A. Patel',   uploadDate:'2026-02-20', expiryDate:'2026-02-20', status:'Expired'  },
+  { id:'EVD-007', controlId:'UCF.AI.03', type:'Configuration',   name:'Container network policy — AI agent namespace egress',    uploadedBy:'T. Williams', uploadDate:'2026-05-01', expiryDate:'2026-05-01', status:'Expired'  },
+  { id:'EVD-008', controlId:'UCF.01.02', type:'Test Result',     name:'Docker daemon socket access control test — June 2026',    uploadedBy:'T. Williams', uploadDate:'2026-06-08', expiryDate:'2026-12-08', status:'Current'  },
+  { id:'EVD-009', controlId:'UCF.04.01', type:'Test Result',     name:'Container breach IR tabletop exercise — May 2026',        uploadedBy:'K. Thompson', uploadDate:'2026-05-22', expiryDate:'2026-11-22', status:'Current'  },
+  { id:'EVD-010', controlId:'UCF.07.02', type:'Training Record', name:'Container security awareness — team completion May 2026', uploadedBy:'J. Martinez', uploadDate:'2026-05-15', expiryDate:'2026-11-15', status:'Current'  },
+  { id:'EVD-011', controlId:'UCF.AI.05', type:'Screenshot',      name:'LLM API call audit log — Splunk dashboard export',        uploadedBy:'K. Thompson', uploadDate:'2026-04-10', expiryDate:'2026-04-10', status:'Expired'  },
+  { id:'EVD-012', controlId:'UCF.06.02', type:'Scan Report',     name:'Docker Scout image vulnerability report — 2026-06-09',    uploadedBy:'T. Williams', uploadDate:'2026-06-09', expiryDate:'2026-07-09', status:'Current'  },
 ];
 
 // ─── Shared Components ────────────────────────────────────────────────────────
