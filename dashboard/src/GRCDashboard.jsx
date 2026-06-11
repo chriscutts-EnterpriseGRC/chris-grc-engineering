@@ -655,6 +655,11 @@ function Overview({ navigate }) {
     if (topVendor) execBullets.push({ color:'#F97316', text: `${topVendor.name} is your highest-risk vendor with a score of ${topVendor.riskScore} — ${topVendor.status.toLowerCase()}` });
   }
 
+  const topRiskByResidual = [...risks].sort((a,b) => b.residualScore - a.residualScore)[0];
+  if (topRiskByResidual && topRiskByResidual.residualScore >= 12) {
+    execBullets.push({ color: getRiskColor(topRiskByResidual.residualScore), text: `${topRiskByResidual.id}: "${topRiskByResidual.title.slice(0,50)}${topRiskByResidual.title.length>50?'…':''}" — residual score ${topRiskByResidual.residualScore} · ${topRiskByResidual.treatmentPlan.slice(0,80)}${topRiskByResidual.treatmentPlan.length>80?'…':''}` });
+  }
+
   // ── Prioritisation Engine leverage actions ──────────────────────────────────
   const leverageActions = [
     {
@@ -1543,6 +1548,38 @@ function Incidents({ focusId }) {
         </div>
         <EffectivenessBadge effectiveness={ctrlMap['UCF.AI.05']?.effectiveness} score={ctrlMap['UCF.AI.05']?.score} />
       </div>
+
+      {/* Pending risk escalation — risks that could become incidents if exploited */}
+      {(() => {
+        const escalatable = risks.filter(r => r.signalSource === 'vulnerability' || r.signalSource === 'supply_chain');
+        if (!escalatable.length) return null;
+        const toIncidentType = { vulnerability: 'Intrusion', supply_chain: 'Malware / Supply Chain' };
+        return (
+          <div className="bg-white rounded-xl border border-orange-100 shadow-sm">
+            <div className="px-5 py-3 border-b border-orange-50 flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-orange-400" />
+              <span className="text-sm font-semibold text-gray-800">Pending Risk Escalation</span>
+              <span className="ml-auto text-[10px] text-gray-400 italic">exploited → becomes an incident</span>
+            </div>
+            <div className="divide-y divide-gray-50">
+              {escalatable.map(r => (
+                <div key={r.id} className="px-5 py-3 flex items-start gap-3">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-0.5 flex-wrap">
+                      <span className="font-mono text-[10px] text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded">{r.id}</span>
+                      <span className="text-[10px] bg-orange-50 text-orange-600 px-1.5 py-0.5 rounded font-semibold">→ {toIncidentType[r.signalSource]}</span>
+                      <span className="text-[10px] text-gray-500">Residual {r.residualScore} · {r.owner}</span>
+                    </div>
+                    <p className="text-sm font-medium text-gray-800">{r.title}</p>
+                    <p className="text-xs text-gray-500 mt-0.5 leading-snug">{r.threatVector}</p>
+                  </div>
+                  <StatusBadge status={r.status} />
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      })()}
 
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm">
         <ModuleHeader title="Incident Register" subtitle={`${data.length} incidents`} search={search} setSearch={setSearch}
@@ -3560,6 +3597,7 @@ function ControlAlignment() {
                   <th className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Framework Alignment</th>
                   <th className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Owner</th>
                   <th className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Last Tested</th>
+                  <th className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Linked Risks</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
@@ -3593,6 +3631,14 @@ function ControlAlignment() {
                       </td>
                       <td className="px-4 py-3.5 text-xs text-gray-500">{ctrl.owner}</td>
                       <td className="px-4 py-3.5"><span className={`text-xs ${!ctrl.lastTested?'text-red-500 font-semibold':'text-gray-400'}`}>{ctrl.lastTested||'Never'}</span></td>
+                      <td className="px-4 py-3.5">
+                        {(() => {
+                          const linked = risks.filter(r => r.controlIds.includes(ctrl.id));
+                          return linked.length > 0
+                            ? <div className="flex gap-1 flex-wrap">{linked.map(r => <span key={r.id} className={`text-[10px] font-mono px-1.5 py-0.5 rounded border ${r.residualScore >= 12 ? 'bg-red-50 text-red-600 border-red-100' : 'bg-amber-50 text-amber-600 border-amber-100'}`}>{r.id}</span>)}</div>
+                            : <span className="text-xs text-gray-300">—</span>;
+                        })()}
+                      </td>
                     </tr>
                   );
                 })}
@@ -3630,6 +3676,36 @@ function ControlAlignment() {
                   })}
                 </div>
               </div>
+              {(() => {
+                const linked = risks.filter(r => r.controlIds.includes(selectedCtrl.id));
+                if (!linked.length) return null;
+                return (
+                  <div className="mt-4 pt-4 border-t border-gray-100">
+                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Active risk dependencies ({linked.length})</p>
+                    <div className="space-y-2">
+                      {linked.map(r => {
+                        const eff = r.controlEffectiveness?.find(ce => ce.control.startsWith(selectedCtrl.id));
+                        return (
+                          <div key={r.id} className="flex items-center justify-between p-2.5 rounded-lg border bg-white">
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-1.5 mb-0.5">
+                                <span className="font-mono text-[10px] text-gray-400">{r.id}</span>
+                                {r.ai && <span className="px-1 py-0.5 bg-purple-100 text-purple-700 text-[10px] rounded font-semibold">AI</span>}
+                              </div>
+                              <p className="text-xs font-medium text-gray-700 truncate">{r.title}</p>
+                              {eff && <p className="text-[10px] text-gray-400 mt-0.5 leading-snug">{eff.note}</p>}
+                            </div>
+                            <div className="text-right flex-shrink-0 ml-3">
+                              <p className="text-[10px] text-gray-400">Residual</p>
+                              <p className={`text-sm font-bold ${r.residualScore >= 12 ? 'text-red-600' : 'text-amber-500'}`}>{r.residualScore}</p>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
           )}
         </div>
@@ -4416,6 +4492,33 @@ function AuditManagement() {
           </div>
         ))}
       </div>
+      {/* Risk-register audit gaps — which framework controls are failing per risk */}
+      <div className="bg-white rounded-xl border border-gray-100 shadow-sm">
+        <div className="px-5 py-3 border-b border-gray-50 flex items-center gap-2">
+          <span className="w-2 h-2 rounded-full bg-red-500" />
+          <span className="text-sm font-semibold text-gray-800">Risk Register — Audit Control Gaps</span>
+          <span className="ml-auto text-[10px] text-gray-400 italic">framework gaps per canonical risk</span>
+        </div>
+        <div className="divide-y divide-gray-50">
+          {risks.map(r => (
+            <div key={r.id} className="px-5 py-3">
+              <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+                <span className="font-mono text-[10px] text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded">{r.id}</span>
+                <span className="text-xs font-medium text-gray-700">{r.title}</span>
+                <StatusBadge status={r.status} />
+              </div>
+              <div className="flex gap-1.5 flex-wrap">
+                {r.controls.map(c => (
+                  <span key={c.framework} title={c.gap} className="text-[10px] bg-red-50 text-red-600 border border-red-100 px-2 py-0.5 rounded cursor-default">
+                    {c.framework} — {c.gap.length > 55 ? c.gap.slice(0, 55) + '…' : c.gap}
+                  </span>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm">
         <div className="p-5 border-b border-gray-100 flex items-center justify-between">
           <div><h3 className="font-semibold text-gray-900">Audit Findings</h3><p className="text-xs text-gray-400 mt-0.5">{selectedAudit?selectedAudit.name:"All audits"} · {findings.length} findings</p></div>
@@ -4428,6 +4531,7 @@ function AuditManagement() {
             { key:"sev",     label:"Severity",    render:r=><SeverityBadge severity={r.severity}/> },
             { key:"ctrl",    label:"Control",     render:r=>{const c=ctrlMap[r.controlId];return c?<div><span className="font-mono text-xs text-gray-400">{r.controlId}</span><p className="text-xs text-gray-500 truncate max-w-xs">{c.name}</p></div>:null} },
             { key:"eff",     label:"Effectiveness", render:r=>{const c=ctrlMap[r.controlId];return c?<EffectivenessBadge effectiveness={c.effectiveness} score={c.score}/>:null} },
+            { key:"risk",    label:"Linked Risk",  render:r=>{const linked=risks.find(risk=>risk.controlIds.includes(r.controlId));return linked?<span className={`font-mono text-[10px] px-1.5 py-0.5 rounded border ${linked.residualScore>=12?'bg-red-50 text-red-600 border-red-100':'bg-amber-50 text-amber-600 border-amber-100'}`}>{linked.id}</span>:null;} },
             { key:"status",  label:"Status",      render:r=><StatusBadge status={r.status}/> },
             { key:"due",     label:"Due",         render:r=>{
               const todayStr = new Date().toISOString().slice(0,10);
@@ -4460,6 +4564,7 @@ function EvidenceLocker() {
   const [lastSynced, setLastSynced] = useState(() => new Date(Date.now() - 6 * 3600000));
 
   const evByCtrl = controls.reduce((m,c)=>{m[c.id]=evidenceItems.filter(e=>e.controlId===c.id);return m;},{});
+  const riskCriticalIds = [...new Set(risks.flatMap(r => r.controlIds))];
   const current  = evidenceItems.filter(e=>e.status==='Current').length;
   const expiring = evidenceItems.filter(e=>e.status==='Expiring').length;
   const expired  = evidenceItems.filter(e=>e.status==='Expired').length;
@@ -4486,6 +4591,22 @@ function EvidenceLocker() {
         <p className="text-sm font-semibold text-gray-800 mb-1">Audit Readiness · Evidence Coverage</p>
         <p className="text-xs text-gray-600">{evidenceItems.length} evidence items across {[...new Set(evidenceItems.map(e=>e.controlId))].length} of {controls.length} controls. {noEvidence} controls have no evidence · required for SOC 2 Type II and ISO 27001.</p>
       </div>
+      {/* Risk-critical evidence gaps — controls that directly reduce residual scores */}
+      {(() => {
+        const missing = riskCriticalIds.filter(id => !evByCtrl[id]?.length);
+        const expired = riskCriticalIds.filter(id => evByCtrl[id]?.some(e => e.status === 'Expired'));
+        if (!missing.length && !expired.length) return null;
+        return (
+          <div className="bg-red-50 border border-red-200 rounded-xl p-4">
+            <p className="text-sm font-semibold text-red-800 mb-1">Risk-Critical Evidence Gaps</p>
+            <p className="text-xs text-red-700 leading-relaxed">
+              {missing.length > 0 && <span>{missing.length} risk-critical control{missing.length > 1 ? 's' : ''} lack evidence: <strong>{missing.join(', ')}</strong>. </span>}
+              {expired.length > 0 && <span>{expired.length} have expired evidence: <strong>{expired.join(', ')}</strong>. </span>}
+              These controls directly reduce residual scores in the Risk Register — missing evidence is an automatic audit finding.
+            </p>
+          </div>
+        );
+      })()}
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm">
         <ModuleHeader title="Evidence Locker" subtitle={filteredControls.length+" controls"} search={search} setSearch={setSearch}
           syncedAt={lastSynced} onRefresh={() => setLastSynced(new Date())}
@@ -4505,7 +4626,11 @@ function EvidenceLocker() {
                   <div className="flex items-center gap-3 min-w-0">
                     {ctrl.ai&&<Cpu size={13} className="text-purple-400 flex-shrink-0"/>}
                     <div className="min-w-0">
-                      <div className="flex items-center gap-2"><span className="font-mono text-xs text-gray-400">{ctrl.id}</span>{ctrl.ai&&<span className="px-1.5 py-0.5 bg-purple-100 text-purple-700 text-xs rounded font-medium">AI</span>}</div>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-mono text-xs text-gray-400">{ctrl.id}</span>
+                        {ctrl.ai&&<span className="px-1.5 py-0.5 bg-purple-100 text-purple-700 text-xs rounded font-medium">AI</span>}
+                        {riskCriticalIds.includes(ctrl.id) && <span className="px-1.5 py-0.5 bg-red-50 text-red-500 text-[10px] rounded border border-red-100 font-semibold">risk-critical</span>}
+                      </div>
                       <p className="text-sm font-medium text-gray-800 truncate">{ctrl.name}</p>
                     </div>
                   </div>
@@ -4714,6 +4839,14 @@ function Architecture() {
   const [selectedStep, setSelectedStep] = useState(null);
   const [archView, setArchView] = useState('flow');
   const statusDot = s => ({ healthy:'bg-emerald-500', warning:'bg-amber-400', disconnected:'bg-red-500' }[s]||'bg-gray-300');
+
+  const categoryToDomain = { 'Vuln Mgmt':'Infrastructure', 'Third Party':'Supply Chain', 'AI Governance':'AI & Application', 'AI Security':'AI & Application' };
+  const risksByDomain = risks.reduce((m, r) => {
+    const d = categoryToDomain[r.category] || 'Governance & Compliance';
+    if (!m[d]) m[d] = [];
+    m[d].push(r);
+    return m;
+  }, {});
 
   return (
     <div className="space-y-5">
@@ -4936,7 +5069,14 @@ function Architecture() {
                 </div>
                 <p className="text-xs font-semibold text-gray-800 mb-2">{d.name}</p>
                 <div className="w-full bg-gray-100 rounded-full h-1.5 mb-2"><div className="h-1.5 rounded-full" style={{ width:`${d.health}%`, background: healthColor }} /></div>
-                <div className="flex justify-between text-xs text-gray-400 mb-3"><span>{d.risks} risks</span>{d.critical>0&&<span className="text-red-500 font-medium">{d.critical} critical</span>}</div>
+                <div className="flex justify-between text-xs text-gray-400 mb-2"><span>{d.risks} risks</span>{d.critical>0&&<span className="text-red-500 font-medium">{d.critical} critical</span>}</div>
+                {risksByDomain[d.name] && (
+                  <div className="flex gap-1 flex-wrap mb-3">
+                    {risksByDomain[d.name].map(r => (
+                      <span key={r.id} title={r.title} className={`text-[10px] font-mono px-1.5 py-0.5 rounded border cursor-default ${r.residualScore >= 12 ? 'bg-red-50 text-red-600 border-red-100' : 'bg-amber-50 text-amber-600 border-amber-100'}`}>{r.id}</span>
+                    ))}
+                  </div>
+                )}
                 <div className="flex gap-1.5">
                   <button className="flex-1 py-1.5 text-xs font-medium bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors">View Risks</button>
                   <button className="flex-1 py-1.5 text-xs font-medium bg-gray-50 text-gray-600 rounded-lg hover:bg-gray-100 transition-colors">Run Review</button>
