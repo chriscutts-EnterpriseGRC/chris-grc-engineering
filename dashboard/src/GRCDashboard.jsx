@@ -69,6 +69,8 @@ const controls = [
   { id: 'UCF.AI.08', name: 'AI Explainability & Transparency', category: 'AI Governance',      frameworks: ['NIST AI RMF MEASURE 3.4','EU AI Act Art.13','GDPR Art.22'],   effectiveness: 'not_tested',   score: 0,  owner: 'A. Patel',    lastTested: null,           ai: true },
   { id: 'UCF.AI.09', name: 'AI Data Provenance & Lineage',     category: 'AI Security',        frameworks: ['NIST AI RMF MAP 2.4','GDPR Art.5','ISO/IEC 42001 8.4'],       effectiveness: 'not_tested',   score: 0,  owner: 'A. Patel',    lastTested: null,           ai: true },
   { id: 'UCF.AI.10', name: 'AI Model Lifecycle Management',    category: 'AI Governance',      frameworks: ['NIST AI RMF MANAGE 4.3','EU AI Act Art.9','ISO/IEC 42001 8.3'], effectiveness: 'partial',     score: 45, owner: 'K. Thompson', lastTested: '2026-02-20', ai: true },
+  // Supply Chain Controls
+  { id: 'UCF.08.03', name: 'Image Signing & Provenance',      category: 'Supply Chain',       frameworks: ['NIST SSDF PS.2','SOC2 CC8.1','OWASP A03:2025','SLSA L3'],       effectiveness: 'not_tested',   score: 0,  owner: 'T. Williams', lastTested: null,           ai: false },
 ];
 
 const ctrlMap = Object.fromEntries(controls.map(c => [c.id, c]));
@@ -263,7 +265,7 @@ const getAppetite   = s => s > RISK_APPETITE.critical ? 'Significantly Exceeds' 
 const RESPONSE_SLA  = { Critical:'7 days', High:'30 days', Medium:'60 days', Low:'90 days' };
 // Approval authority for risk acceptance
 const ACCEPT_AUTH   = { Critical:'C-Suite / SVP+', High:'VP+', Medium:'Director+', Low:'Manager+' };
-const CTRL_EFF = {'UCF.01.01':92,'UCF.01.02':38,'UCF.02.02':45,'UCF.03.02':41,'UCF.AI.02':33,'UCF.AI.03':0,'UCF.AI.04':51,'UCF.AI.05':0,'UCF.04.01':87,'UCF.05.01':71,'UCF.06.01':63,'UCF.06.02':62,'UCF.07.01':74,'UCF.09.01':69,'UCF.AI.01':29};
+const CTRL_EFF = {'UCF.01.01':92,'UCF.01.02':38,'UCF.02.02':45,'UCF.03.02':41,'UCF.AI.02':33,'UCF.AI.03':0,'UCF.AI.04':51,'UCF.AI.05':0,'UCF.04.01':87,'UCF.05.01':71,'UCF.06.01':63,'UCF.06.02':62,'UCF.07.01':74,'UCF.09.01':69,'UCF.AI.01':29,'UCF.08.03':0};
 const getBusinessImpact = (score) => {
   if (score >= 20) return { label: 'Existential',  color: 'bg-red-100 text-red-800',      hint: 'Potential fines >€20M or operational shutdown' };
   if (score >= 15) return { label: 'Significant',  color: 'bg-orange-100 text-orange-800', hint: 'Material revenue or reputational impact' };
@@ -288,18 +290,24 @@ const RISK_VULN_MAP = {
   'HULL-2026-0043': ['V-003'],
   'LEAK-2026-0044': ['V-004','V-008','V-011'],
   'LEAK-2026-0045': ['V-004','V-008','V-009'],
+  'LEAK-2026-0046': ['V-003','V-007'],
+  'LEAK-2026-0047': [],
 };
 const RISK_VENDOR_MAP = {
   'HULL-2026-0042': ['TP-003'],
   'HULL-2026-0043': ['TP-001','TP-002','TP-005','TP-006','TP-009'],
   'LEAK-2026-0044': ['TP-007','TP-008'],
   'LEAK-2026-0045': ['TP-007','TP-008'],
+  'LEAK-2026-0046': ['TP-001','TP-005'],
+  'LEAK-2026-0047': ['TP-001','TP-005'],
 };
 const RISK_POLICY_MAP = {
   'HULL-2026-0042': ['POL-001','POL-003','POL-004','POL-006'],
   'HULL-2026-0043': ['POL-002','POL-005'],
   'LEAK-2026-0044': ['POL-007','POL-008'],
   'LEAK-2026-0045': ['POL-007','POL-009'],
+  'LEAK-2026-0046': ['POL-002','POL-005'],
+  'LEAK-2026-0047': ['POL-002','POL-005'],
 };
 
 // ─── Audit Management Data ────────────────────────────────────────────────────
@@ -636,7 +644,7 @@ function Overview({ navigate }) {
   const criticalInc  = activeInc.filter(i => i.severity === 'Critical').length;
   const policyGaps   = policies.filter(p => p.status === 'Overdue' || p.status === 'Missing');
   const highVendors  = vendors.filter(v => v.riskScore >= 60);
-  const topRisks     = [...risks].sort((a, b) => b.inherentScore - a.inherentScore).slice(0, 4);
+  const topRisks     = [...risks].sort((a, b) => b.inherentScore - a.inherentScore).slice(0, 6);
 
   // Posture narrative driven by score
   const posture = score >= 80 ? { label: 'Good', color: 'text-green-600', bg: 'bg-green-50', border: 'border-green-200', bar: '#22C55E' }
@@ -4690,9 +4698,9 @@ function RiskRegister({ focusId }) {
       <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 flex items-start gap-3">
         <Database size={15} className="text-slate-500 flex-shrink-0 mt-0.5" />
         <div className="flex-1 min-w-0">
-          <p className="text-xs font-semibold text-slate-700 mb-1">One system — all panels derive from these four records</p>
+          <p className="text-xs font-semibold text-slate-700 mb-1">One system — all panels derive from these six records</p>
           <div className="flex items-center gap-1.5 flex-wrap text-[10px] text-slate-500">
-            {[['vulnerability','bg-red-50 text-red-600','Vulnerabilities panel'],['supply_chain','bg-orange-50 text-orange-600','Third Party / Supply Chain'],['ai_governance','bg-purple-50 text-purple-600','AI Governance panel']].map(([src,cls,label])=>(
+            {[['vulnerability','bg-red-50 text-red-600','Vulnerabilities panel'],['supply_chain','bg-orange-50 text-orange-600','Third Party / Supply Chain'],['ai_governance','bg-purple-50 text-purple-600','AI Governance panel'],['policy_exception','bg-blue-50 text-blue-600','Policy Exceptions']].map(([src,cls,label])=>(
               <span key={src} className="flex items-center gap-1">
                 <span className={`px-1.5 py-0.5 rounded font-semibold ${cls}`}>{src.replace('_',' ')}</span>
                 <span className="text-slate-400">→ {label}</span>
