@@ -3113,7 +3113,6 @@ function LeaderReport({ teamId: initialTeamId, onBack }) {
             const Icon  = t.icon;
             const owned = t.controls.map(id => ctrlMap[id]).filter(Boolean);
             const health = owned.length ? Math.round((owned.filter(c=>c.effectiveness==='effective').length + owned.filter(c=>c.effectiveness==='partial').length * 0.5) / owned.length * 100) : 0;
-            const lvl   = getLevel(health);
             const hist  = monthlyHistory[t.id] ?? [];
             const prev  = hist[hist.length - 2]?.health ?? health;
             const delta = health - prev;
@@ -3129,15 +3128,12 @@ function LeaderReport({ teamId: initialTeamId, onBack }) {
                   <ChevronRight size={14} className="text-gray-300 group-hover:text-blue-400 transition-colors" />
                 </div>
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className={`text-xl font-bold ${health >= 70 ? 'text-emerald-600' : health >= 50 ? 'text-amber-500' : 'text-red-500'}`}>{health}%</span>
-                    <span className={`text-xs px-1.5 py-0.5 rounded font-bold ${lvl.bg} ${lvl.text}`}>{lvl.icon} {lvl.name}</span>
-                  </div>
+                  <span className={`text-xl font-bold ${health >= 70 ? 'text-emerald-600' : health >= 50 ? 'text-amber-500' : 'text-red-500'}`}>{health}%</span>
                   {delta > 0
-                    ? <span className="text-xs text-emerald-600 font-semibold flex items-center gap-0.5"><TrendingUp size={11}/>+{delta}%</span>
+                    ? <span className="text-xs text-emerald-600 font-semibold flex items-center gap-0.5"><TrendingUp size={11}/>+{delta}% vs last month</span>
                     : delta < 0
-                    ? <span className="text-xs text-red-500 font-semibold flex items-center gap-0.5"><TrendingDown size={11}/>{delta}%</span>
-                    : <span className="text-xs text-gray-300">-</span>}
+                    ? <span className="text-xs text-red-500 font-semibold flex items-center gap-0.5"><TrendingDown size={11}/>{delta}% vs last month</span>
+                    : <span className="text-xs text-gray-300">No change</span>}
                 </div>
               </button>
             );
@@ -3147,14 +3143,12 @@ function LeaderReport({ teamId: initialTeamId, onBack }) {
     );
   }
 
-  const owned     = team.controls.map(id => ctrlMap[id]).filter(Boolean);
-  const effective = owned.filter(c => c.effectiveness === 'effective').length;
-  const partial   = owned.filter(c => c.effectiveness === 'partial').length;
-  const gaps      = owned.filter(c => c.effectiveness === 'ineffective' || c.effectiveness === 'not_tested').length;
-  const health    = owned.length ? Math.round(((effective + partial * 0.5) / owned.length) * 100) : 0;
-  const hist      = monthlyHistory[team.id] ?? [];
-  const level     = getLevel(health);
-  const badges    = computeBadges(team.id, { gaps, openInc: incidents.filter(i => owned.some(c => c.id === i.controlId) && i.status !== 'Resolved').length, owned }, hist);
+  const owned      = team.controls.map(id => ctrlMap[id]).filter(Boolean);
+  const effective  = owned.filter(c => c.effectiveness === 'effective').length;
+  const partial    = owned.filter(c => c.effectiveness === 'partial').length;
+  const gaps       = owned.filter(c => c.effectiveness === 'ineffective' || c.effectiveness === 'not_tested').length;
+  const health     = owned.length ? Math.round(((effective + partial * 0.5) / owned.length) * 100) : 0;
+  const hist       = monthlyHistory[team.id] ?? [];
   const prevHealth = hist[hist.length - 2]?.health ?? health;
   const delta      = health - prevHealth;
 
@@ -3163,13 +3157,24 @@ function LeaderReport({ teamId: initialTeamId, onBack }) {
   const myPolicies  = policies.filter(p => p.owner === team.lead);
   const myRisks     = risks.filter(r => r.owner === team.lead || owned.some(c => r.controlIds.includes(c.id)));
 
+  const portfolioResidual = myRisks.reduce((s, r) => s + r.residualScore, 0);
+  const portfolioStatus   = portfolioResidual <= 40 ? { label: 'Within Appetite', color: 'text-emerald-600', bg: 'bg-emerald-50', border: 'border-emerald-100' }
+                          : portfolioResidual <= 55 ? { label: 'Approaches Threshold', color: 'text-amber-600', bg: 'bg-amber-50', border: 'border-amber-100' }
+                          : { label: 'Exceeds Appetite', color: 'text-red-600', bg: 'bg-red-50', border: 'border-red-100' };
+
+  const openIssues = [
+    ...[...myVulns].sort((a,b) => ['P0','P1','P2','P3'].indexOf(a.priority??'P3') - ['P0','P1','P2','P3'].indexOf(b.priority??'P3'))
+      .slice(0,3).map(v => ({ icon: <Bug size={13} className="text-red-400 flex-shrink-0 mt-0.5" />, label: v.title, meta: `${v.priority} vulnerability · due ${v.dueDate}`, urgent: v.priority === 'P0' || v.priority === 'P1' })),
+    ...myIncidents.slice(0,2).map(i => ({ icon: <Flame size={13} className="text-orange-400 flex-shrink-0 mt-0.5" />, label: i.title, meta: `Active incident · ${i.type}`, urgent: i.severity === 'Critical' })),
+  ];
+
   const actions = [
-    ...owned.filter(c => c.effectiveness === 'not_tested').map(c => ({ priority:'High',   action:`Test and document effectiveness of ${c.name}`,  due:'Jun 30, 2026' })),
-    ...owned.filter(c => c.effectiveness === 'ineffective').map(c => ({ priority:'High',   action:`Remediate ineffective control: ${c.name}`,        due:'Jun 30, 2026' })),
-    ...myPolicies.filter(p => p.status === 'Missing').map(p => ({ priority:'High',   action:`Create missing policy: ${p.title}`,              due:'Jun 15, 2026' })),
-    ...myPolicies.filter(p => p.status === 'Overdue').map(p => ({ priority:'Medium', action:`Review overdue policy: ${p.title}`,             due:'Jun 20, 2026' })),
-    ...myRisks.filter(r => r.status === 'Open' && r.inherentScore >= 15).map(r => ({ priority:'High', action:`Progress risk treatment: ${r.title}`, due: r.reviewDate || 'Jul 1, 2026' })),
-  ].slice(0, 6);
+    ...owned.filter(c => c.effectiveness === 'not_tested').map(c => ({ label: `Test ${c.name}`, due: 'Jun 30, 2026', urgent: true })),
+    ...owned.filter(c => c.effectiveness === 'ineffective').map(c => ({ label: `Remediate ${c.name}`, due: 'Jun 30, 2026', urgent: true })),
+    ...myPolicies.filter(p => p.status === 'Missing').map(p => ({ label: `Create missing policy: ${p.title}`, due: 'Jun 15, 2026', urgent: true })),
+    ...myPolicies.filter(p => p.status === 'Overdue').map(p => ({ label: `Review overdue policy: ${p.title}`, due: 'Jun 20, 2026', urgent: false })),
+    ...myRisks.filter(r => r.status === 'Open' && r.inherentScore >= 15).map(r => ({ label: `Progress treatment: ${r.title}`, due: r.reviewDate || 'Jul 1, 2026', urgent: r.inherentScore >= 20 })),
+  ].slice(0, 5);
 
   const shareUrl = () => {
     const url = `${window.location.href.split('?')[0]}?leader=${teamId}`;
@@ -3177,200 +3182,142 @@ function LeaderReport({ teamId: initialTeamId, onBack }) {
   };
 
   const Icon = team.icon;
+  const reportMonth = new Date(new Date().setMonth(new Date().getMonth()-1)).toLocaleString('default', { month: 'long', year: 'numeric' });
 
   return (
-    <div className="space-y-5 max-w-4xl mx-auto">
-      {/* Header */}
+    <div className="space-y-5 max-w-3xl mx-auto">
+
+      {/* Nav */}
       <div className="flex items-center justify-between">
         <button onClick={onBack} className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-800 transition-colors">
-          <ChevronRight size={14} className="rotate-180" /> Back to Scorecard
+          <ChevronRight size={14} className="rotate-180" /> All Teams
         </button>
         <div className="flex items-center gap-2">
           <button onClick={shareUrl} className="flex items-center gap-1.5 text-xs text-gray-500 border border-gray-200 rounded-lg px-3 py-1.5 hover:bg-gray-50 transition-colors">
-            <Globe size={12} /> Copy Share Link
+            <Globe size={12} /> Share
           </button>
           <button onClick={() => window.print()} className="flex items-center gap-1.5 text-xs text-white bg-blue-600 rounded-lg px-3 py-1.5 hover:bg-blue-700 transition-colors">
-            <Download size={12} /> Print / Export PDF
+            <Download size={12} /> Export PDF
           </button>
         </div>
       </div>
 
-      {/* Leader header card */}
+      {/* ── Section 1: Where we stand ─────────────────────────────────────────── */}
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6">
-        <div className="flex items-start justify-between">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-xl flex items-center justify-center" style={{ background: team.color + '20' }}>
-              <Icon size={22} style={{ color: team.color }} />
+        <div className="flex items-start justify-between mb-5">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: team.color + '20' }}>
+              <Icon size={18} style={{ color: team.color }} />
             </div>
             <div>
-              <h2 className="text-xl font-bold text-gray-900">{team.name}</h2>
-              <p className="text-sm text-gray-500">{team.dept} · {team.lead}</p>
-              <p className="text-xs text-gray-400 mt-0.5">Monthly Report · {new Date(new Date().setMonth(new Date().getMonth()-1)).toLocaleString('default', { month: 'long', year: 'numeric' })}</p>
+              <h2 className="text-lg font-bold text-gray-900">{team.name}</h2>
+              <p className="text-xs text-gray-400">{team.dept} · {team.lead} · {reportMonth}</p>
             </div>
           </div>
           <div className="text-right">
-            <p className={`text-4xl font-bold ${health >= 70 ? 'text-emerald-600' : health >= 50 ? 'text-amber-500' : 'text-red-500'}`}>{health}%</p>
-            <span className={`text-sm font-bold px-2 py-1 rounded ${level.bg} ${level.text}`}>{level.icon} {level.name}</span>
+            <p className={`text-3xl font-bold leading-none ${health >= 70 ? 'text-emerald-600' : health >= 50 ? 'text-amber-500' : 'text-red-500'}`}>{health}%</p>
             <p className="text-xs text-gray-400 mt-1">
-              {delta > 0 ? <span className="text-emerald-600">▲ +{delta}% vs last month</span>
-               : delta < 0 ? <span className="text-red-500">▼ {delta}% vs last month</span>
-               : 'No change'}
+              {delta > 0 ? <span className="text-emerald-600 font-semibold">▲ +{delta}% vs last month</span>
+               : delta < 0 ? <span className="text-red-500 font-semibold">▼ {delta}% vs last month</span>
+               : <span>No change from last month</span>}
             </p>
           </div>
         </div>
 
-        {/* Badges */}
-        {badges.length > 0 && (
-          <div className="flex flex-wrap gap-2 mt-4 pt-4 border-t border-gray-50">
-            <span className="text-xs text-gray-400 self-center">May badges:</span>
-            {badges.map(b => (
-              <span key={b.label} className="flex items-center gap-1.5 text-sm bg-slate-50 border border-slate-200 px-3 py-1 rounded-full text-slate-700 font-medium">
-                {b.icon} {b.label} <span className="text-xs text-gray-400 font-normal">· {b.desc}</span>
-              </span>
+        {/* 3-stat summary */}
+        <div className="grid grid-cols-3 gap-4 pt-4 border-t border-gray-50">
+          <div className="text-center">
+            <p className={`text-2xl font-bold ${gaps === 0 ? 'text-emerald-600' : gaps <= 2 ? 'text-amber-500' : 'text-red-500'}`}>{gaps}</p>
+            <p className="text-xs text-gray-500 mt-0.5">Control gaps</p>
+            <p className="text-[10px] text-gray-400">{effective} effective · {partial} partial</p>
+          </div>
+          <div className="text-center border-x border-gray-50">
+            <p className={`text-2xl font-bold ${openIssues.length === 0 ? 'text-emerald-600' : openIssues.some(i=>i.urgent) ? 'text-red-500' : 'text-amber-500'}`}>{openIssues.length}</p>
+            <p className="text-xs text-gray-500 mt-0.5">Open issues</p>
+            <p className="text-[10px] text-gray-400">{myVulns.length} vulns · {myIncidents.length} incidents</p>
+          </div>
+          <div className="text-center">
+            <p className={`text-2xl font-bold ${portfolioStatus.color}`}>{portfolioResidual}</p>
+            <p className="text-xs text-gray-500 mt-0.5">Portfolio risk score</p>
+            <p className={`text-[10px] font-semibold ${portfolioStatus.color}`}>{portfolioStatus.label}</p>
+          </div>
+        </div>
+
+        {/* Trend */}
+        {hist.length > 0 && (
+          <div className="flex items-end gap-3 mt-5 pt-4 border-t border-gray-50">
+            {hist.map((h, i) => (
+              <div key={i} className="flex-1 flex flex-col items-center gap-1.5">
+                <span className={`text-sm font-bold ${h.health >= 70 ? 'text-emerald-600' : h.health >= 50 ? 'text-amber-500' : 'text-red-500'}`}>{h.health}%</span>
+                <div className="w-full rounded-t" style={{ height: `${Math.max(8, (h.health / 100) * 48)}px`, background: h.health >= 70 ? '#22C55E' : h.health >= 50 ? '#F59E0B' : '#EF4444', opacity: i === hist.length - 1 ? 1 : 0.4 }} />
+                <p className="text-[10px] text-gray-400 text-center">{h.month}</p>
+              </div>
             ))}
           </div>
         )}
       </div>
 
-      {/* 3-month trend */}
-      <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
-        <h3 className="font-semibold text-gray-900 mb-4">Health Score Trend · Q2 2026</h3>
-        <div className="flex items-end gap-6">
-          {hist.map((h, i) => (
-            <div key={i} className="flex-1 flex flex-col items-center gap-2">
-              <span className={`text-lg font-bold ${h.health >= 70 ? 'text-emerald-600' : h.health >= 50 ? 'text-amber-500' : 'text-red-500'}`}>{h.health}%</span>
-              <div className="w-full rounded-t-lg" style={{ height: `${(h.health / 100) * 80}px`, background: h.health >= 70 ? '#22C55E' : h.health >= 50 ? '#F59E0B' : '#EF4444', opacity: i === hist.length - 1 ? 1 : 0.5 }} />
-              <div className="text-center">
-                <p className="text-xs font-semibold text-gray-700">{h.month}</p>
-                <p className="text-xs text-gray-400">{h.gaps} gaps · {h.vulns + h.incidents} issues</p>
-              </div>
-            </div>
-          ))}
-        </div>
-        <div className="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-100">
-          <p className="text-xs text-blue-800">
-            <strong>Level goal:</strong> Reach {level.next}% to advance from {level.name} to {LEVELS[Math.min(LEVELS.indexOf(level)+1,LEVELS.length-1)].name}.
-            Need {Math.max(0, level.next - health)}% improvement · address {Math.ceil((level.next - health) * owned.length / 100)} control{Math.ceil((level.next - health) * owned.length / 100) !== 1 ? 's' : ''}.
-          </p>
-        </div>
-      </div>
-
-      {/* Controls */}
-      <div className="bg-white rounded-xl border border-gray-100 shadow-sm">
-        <div className="p-5 border-b border-gray-100 flex items-center justify-between">
-          <h3 className="font-semibold text-gray-900">Your Controls ({owned.length})</h3>
-          <div className="flex gap-2 text-xs">
-            <span className="text-emerald-600 font-semibold">{effective} effective</span>
-            <span className="text-gray-300">·</span>
-            <span className="text-amber-500 font-semibold">{partial} partial</span>
-            <span className="text-gray-300">·</span>
-            <span className="text-red-500 font-semibold">{gaps} gaps</span>
-          </div>
-        </div>
-        <div className="divide-y divide-gray-50">
-          {owned.map(c => (
-            <div key={c.id} className="flex items-center justify-between px-5 py-3 hover:bg-gray-50">
-              <div className="flex items-center gap-3 min-w-0">
-                {c.ai && <Cpu size={13} className="text-purple-400 flex-shrink-0" />}
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="font-mono text-xs text-gray-400">{c.id}</span>
-                    <span className="text-sm font-medium text-gray-800">{c.name}</span>
-                  </div>
-                  <p className="text-xs text-gray-400 truncate">{c.frameworks.slice(0,3).join(' · ')}</p>
-                </div>
-              </div>
-              <EffectivenessBadge effectiveness={c.effectiveness} score={c.score} />
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Open issues */}
-      {(myVulns.length > 0 || myIncidents.length > 0) && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          {myVulns.length > 0 && (
-            <div className="bg-white rounded-xl border border-red-100 shadow-sm p-5">
-              <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2"><Bug size={14} className="text-red-500" /> Open Vulnerabilities ({myVulns.length})</h3>
-              <div className="space-y-2">
-                {[...myVulns].sort((a,b) => ['P0','P1','P2','P3','P4'].indexOf(a.priority??'P4') - ['P0','P1','P2','P3','P4'].indexOf(b.priority??'P4')).map(v => (
-                  <div key={v.id} className={`flex items-center gap-3 p-2 rounded-lg ${v.priority==='P0'?'bg-red-50 border border-red-100':v.priority==='P1'?'bg-orange-50 border border-orange-100':'border border-gray-50'}`}>
-                    <PriorityBadge priority={v.priority} />
-                    <div className="min-w-0 flex-1">
-                      <p className="text-xs font-mono text-blue-600">{v.cve}</p>
-                      <p className="text-xs text-gray-700 truncate">{v.title}</p>
-                    </div>
-                    <SLACountdown dueDate={v.dueDate} status={v.status} />
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-          {myIncidents.length > 0 && (
-            <div className="bg-white rounded-xl border border-orange-100 shadow-sm p-5">
-              <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2"><Flame size={14} className="text-orange-500" /> Active Incidents ({myIncidents.length})</h3>
-              <div className="space-y-2">
-                {myIncidents.map(i => (
-                  <div key={i.id} className="flex items-center justify-between gap-2">
-                    <div className="min-w-0"><p className="text-xs text-gray-700 truncate">{i.title}</p><p className="text-xs text-gray-400">{i.type}</p></div>
-                    <StatusBadge status={i.status} />
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Policies */}
-      {myPolicies.length > 0 && (
-        <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
-          <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2"><BookOpen size={14} className="text-purple-500" /> Policies You Own ({myPolicies.length})</h3>
-          <div className="space-y-2">
-            {myPolicies.map(p => (
-              <div key={p.id} className="flex items-center justify-between gap-2">
-                <div className="min-w-0"><p className="text-sm text-gray-800">{p.title}</p><p className="text-xs text-gray-400">{p.category} · v{p.version || 'draft'}</p></div>
-                <StatusBadge status={p.status} />
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Risks */}
+      {/* ── Section 2: Open risks ─────────────────────────────────────────────── */}
       {myRisks.length > 0 && (
         <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
-          <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2"><AlertTriangle size={14} className="text-amber-500" /> Risk Register · Your Items ({myRisks.length})</h3>
-          <div className="space-y-2">
-            {myRisks.map(r => (
-              <div key={r.id} className="flex items-center justify-between gap-3">
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-bold" style={{ color: r.inherentScore >= 20 ? '#EF4444' : r.inherentScore >= 12 ? '#F97316' : '#EAB308' }}>{r.inherentScore}</span>
-                    <span className="text-xs font-medium text-gray-800 truncate">{r.title}</span>
+          <h3 className="font-semibold text-gray-900 mb-1">Open Risks</h3>
+          <p className="text-xs text-gray-400 mb-4">Portfolio residual score {portfolioResidual} · appetite threshold 55</p>
+          <div className="space-y-3">
+            {myRisks.sort((a,b) => b.residualScore - a.residualScore).map(r => {
+              const appetite = getAppetite(r.residualScore);
+              const aptColor = appetite === 'Within' ? 'bg-green-50 text-green-700' : appetite === 'Approaches' ? 'bg-amber-50 text-amber-700' : 'bg-red-50 text-red-700';
+              return (
+                <div key={r.id} className="flex items-center justify-between gap-4 p-3 rounded-lg bg-gray-50 border border-gray-100">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium text-gray-800 leading-snug">{r.title}</p>
+                    <p className="text-xs text-gray-400 mt-0.5">{r.owner} · review {r.reviewDate || '—'}</p>
                   </div>
-                  <p className="text-xs text-gray-400">{r.category} · residual: {r.residualScore}</p>
+                  <div className="flex items-center gap-3 flex-shrink-0">
+                    <div className="text-right">
+                      <p className="text-xs text-gray-400">Inherent → Residual</p>
+                      <p className="text-sm font-bold text-gray-700">{r.inherentScore} → {r.residualScore}</p>
+                    </div>
+                    <span className={`text-xs font-semibold px-2 py-0.5 rounded-full whitespace-nowrap ${aptColor}`}>{appetite}</span>
+                  </div>
                 </div>
-                <StatusBadge status={r.status} />
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* ── Section 3: Open issues ────────────────────────────────────────────── */}
+      {openIssues.length > 0 && (
+        <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
+          <h3 className="font-semibold text-gray-900 mb-4">Open Issues</h3>
+          <div className="space-y-2">
+            {openIssues.map((item, i) => (
+              <div key={i} className={`flex items-start gap-3 p-3 rounded-lg border ${item.urgent ? 'bg-red-50 border-red-100' : 'bg-gray-50 border-gray-100'}`}>
+                {item.icon}
+                <div className="min-w-0">
+                  <p className="text-sm text-gray-800">{item.label}</p>
+                  <p className="text-xs text-gray-400 mt-0.5">{item.meta}</p>
+                </div>
               </div>
             ))}
           </div>
         </div>
       )}
 
-      {/* Actions for next month */}
-      <div className="bg-white rounded-xl border border-blue-100 shadow-sm p-5">
-        <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2"><Play size={14} className="text-blue-600" /> Recommended Actions · {new Date().toLocaleString('default', { month: 'long', year: 'numeric' })}</h3>
+      {/* ── Section 4: What needs to happen ──────────────────────────────────── */}
+      <div className={`rounded-xl border shadow-sm p-5 ${actions.some(a=>a.urgent) ? 'bg-red-50 border-red-100' : 'bg-white border-gray-100'}`}>
+        <h3 className="font-semibold text-gray-900 mb-1">Actions Required</h3>
+        <p className="text-xs text-gray-400 mb-4">{new Date().toLocaleString('default', { month: 'long', year: 'numeric' })}</p>
         {actions.length === 0
-          ? <p className="text-sm text-emerald-600">No critical actions · maintain current momentum and target Platinum level.</p>
+          ? <p className="text-sm text-emerald-600 font-medium">No open actions — programme is on track.</p>
           : (
             <div className="space-y-2">
               {actions.map((a, i) => (
-                <div key={i} className="flex items-start gap-3 p-3 rounded-lg bg-gray-50 border border-gray-100">
-                  <span className={`text-xs font-bold px-1.5 py-0.5 rounded flex-shrink-0 mt-0.5 ${a.priority === 'High' ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'}`}>{a.priority}</span>
-                  <div className="min-w-0">
-                    <p className="text-sm text-gray-800">{a.action}</p>
-                    <p className="text-xs text-gray-400 mt-0.5">Due: {a.due}</p>
+                <div key={i} className="flex items-start gap-3 bg-white rounded-lg p-3 border border-gray-100">
+                  <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 mt-2 ${a.urgent ? 'bg-red-500' : 'bg-amber-400'}`} />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm text-gray-800">{a.label}</p>
+                    <p className="text-xs text-gray-400 mt-0.5">Due {a.due}</p>
                   </div>
                 </div>
               ))}
@@ -3378,6 +3325,7 @@ function LeaderReport({ teamId: initialTeamId, onBack }) {
           )
         }
       </div>
+
     </div>
   );
 }
