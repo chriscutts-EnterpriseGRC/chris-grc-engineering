@@ -3094,230 +3094,174 @@ function Scorecard({ onViewReport }) {
 
 // ─── Leader Monthly Report ────────────────────────────────────────────────────
 
-function LeaderReport({ teamId: initialTeamId, onBack }) {
-  const { controls, vulns, incidents, policies, vendors } = useGRCData();
-  const ctrlMap  = Object.fromEntries(controls.map(c => [c.id, c]));
-  const [teamId, setTeamId] = useState(initialTeamId);
-  const team = teams.find(t => t.id === teamId);
+function LeaderReport({ onBack }) {
+  const { vulns, incidents } = useGRCData();
+  const { treatmentStatuses } = useTreatment();
+  const openDetail = useRiskDetail();
 
-  // Team picker when no team is selected
-  if (!team) {
-    return (
-      <div className="space-y-5 max-w-3xl mx-auto">
-        <div>
-          <h2 className="text-xl font-bold text-gray-900">Monthly Report</h2>
-          <p className="text-sm text-gray-400 mt-1">Select a team to view their {new Date(new Date().setMonth(new Date().getMonth()-1)).toLocaleString('default', { month: 'long', year: 'numeric' })} report</p>
-        </div>
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          {teams.map(t => {
-            const Icon  = t.icon;
-            const owned = t.controls.map(id => ctrlMap[id]).filter(Boolean);
-            const health = owned.length ? Math.round((owned.filter(c=>c.effectiveness==='effective').length + owned.filter(c=>c.effectiveness==='partial').length * 0.5) / owned.length * 100) : 0;
-            const hist  = monthlyHistory[t.id] ?? [];
-            const prev  = hist[hist.length - 2]?.health ?? health;
-            const delta = health - prev;
-            return (
-              <button key={t.id} onClick={() => { setTeamId(t.id); window.history.replaceState(null,'',`?leader=${t.id}`); }}
-                className="bg-white rounded-xl border border-gray-100 p-5 shadow-sm hover:shadow-md hover:border-blue-200 transition-all text-left group">
-                <div className="flex items-center gap-3 mb-3">
-                  <div className="p-2 rounded-lg" style={{ background: t.color + '18' }}><Icon size={16} style={{ color: t.color }} /></div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-gray-900 text-sm">{t.name}</p>
-                    <p className="text-xs text-gray-400">{t.dept} · {t.lead}</p>
-                  </div>
-                  <ChevronRight size={14} className="text-gray-300 group-hover:text-blue-400 transition-colors" />
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className={`text-xl font-bold ${health >= 70 ? 'text-emerald-600' : health >= 50 ? 'text-amber-500' : 'text-red-500'}`}>{health}%</span>
-                  {delta > 0
-                    ? <span className="text-xs text-emerald-600 font-semibold flex items-center gap-0.5"><TrendingUp size={11}/>+{delta}% vs last month</span>
-                    : delta < 0
-                    ? <span className="text-xs text-red-500 font-semibold flex items-center gap-0.5"><TrendingDown size={11}/>{delta}% vs last month</span>
-                    : <span className="text-xs text-gray-300">No change</span>}
-                </div>
-              </button>
-            );
-          })}
-        </div>
-      </div>
-    );
-  }
+  // ── Derived data ────────────────────────────────────────────────────────────
+  const portfolioResidual = risks.reduce((s, r) => s + r.residualScore, 0);
+  const portfolioStatus   = portfolioResidual <= 40
+    ? { label: 'Within Appetite', color: 'text-emerald-600', dot: 'bg-emerald-500' }
+    : portfolioResidual <= 55
+    ? { label: 'Approaches Threshold', color: 'text-amber-600', dot: 'bg-amber-400' }
+    : { label: 'Exceeds Appetite', color: 'text-red-600', dot: 'bg-red-500' };
 
-  const owned      = team.controls.map(id => ctrlMap[id]).filter(Boolean);
-  const effective  = owned.filter(c => c.effectiveness === 'effective').length;
-  const partial    = owned.filter(c => c.effectiveness === 'partial').length;
-  const gaps       = owned.filter(c => c.effectiveness === 'ineffective' || c.effectiveness === 'not_tested').length;
-  const health     = owned.length ? Math.round(((effective + partial * 0.5) / owned.length) * 100) : 0;
-  const hist       = monthlyHistory[team.id] ?? [];
-  const prevHealth = hist[hist.length - 2]?.health ?? health;
-  const delta      = health - prevHealth;
+  const allActions      = treatmentActions;
+  const inProgress      = allActions.filter(a => (treatmentStatuses[a.id] ?? a.status) === 'In Progress').length;
+  const complete        = allActions.filter(a => (treatmentStatuses[a.id] ?? a.status) === 'Complete').length;
+  const notStarted      = allActions.filter(a => (treatmentStatuses[a.id] ?? a.status) === 'Not Started').length;
+  const p0Actions       = allActions.filter(a => a.priority === 'P0' && (treatmentStatuses[a.id] ?? a.status) !== 'Complete');
 
-  const myVulns     = vulns.filter(v => owned.some(c => c.id === v.controlId) && v.status !== 'Patched');
-  const myIncidents = incidents.filter(i => owned.some(c => c.id === i.controlId) && i.status !== 'Resolved');
-  const myPolicies  = policies.filter(p => p.owner === team.lead);
-  const myRisks     = risks.filter(r => r.owner === team.lead || owned.some(c => r.controlIds.includes(c.id)));
+  const openVulnsAll    = vulns.filter(v => v.status !== 'Patched');
+  const p0Vulns         = openVulnsAll.filter(v => v.priority === 'P0');
+  const activeIncAll    = incidents.filter(i => i.status !== 'Resolved');
 
-  const portfolioResidual = myRisks.reduce((s, r) => s + r.residualScore, 0);
-  const portfolioStatus   = portfolioResidual <= 40 ? { label: 'Within Appetite', color: 'text-emerald-600', bg: 'bg-emerald-50', border: 'border-emerald-100' }
-                          : portfolioResidual <= 55 ? { label: 'Approaches Threshold', color: 'text-amber-600', bg: 'bg-amber-50', border: 'border-amber-100' }
-                          : { label: 'Exceeds Appetite', color: 'text-red-600', bg: 'bg-red-50', border: 'border-red-100' };
-
-  const openIssues = [
-    ...[...myVulns].sort((a,b) => ['P0','P1','P2','P3'].indexOf(a.priority??'P3') - ['P0','P1','P2','P3'].indexOf(b.priority??'P3'))
-      .slice(0,3).map(v => ({ icon: <Bug size={13} className="text-red-400 flex-shrink-0 mt-0.5" />, label: v.title, meta: `${v.priority} vulnerability · due ${v.dueDate}`, urgent: v.priority === 'P0' || v.priority === 'P1' })),
-    ...myIncidents.slice(0,2).map(i => ({ icon: <Flame size={13} className="text-orange-400 flex-shrink-0 mt-0.5" />, label: i.title, meta: `Active incident · ${i.type}`, urgent: i.severity === 'Critical' })),
-  ];
-
-  const actions = [
-    ...owned.filter(c => c.effectiveness === 'not_tested').map(c => ({ label: `Test ${c.name}`, due: 'Jun 30, 2026', urgent: true })),
-    ...owned.filter(c => c.effectiveness === 'ineffective').map(c => ({ label: `Remediate ${c.name}`, due: 'Jun 30, 2026', urgent: true })),
-    ...myPolicies.filter(p => p.status === 'Missing').map(p => ({ label: `Create missing policy: ${p.title}`, due: 'Jun 15, 2026', urgent: true })),
-    ...myPolicies.filter(p => p.status === 'Overdue').map(p => ({ label: `Review overdue policy: ${p.title}`, due: 'Jun 20, 2026', urgent: false })),
-    ...myRisks.filter(r => r.status === 'Open' && r.inherentScore >= 15).map(r => ({ label: `Progress treatment: ${r.title}`, due: r.reviewDate || 'Jul 1, 2026', urgent: r.inherentScore >= 20 })),
+  const decisionsNeeded = [
+    ...risks.filter(r => getAppetite(r.residualScore) === 'Exceeds' || getAppetite(r.residualScore) === 'Significantly Exceeds')
+      .map(r => ({ label: `Approve treatment plan for ${r.id}`, sub: `${r.title} — residual ${r.residualScore}, requires VP+ sign-off`, urgent: true })),
+    ...p0Actions.slice(0, 2).map(a => ({ label: a.summary, sub: `${a.id} · ${a.priority} · due ${a.dueDate} · owner ${a.assignee}`, urgent: a.priority === 'P0' })),
+    ...risks.filter(r => r.isException && r.exceptionExpiry)
+      .map(r => ({ label: `Review policy exception expiry: ${r.id}`, sub: `Expires ${r.exceptionExpiry} — renew or close`, urgent: false })),
   ].slice(0, 5);
 
-  const shareUrl = () => {
-    const url = `${window.location.href.split('?')[0]}?leader=${teamId}`;
-    navigator.clipboard.writeText(url).then(() => alert('Link copied to clipboard'));
-  };
-
-  const Icon = team.icon;
-  const reportMonth = new Date(new Date().setMonth(new Date().getMonth()-1)).toLocaleString('default', { month: 'long', year: 'numeric' });
+  const reportMonth = new Date(new Date().setMonth(new Date().getMonth()-1))
+    .toLocaleString('default', { month: 'long', year: 'numeric' });
 
   return (
     <div className="space-y-5 max-w-3xl mx-auto">
 
-      {/* Nav */}
+      {/* ── Header ──────────────────────────────────────────────────────────── */}
       <div className="flex items-center justify-between">
-        <button onClick={onBack} className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-800 transition-colors">
-          <ChevronRight size={14} className="rotate-180" /> All Teams
+        <div>
+          <h2 className="text-xl font-bold text-gray-900">Docker Security Programme</h2>
+          <p className="text-xs text-gray-400 mt-0.5">Monthly Report · {reportMonth} · Chris Cutts</p>
+        </div>
+        <button onClick={() => window.print()} className="flex items-center gap-1.5 text-xs text-white bg-blue-600 rounded-lg px-3 py-1.5 hover:bg-blue-700 transition-colors">
+          <Download size={12} /> Export PDF
         </button>
-        <div className="flex items-center gap-2">
-          <button onClick={shareUrl} className="flex items-center gap-1.5 text-xs text-gray-500 border border-gray-200 rounded-lg px-3 py-1.5 hover:bg-gray-50 transition-colors">
-            <Globe size={12} /> Share
-          </button>
-          <button onClick={() => window.print()} className="flex items-center gap-1.5 text-xs text-white bg-blue-600 rounded-lg px-3 py-1.5 hover:bg-blue-700 transition-colors">
-            <Download size={12} /> Export PDF
-          </button>
-        </div>
       </div>
 
-      {/* ── Section 1: Where we stand ─────────────────────────────────────────── */}
-      <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6">
-        <div className="flex items-start justify-between mb-5">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: team.color + '20' }}>
-              <Icon size={18} style={{ color: team.color }} />
-            </div>
-            <div>
-              <h2 className="text-lg font-bold text-gray-900">{team.name}</h2>
-              <p className="text-xs text-gray-400">{team.dept} · {team.lead} · {reportMonth}</p>
+      {/* ── Section 1: Programme snapshot ───────────────────────────────────── */}
+      <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
+        <h3 className="font-semibold text-gray-900 mb-4">Programme Snapshot</h3>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="text-center p-3 bg-gray-50 rounded-xl">
+            <p className={`text-3xl font-bold ${portfolioStatus.color}`}>{portfolioResidual}</p>
+            <p className="text-xs text-gray-500 mt-1">Portfolio risk score</p>
+            <div className="flex items-center justify-center gap-1 mt-1">
+              <span className={`w-1.5 h-1.5 rounded-full ${portfolioStatus.dot}`} />
+              <p className={`text-[10px] font-semibold ${portfolioStatus.color}`}>{portfolioStatus.label}</p>
             </div>
           </div>
-          <div className="text-right">
-            <p className={`text-3xl font-bold leading-none ${health >= 70 ? 'text-emerald-600' : health >= 50 ? 'text-amber-500' : 'text-red-500'}`}>{health}%</p>
-            <p className="text-xs text-gray-400 mt-1">
-              {delta > 0 ? <span className="text-emerald-600 font-semibold">▲ +{delta}% vs last month</span>
-               : delta < 0 ? <span className="text-red-500 font-semibold">▼ {delta}% vs last month</span>
-               : <span>No change from last month</span>}
+          <div className="text-center p-3 bg-gray-50 rounded-xl">
+            <p className={`text-3xl font-bold ${risks.filter(r=>getAppetite(r.residualScore)!=='Within').length > 0 ? 'text-amber-500' : 'text-emerald-600'}`}>
+              {risks.filter(r=>getAppetite(r.residualScore)!=='Within').length}
             </p>
+            <p className="text-xs text-gray-500 mt-1">Risks above appetite</p>
+            <p className="text-[10px] text-gray-400 mt-1">of {risks.length} total open risks</p>
+          </div>
+          <div className="text-center p-3 bg-gray-50 rounded-xl">
+            <p className={`text-3xl font-bold ${p0Vulns.length > 0 ? 'text-red-500' : 'text-emerald-600'}`}>{openVulnsAll.length}</p>
+            <p className="text-xs text-gray-500 mt-1">Open vulnerabilities</p>
+            <p className="text-[10px] text-gray-400 mt-1">{p0Vulns.length} P0 · {activeIncAll.length} active incidents</p>
+          </div>
+          <div className="text-center p-3 bg-gray-50 rounded-xl">
+            <p className={`text-3xl font-bold ${complete > 0 ? 'text-emerald-600' : 'text-gray-500'}`}>{complete}/{allActions.length}</p>
+            <p className="text-xs text-gray-500 mt-1">Treatment actions done</p>
+            <p className="text-[10px] text-gray-400 mt-1">{inProgress} in progress · {notStarted} not started</p>
           </div>
         </div>
-
-        {/* 3-stat summary */}
-        <div className="grid grid-cols-3 gap-4 pt-4 border-t border-gray-50">
-          <div className="text-center">
-            <p className={`text-2xl font-bold ${gaps === 0 ? 'text-emerald-600' : gaps <= 2 ? 'text-amber-500' : 'text-red-500'}`}>{gaps}</p>
-            <p className="text-xs text-gray-500 mt-0.5">Control gaps</p>
-            <p className="text-[10px] text-gray-400">{effective} effective · {partial} partial</p>
-          </div>
-          <div className="text-center border-x border-gray-50">
-            <p className={`text-2xl font-bold ${openIssues.length === 0 ? 'text-emerald-600' : openIssues.some(i=>i.urgent) ? 'text-red-500' : 'text-amber-500'}`}>{openIssues.length}</p>
-            <p className="text-xs text-gray-500 mt-0.5">Open issues</p>
-            <p className="text-[10px] text-gray-400">{myVulns.length} vulns · {myIncidents.length} incidents</p>
-          </div>
-          <div className="text-center">
-            <p className={`text-2xl font-bold ${portfolioStatus.color}`}>{portfolioResidual}</p>
-            <p className="text-xs text-gray-500 mt-0.5">Portfolio risk score</p>
-            <p className={`text-[10px] font-semibold ${portfolioStatus.color}`}>{portfolioStatus.label}</p>
-          </div>
-        </div>
-
-        {/* Trend */}
-        {hist.length > 0 && (
-          <div className="flex items-end gap-3 mt-5 pt-4 border-t border-gray-50">
-            {hist.map((h, i) => (
-              <div key={i} className="flex-1 flex flex-col items-center gap-1.5">
-                <span className={`text-sm font-bold ${h.health >= 70 ? 'text-emerald-600' : h.health >= 50 ? 'text-amber-500' : 'text-red-500'}`}>{h.health}%</span>
-                <div className="w-full rounded-t" style={{ height: `${Math.max(8, (h.health / 100) * 48)}px`, background: h.health >= 70 ? '#22C55E' : h.health >= 50 ? '#F59E0B' : '#EF4444', opacity: i === hist.length - 1 ? 1 : 0.4 }} />
-                <p className="text-[10px] text-gray-400 text-center">{h.month}</p>
-              </div>
-            ))}
-          </div>
-        )}
       </div>
 
-      {/* ── Section 2: Open risks ─────────────────────────────────────────────── */}
-      {myRisks.length > 0 && (
-        <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
-          <h3 className="font-semibold text-gray-900 mb-1">Open Risks</h3>
-          <p className="text-xs text-gray-400 mb-4">Portfolio residual score {portfolioResidual} · appetite threshold 55</p>
-          <div className="space-y-3">
-            {myRisks.sort((a,b) => b.residualScore - a.residualScore).map(r => {
-              const appetite = getAppetite(r.residualScore);
-              const aptColor = appetite === 'Within' ? 'bg-green-50 text-green-700' : appetite === 'Approaches' ? 'bg-amber-50 text-amber-700' : 'bg-red-50 text-red-700';
-              return (
-                <div key={r.id} className="flex items-center justify-between gap-4 p-3 rounded-lg bg-gray-50 border border-gray-100">
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium text-gray-800 leading-snug">{r.title}</p>
-                    <p className="text-xs text-gray-400 mt-0.5">{r.owner} · review {r.reviewDate || '—'}</p>
-                  </div>
-                  <div className="flex items-center gap-3 flex-shrink-0">
-                    <div className="text-right">
-                      <p className="text-xs text-gray-400">Inherent → Residual</p>
-                      <p className="text-sm font-bold text-gray-700">{r.inherentScore} → {r.residualScore}</p>
-                    </div>
-                    <span className={`text-xs font-semibold px-2 py-0.5 rounded-full whitespace-nowrap ${aptColor}`}>{appetite}</span>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+      {/* ── Section 2: Risk register ─────────────────────────────────────────── */}
+      <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="font-semibold text-gray-900">Risk Register</h3>
+          <span className="text-xs text-gray-400">Portfolio residual {portfolioResidual} / threshold 55</span>
         </div>
-      )}
-
-      {/* ── Section 3: Open issues ────────────────────────────────────────────── */}
-      {openIssues.length > 0 && (
-        <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
-          <h3 className="font-semibold text-gray-900 mb-4">Open Issues</h3>
-          <div className="space-y-2">
-            {openIssues.map((item, i) => (
-              <div key={i} className={`flex items-start gap-3 p-3 rounded-lg border ${item.urgent ? 'bg-red-50 border-red-100' : 'bg-gray-50 border-gray-100'}`}>
-                {item.icon}
-                <div className="min-w-0">
-                  <p className="text-sm text-gray-800">{item.label}</p>
-                  <p className="text-xs text-gray-400 mt-0.5">{item.meta}</p>
+        <div className="space-y-2">
+          {[...risks].sort((a,b) => b.residualScore - a.residualScore).map(r => {
+            const appetite   = getAppetite(r.residualScore);
+            const aptColor   = appetite === 'Within' ? 'bg-emerald-50 text-emerald-700' : appetite === 'Approaches' ? 'bg-amber-50 text-amber-700' : 'bg-red-50 text-red-700';
+            const riskTrts   = treatmentActions.filter(a => a.riskId === r.id);
+            const doneTrts   = riskTrts.filter(a => (treatmentStatuses[a.id] ?? a.status) === 'Complete').length;
+            return (
+              <div key={r.id} onClick={() => openDetail(r)}
+                className="flex items-center gap-3 p-3 rounded-lg border border-gray-100 hover:bg-blue-50 cursor-pointer transition-colors">
+                <div className="w-1.5 self-stretch rounded-full flex-shrink-0" style={{ background: getRiskColor(r.inherentScore) }} />
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-0.5">
+                    <span className="font-mono text-[10px] text-gray-400">{r.id}</span>
+                    {r.isException && <span className="text-[10px] px-1 py-0.5 bg-blue-50 text-blue-600 rounded font-semibold">Exception</span>}
+                  </div>
+                  <p className="text-sm font-medium text-gray-800 leading-snug">{r.title}</p>
+                  <p className="text-[10px] text-gray-400 mt-0.5">{r.owner} · review {r.reviewDate || '—'} · {doneTrts}/{riskTrts.length} actions done</p>
+                </div>
+                <div className="flex items-center gap-3 flex-shrink-0 text-right">
+                  <div>
+                    <p className="text-xs text-gray-400">Inherent → Residual</p>
+                    <p className="text-sm font-bold text-gray-700">{r.inherentScore} → {r.residualScore}</p>
+                  </div>
+                  <span className={`text-xs font-semibold px-2 py-0.5 rounded-full whitespace-nowrap ${aptColor}`}>{appetite}</span>
                 </div>
               </div>
-            ))}
-          </div>
+            );
+          })}
         </div>
-      )}
+        <p className="text-[10px] text-gray-400 mt-3 text-center">Click any risk to open the full CISO drill-down</p>
+      </div>
 
-      {/* ── Section 4: What needs to happen ──────────────────────────────────── */}
-      <div className={`rounded-xl border shadow-sm p-5 ${actions.some(a=>a.urgent) ? 'bg-red-50 border-red-100' : 'bg-white border-gray-100'}`}>
-        <h3 className="font-semibold text-gray-900 mb-1">Actions Required</h3>
-        <p className="text-xs text-gray-400 mb-4">{new Date().toLocaleString('default', { month: 'long', year: 'numeric' })}</p>
-        {actions.length === 0
-          ? <p className="text-sm text-emerald-600 font-medium">No open actions — programme is on track.</p>
+      {/* ── Section 3: Treatment progress ────────────────────────────────────── */}
+      <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="font-semibold text-gray-900">Treatment Progress</h3>
+          <span className="text-xs text-gray-400">{complete} of {allActions.length} actions complete</span>
+        </div>
+        <div className="w-full bg-gray-100 rounded-full h-2 mb-4">
+          <div className="h-2 rounded-full bg-emerald-500 transition-all" style={{ width: `${Math.round(complete/allActions.length*100)}%` }} />
+        </div>
+        <div className="space-y-3">
+          {risks.map(r => {
+            const riskTrts  = treatmentActions.filter(a => a.riskId === r.id);
+            const done      = riskTrts.filter(a => (treatmentStatuses[a.id] ?? a.status) === 'Complete').length;
+            const active    = riskTrts.filter(a => (treatmentStatuses[a.id] ?? a.status) === 'In Progress').length;
+            const pct       = riskTrts.length ? Math.round(done/riskTrts.length*100) : 0;
+            const nextUp    = riskTrts.find(a => (treatmentStatuses[a.id] ?? a.status) === 'In Progress') ||
+                              riskTrts.find(a => (treatmentStatuses[a.id] ?? a.status) === 'Not Started');
+            return (
+              <div key={r.id} className="flex items-center gap-3">
+                <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: getRiskColor(r.inherentScore) }} />
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between mb-1">
+                    <p className="text-xs font-medium text-gray-700 truncate">{r.title}</p>
+                    <span className="text-[10px] text-gray-400 flex-shrink-0 ml-2">{done}/{riskTrts.length}</span>
+                  </div>
+                  <div className="w-full bg-gray-100 rounded-full h-1.5">
+                    <div className="h-1.5 rounded-full transition-all" style={{ width: `${pct}%`, background: pct === 100 ? '#22C55E' : active > 0 ? '#3B82F6' : '#94A3B8' }} />
+                  </div>
+                  {nextUp && <p className="text-[10px] text-gray-400 mt-0.5 truncate">Next: {nextUp.summary}</p>}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* ── Section 4: Decisions needed ──────────────────────────────────────── */}
+      <div className={`rounded-xl border shadow-sm p-5 ${decisionsNeeded.some(d=>d.urgent) ? 'bg-amber-50 border-amber-100' : 'bg-white border-gray-100'}`}>
+        <h3 className="font-semibold text-gray-900 mb-1">Decisions Needed</h3>
+        <p className="text-xs text-gray-400 mb-4">Items that require your sign-off or awareness this month</p>
+        {decisionsNeeded.length === 0
+          ? <p className="text-sm text-emerald-600 font-medium">No decisions required — programme is on track.</p>
           : (
             <div className="space-y-2">
-              {actions.map((a, i) => (
+              {decisionsNeeded.map((d, i) => (
                 <div key={i} className="flex items-start gap-3 bg-white rounded-lg p-3 border border-gray-100">
-                  <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 mt-2 ${a.urgent ? 'bg-red-500' : 'bg-amber-400'}`} />
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm text-gray-800">{a.label}</p>
-                    <p className="text-xs text-gray-400 mt-0.5">Due {a.due}</p>
+                  <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 mt-2 ${d.urgent ? 'bg-red-500' : 'bg-amber-400'}`} />
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-gray-800">{d.label}</p>
+                    <p className="text-xs text-gray-400 mt-0.5">{d.sub}</p>
                   </div>
                 </div>
               ))}
@@ -5659,7 +5603,7 @@ export default function GRCDashboard() {
     evidence:       <EvidenceLocker />,
     architecture:   <Architecture />,
     scorecard:      <Scorecard onViewReport={navigateToReport} />,
-    'leader-report':<LeaderReport teamId={leaderTeamId} onBack={navigateBack} />,
+    'leader-report':<LeaderReport onBack={navigateBack} />,
   };
 
   return (
