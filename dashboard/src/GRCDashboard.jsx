@@ -3,9 +3,9 @@ import { BarChart, Bar, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveCo
 import {
   Shield, AlertTriangle, TrendingUp, TrendingDown, CheckCircle,
   Grid, Search, Bell, Settings, User, Menu, Activity,
-  ArrowUpRight, ArrowDownRight, ChevronRight, Zap, Database,
+  ArrowUpRight, ArrowDownRight, ArrowRight, ChevronRight, ChevronDown, Zap, Database,
   Lock, Globe, Eye, RefreshCw, Play, FileText,
-  CheckSquare, Bug, Flame, BookOpen, Building2, Cpu,
+  CheckSquare, Check, Bug, Flame, BookOpen, Building2, Cpu,
   Users, Download, Award, BarChart2, X
 } from 'lucide-react';
 import { api } from './lib/api';
@@ -13,10 +13,15 @@ import { isLive } from './lib/supabase';
 import { daysFromToday, PRIORITY_NAMES, PRIORITY_COLOR, SLA_DAYS } from './lib/vsrm';
 import brand from './lib/brand';
 import { riskSeed, computeHealthScore } from './data/riskRegister';
+import { treatmentActions, projectedCtrlEffByRisk } from './data/treatmentRoadmap';
 
 // ─── Risk Detail Context ───────────────────────────────────────────────────────
 const RiskDetailContext = createContext(null);
 const useRiskDetail = () => useContext(RiskDetailContext);
+
+// ─── Treatment Context ────────────────────────────────────────────────────────
+const TreatmentContext = createContext(null);
+const useTreatment = () => useContext(TreatmentContext);
 
 // ─── Data Context ─────────────────────────────────────────────────────────────
 const DataContext = createContext(null);
@@ -4031,18 +4036,126 @@ function _AIGovernanceLegacy() {
   );
 }
 
+// ─── Treatment Action Card (inside drawer) ────────────────────────────────────
+const STATUS_CYCLE = ['Not Started', 'In Progress', 'Complete', 'Accepted'];
+const STATUS_COLORS_TRT = {
+  'Not Started': 'bg-gray-100 text-gray-600 border-gray-200',
+  'In Progress': 'bg-blue-100 text-blue-700 border-blue-200',
+  'Complete':    'bg-emerald-100 text-emerald-700 border-emerald-200',
+  'Accepted':    'bg-purple-100 text-purple-700 border-purple-200',
+};
+const PRIORITY_COLORS_TRT = {
+  P0: 'bg-red-700 text-white', P1: 'bg-red-100 text-red-700',
+  P2: 'bg-orange-100 text-orange-700', P3: 'bg-amber-100 text-amber-700',
+};
+
+function TreatmentActionCard({ action, onCycleStatus }) {
+  const [expanded, setExpanded] = useState(false);
+  const done = action.status === 'Complete' || action.status === 'Accepted';
+  return (
+    <div className={`border rounded-xl overflow-hidden bg-white transition-colors ${done ? 'border-emerald-200' : 'border-gray-200'}`}>
+      <div className="px-4 py-3">
+        <div className="flex items-start justify-between gap-2 mb-1.5">
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <span className="font-mono text-[10px] text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded">{action.id}</span>
+            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${PRIORITY_COLORS_TRT[action.priority] || 'bg-gray-100 text-gray-600'}`}>{action.priority}</span>
+            <span className="text-[10px] text-gray-400">Phase {action.phase}</span>
+            {action.blockedBy && <span className="text-[10px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded font-semibold">blocked by {action.blockedBy}</span>}
+          </div>
+          <button onClick={onCycleStatus} title="Click to advance status"
+            className={`text-[10px] font-semibold px-2 py-1 rounded-full border cursor-pointer hover:opacity-80 transition-opacity flex-shrink-0 ${STATUS_COLORS_TRT[action.status]}`}>
+            {action.status}
+          </button>
+        </div>
+        <p className={`text-sm font-semibold leading-snug ${done ? 'text-gray-400 line-through' : 'text-gray-800'}`}>{action.summary}</p>
+        <div className="flex items-center gap-2 mt-1.5 text-[10px] text-gray-500 flex-wrap">
+          <span>{action.assignee}</span>
+          <span className="text-gray-300">·</span>
+          <span>Due {action.dueDate}</span>
+          <span className="text-gray-300">·</span>
+          <span>{action.effortDays}d effort</span>
+        </div>
+      </div>
+      <button onClick={() => setExpanded(e => !e)}
+        className="w-full px-4 py-2 bg-gray-50 text-[10px] text-gray-500 font-medium border-t border-gray-100 hover:bg-gray-100 transition-colors flex items-center justify-between">
+        <span>Acceptance Criteria · {action.acceptanceCriteria.length} items</span>
+        <ChevronDown size={11} className={`transition-transform ${expanded ? 'rotate-180' : ''}`} />
+      </button>
+      {expanded && (
+        <div className="px-4 py-3 border-t border-gray-100 space-y-2 bg-gray-50/50">
+          {action.description && <p className="text-xs text-gray-600 leading-relaxed mb-2">{action.description}</p>}
+          {action.acceptanceCriteria.map((ac, i) => (
+            <div key={i} className="flex items-start gap-2">
+              <div className={`mt-0.5 w-3.5 h-3.5 rounded flex-shrink-0 flex items-center justify-center border ${done ? 'bg-emerald-500 border-emerald-500' : 'border-gray-300 bg-white'}`}>
+                {done && <Check size={8} className="text-white" />}
+              </div>
+              <p className="text-xs text-gray-700 leading-snug">{ac}</p>
+            </div>
+          ))}
+          {action.labels?.length > 0 && (
+            <div className="flex gap-1 mt-2 flex-wrap pt-1 border-t border-gray-100">
+              {action.labels.map(l => (
+                <span key={l} className="text-[9px] bg-blue-50 text-blue-600 border border-blue-100 px-1.5 py-0.5 rounded font-medium">{l}</span>
+              ))}
+            </div>
+          )}
+          {action.improvesControls && (
+            <div className="mt-1 p-2 bg-emerald-50 rounded-lg border border-emerald-100">
+              <p className="text-[9px] font-semibold text-emerald-700 uppercase tracking-wider mb-1">Improves Controls</p>
+              {Object.entries(action.improvesControls).map(([ctrl, eff]) => (
+                <div key={ctrl} className="flex items-center gap-2 text-[10px]">
+                  <span className="font-mono text-emerald-700">{ctrl}</span>
+                  <ArrowRight size={10} className="text-emerald-400" />
+                  <span className="text-emerald-600 font-semibold">{eff}% effectiveness</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Risk Detail Drawer ───────────────────────────────────────────────────────
 function RiskDetailDrawer({ risk: r, onClose }) {
+  const [activeTab, setActiveTab] = useState('summary');
+  const { treatmentStatuses, updateTreatmentStatus } = useTreatment();
   const reductionPct = r.inherentScore > 0 ? Math.round(((r.inherentScore - r.residualScore) / r.inherentScore) * 100) : 0;
-  const headerBg = getRiskColor(r.inherentScore) + '08';
-  const headerBorder = getRiskColor(r.inherentScore) + '25';
+  const headerBg = getRiskColor(r.residualScore) + '08';
+  const headerBorder = getRiskColor(r.residualScore) + '25';
+
+  // Linked items for the Evidence tab
   const linkedVulns    = (RISK_VULN_MAP[r.id]   || []).map(id => vulns.find(v => v.id === id)).filter(Boolean);
   const linkedVendors  = (RISK_VENDOR_MAP[r.id]  || []).map(id => vendors.find(v => v.id === id)).filter(Boolean);
   const linkedPolicies = (RISK_POLICY_MAP[r.id]  || []).map(id => policies.find(p => p.id === id)).filter(Boolean);
+
+  // Treatment tab data
+  const riskActions = treatmentActions
+    .filter(a => a.riskId === r.id)
+    .map(a => ({ ...a, status: treatmentStatuses[a.id] ?? a.status }));
+  const cycleStatus = (action) => {
+    const idx = STATUS_CYCLE.indexOf(action.status);
+    updateTreatmentStatus(action.id, STATUS_CYCLE[(idx + 1) % STATUS_CYCLE.length]);
+  };
+  const completedCount = riskActions.filter(a => a.status === 'Complete' || a.status === 'Accepted').length;
+
+  // Projected residual after all treatments complete
+  const projEffOverrides = projectedCtrlEffByRisk[r.id] || {};
+  const mergedEff = { ...CTRL_EFF, ...projEffOverrides };
+  const projReductionFactor = r.controlIds.reduce((f, id) => f * (1 - ((mergedEff[id] ?? 50) / 100) * 0.5), 1);
+  const projResidual = Math.max(2, Math.round(r.inherentScore * projReductionFactor));
+
+  const TABS = [
+    { id: 'summary',   label: 'Summary' },
+    { id: 'treatment', label: `Treatment (${completedCount}/${riskActions.length})` },
+    { id: 'evidence',  label: 'Evidence' },
+  ];
+
   return (
-    <div className="fixed right-0 top-0 h-full w-[480px] max-w-[95vw] bg-white border-l border-gray-200 shadow-2xl z-50 flex flex-col">
+    <div className="fixed right-0 top-0 h-full w-[520px] max-w-[95vw] bg-white border-l border-gray-200 shadow-2xl z-50 flex flex-col">
       {/* Header */}
-      <div className="flex items-start justify-between px-6 py-5 border-b flex-shrink-0" style={{ background: headerBg, borderBottomColor: headerBorder }}>
+      <div className="flex items-start justify-between px-6 py-4 flex-shrink-0" style={{ background: headerBg, borderBottom: `1px solid ${headerBorder}` }}>
         <div className="flex-1 min-w-0 pr-4">
           <div className="flex items-center gap-2 mb-1.5 flex-wrap">
             <span className="font-mono text-xs text-gray-500 bg-white/80 px-2 py-0.5 rounded border border-gray-200">{r.id}</span>
@@ -4050,192 +4163,273 @@ function RiskDetailDrawer({ risk: r, onClose }) {
             {r.ai && <span className="px-1.5 py-0.5 bg-purple-100 text-purple-700 text-xs rounded font-semibold">AI</span>}
             {r.signalSource && <span className={`text-xs px-1.5 py-0.5 rounded font-semibold ${r.signalSource==='vulnerability'?'bg-red-100 text-red-700':r.signalSource==='supply_chain'?'bg-orange-100 text-orange-700':'bg-purple-100 text-purple-700'}`}>{r.signalSource.replace('_',' ')}</span>}
           </div>
-          <h2 className="text-base font-semibold text-gray-900 leading-snug">{r.title}</h2>
-          <p className="text-xs text-gray-500 mt-1">{r.owner} · {r.category} · Review: {r.reviewDate}</p>
+          <h2 className="text-sm font-semibold text-gray-900 leading-snug">{r.title}</h2>
+          <p className="text-xs text-gray-500 mt-0.5">{r.owner} · {r.category} · Review: {r.reviewDate}</p>
         </div>
         <button onClick={onClose} className="p-1 text-gray-400 hover:text-gray-700 flex-shrink-0 rounded-lg hover:bg-white/80 transition-colors"><X size={18} /></button>
       </div>
 
+      {/* Tab bar */}
+      <div className="flex border-b border-gray-100 flex-shrink-0 bg-white">
+        {TABS.map(t => (
+          <button key={t.id} onClick={() => setActiveTab(t.id)}
+            className={`flex-1 py-2.5 text-xs font-semibold transition-colors border-b-2 -mb-px ${activeTab === t.id ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
+            {t.label}
+          </button>
+        ))}
+      </div>
+
       {/* Scrollable body */}
-      <div className="flex-1 overflow-y-auto p-6 space-y-6">
+      <div className="flex-1 overflow-y-auto">
 
-        {/* Score summary — 3 cells */}
-        <div className="grid grid-cols-3 gap-3">
-          <div className="p-3 rounded-xl border text-center" style={{ borderColor: getRiskColor(r.inherentScore)+'40', background: getRiskColor(r.inherentScore)+'0C' }}>
-            <p className="text-2xl font-bold" style={{ color: getRiskColor(r.inherentScore) }}>{r.inherentScore}</p>
-            <p className="text-xs text-gray-600 mt-0.5 font-medium">Inherent</p>
-            <p className="text-[10px] text-gray-400">{r.likelihood}L × {r.impact}I</p>
-          </div>
-          <div className="p-3 rounded-xl border border-emerald-100 bg-emerald-50 text-center">
-            <p className="text-2xl font-bold text-emerald-700">{reductionPct}%</p>
-            <p className="text-xs text-gray-600 mt-0.5 font-medium">Reduced</p>
-            <p className="text-[10px] text-gray-400">{r.controlIds.length} control{r.controlIds.length !== 1 ? 's' : ''}</p>
-          </div>
-          <div className="p-3 rounded-xl border text-center" style={{ borderColor: getRiskColor(r.residualScore)+'40', background: getRiskColor(r.residualScore)+'0C' }}>
-            <p className="text-2xl font-bold" style={{ color: getRiskColor(r.residualScore) }}>{r.residualScore}</p>
-            <p className="text-xs text-gray-600 mt-0.5 font-medium">Residual</p>
-            <p className="text-[10px] text-gray-400">{getRiskRating(r.residualScore)} band</p>
-          </div>
-        </div>
-
-        {/* Why it matters */}
-        {r.whyItMatters && (
-          <div className="p-4 rounded-xl bg-blue-50 border border-blue-100">
-            <p className="text-[10px] font-semibold text-blue-600 uppercase tracking-wider mb-1">Why it matters</p>
-            <p className="text-sm text-blue-900 leading-relaxed">{r.whyItMatters}</p>
-          </div>
-        )}
-
-        {/* Threat Analysis */}
-        {(r.threatAgent || r.threatVector || r.vulnerability || r.assetAtRisk || r.existingExposure) && (
-          <div>
-            <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-2">Threat Analysis — ISO 27005</p>
-            <div className="space-y-1.5">
-              {[
-                ['Threat Agent',      r.threatAgent],
-                ['Attack Vector',     r.threatVector],
-                ['Vulnerability',     r.vulnerability],
-                ['Asset at Risk',     r.assetAtRisk],
-                ['Existing Exposure', r.existingExposure],
-              ].filter(([, v]) => v).map(([label, val]) => (
-                <div key={label} className="p-3 rounded-lg bg-gray-50 border border-gray-100">
-                  <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-0.5">{label}</p>
-                  <p className="text-xs text-gray-700 leading-relaxed">{val}</p>
-                </div>
-              ))}
+        {/* ── Summary tab ── */}
+        {activeTab === 'summary' && (
+          <div className="p-5 space-y-5">
+            {/* Score row */}
+            <div className="grid grid-cols-4 gap-2">
+              <div className="p-3 rounded-xl border text-center col-span-1" style={{ borderColor: getRiskColor(r.inherentScore)+'40', background: getRiskColor(r.inherentScore)+'0C' }}>
+                <p className="text-xl font-bold" style={{ color: getRiskColor(r.inherentScore) }}>{r.inherentScore}</p>
+                <p className="text-[10px] text-gray-500 font-medium mt-0.5">Inherent</p>
+                <p className="text-[9px] text-gray-400">{r.likelihood}L × {r.impact}I</p>
+              </div>
+              <div className="p-3 rounded-xl border border-emerald-100 bg-emerald-50 text-center col-span-1">
+                <p className="text-xl font-bold text-emerald-700">{reductionPct}%</p>
+                <p className="text-[10px] text-gray-500 font-medium mt-0.5">Reduced</p>
+                <p className="text-[9px] text-gray-400">{r.controlIds.length} controls</p>
+              </div>
+              <div className="p-3 rounded-xl border text-center col-span-1" style={{ borderColor: getRiskColor(r.residualScore)+'40', background: getRiskColor(r.residualScore)+'0C' }}>
+                <p className="text-xl font-bold" style={{ color: getRiskColor(r.residualScore) }}>{r.residualScore}</p>
+                <p className="text-[10px] text-gray-500 font-medium mt-0.5">Residual</p>
+                <p className="text-[9px] text-gray-400">{getRiskRating(r.residualScore)}</p>
+              </div>
+              <div className="p-3 rounded-xl border border-blue-100 bg-blue-50 text-center col-span-1">
+                <p className="text-xl font-bold text-blue-700">{projResidual}</p>
+                <p className="text-[10px] text-gray-500 font-medium mt-0.5">Target</p>
+                <p className="text-[9px] text-gray-400">{getRiskRating(projResidual)}</p>
+              </div>
             </div>
-          </div>
-        )}
 
-        {/* Treatment */}
-        <div>
-          <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-2">Treatment — {r.treatment}</p>
-          <div className="p-3 rounded-xl border border-amber-200 bg-amber-50">
-            <p className="text-xs text-amber-900 leading-relaxed">{r.treatmentPlan}</p>
-          </div>
-          <div className="flex items-center gap-2 mt-2 flex-wrap">
-            <span className="text-[10px] bg-gray-100 text-gray-600 px-2 py-0.5 rounded">SLA: {r.slaDays} days</span>
-            <span className="text-[10px] bg-gray-100 text-gray-600 px-2 py-0.5 rounded">Owner: {r.owner}</span>
-            <StatusBadge status={r.status} />
-          </div>
-        </div>
+            {/* Why it matters */}
+            {r.whyItMatters && (
+              <div className="p-3.5 rounded-xl bg-blue-50 border border-blue-100">
+                <p className="text-[10px] font-semibold text-blue-600 uppercase tracking-wider mb-1">Why it matters</p>
+                <p className="text-sm text-blue-900 leading-relaxed">{r.whyItMatters}</p>
+              </div>
+            )}
 
-        {/* Control effectiveness breakdown */}
-        {r.controlEffectiveness?.length > 0 && (
-          <div>
-            <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-2">Control Effectiveness Breakdown</p>
-            <div className="space-y-2">
-              {r.controlEffectiveness.map(ce => (
-                <div key={ce.control} className="p-3 rounded-lg border border-gray-100 bg-white">
-                  <div className="flex items-center justify-between mb-1.5">
-                    <span className="text-xs font-semibold text-gray-700">{ce.control}</span>
-                    <span className={`text-xs font-bold ${ce.effectiveness >= 70 ? 'text-emerald-600' : ce.effectiveness >= 40 ? 'text-amber-600' : 'text-red-600'}`}>{ce.effectiveness}%</span>
-                  </div>
-                  <div className="w-full bg-gray-100 rounded-full h-1.5 mb-1.5">
-                    <div className="h-1.5 rounded-full transition-all" style={{ width: ce.effectiveness + '%', background: ce.effectiveness >= 70 ? '#22C55E' : ce.effectiveness >= 40 ? '#EAB308' : '#EF4444' }} />
-                  </div>
-                  <p className="text-[10px] text-gray-400 leading-snug">{ce.note}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Framework control gaps */}
-        {r.controls?.length > 0 && (
-          <div>
-            <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-2">Framework Control Gaps ({r.controls.length})</p>
-            <div className="space-y-1.5">
-              {r.controls.map(c => (
-                <div key={c.framework} className="p-3 rounded-lg bg-red-50 border border-red-100">
-                  <div className="flex items-center gap-1.5 mb-1 flex-wrap">
-                    <span className="text-[10px] font-semibold text-red-700 bg-red-100 px-1.5 py-0.5 rounded">{c.framework}</span>
-                    <span className="text-[10px] text-red-600 font-medium">{c.requirement}</span>
-                  </div>
-                  <p className="text-[10px] text-red-800 leading-snug">{c.gap}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Linked Vulnerabilities */}
-        {linkedVulns.length > 0 && (
-          <div>
-            <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-2">Linked Vulnerabilities ({linkedVulns.length})</p>
-            <div className="space-y-1.5">
-              {linkedVulns.map(v => (
-                <div key={v.id} className={`p-3 rounded-lg border ${v.severity==='Critical'?'bg-red-50 border-red-200':v.severity==='High'?'bg-orange-50 border-orange-200':'bg-amber-50 border-amber-200'}`}>
-                  <div className="flex items-center justify-between mb-1.5 flex-wrap gap-1">
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                      <span className="font-mono text-[10px] bg-white/80 px-1.5 py-0.5 rounded border border-gray-200 text-gray-500">{v.id}</span>
-                      {v.cve && <span className="font-mono text-[10px] bg-blue-50 px-1.5 py-0.5 rounded border border-blue-200 text-blue-700">{v.cve}</span>}
-                      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${v.priority==='P0'?'bg-red-700 text-white':v.priority==='P1'?'bg-red-100 text-red-700':v.priority==='P2'?'bg-orange-100 text-orange-700':'bg-amber-100 text-amber-700'}`}>{v.priority}</span>
-                      {v.isCisaKev && <span className="text-[10px] bg-red-700 text-white px-1.5 py-0.5 rounded font-bold">KEV</span>}
-                      {v.eol && <span className="text-[10px] bg-gray-700 text-white px-1.5 py-0.5 rounded font-semibold">EoL</span>}
-                      {v.ai && <span className="text-[10px] bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded font-semibold">AI</span>}
+            {/* Threat Analysis */}
+            {(r.threatAgent || r.threatVector || r.vulnerability || r.assetAtRisk || r.existingExposure) && (
+              <div>
+                <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-2">Threat Analysis — ISO 27005</p>
+                <div className="space-y-1.5">
+                  {[['Threat Agent',r.threatAgent],['Attack Vector',r.threatVector],['Vulnerability',r.vulnerability],['Asset at Risk',r.assetAtRisk],['Existing Exposure',r.existingExposure]].filter(([,v])=>v).map(([label,val])=>(
+                    <div key={label} className="p-3 rounded-lg bg-gray-50 border border-gray-100">
+                      <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-0.5">{label}</p>
+                      <p className="text-xs text-gray-700 leading-relaxed">{val}</p>
                     </div>
-                    <StatusBadge status={v.status} />
-                  </div>
-                  <p className="text-xs font-semibold text-gray-800 leading-snug">{v.title}</p>
-                  <p className="text-[10px] text-gray-500 mt-0.5">{v.asset} · CVSS {v.cvss ?? 'N/A'} · Due: {v.dueDate}</p>
+                  ))}
                 </div>
-              ))}
+              </div>
+            )}
+
+            {/* Treatment strategy */}
+            <div>
+              <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-2">Treatment Strategy — {r.treatment}</p>
+              <div className="p-3 rounded-xl border border-amber-200 bg-amber-50">
+                <p className="text-xs text-amber-900 leading-relaxed">{r.treatmentPlan}</p>
+              </div>
+              <div className="flex items-center gap-2 mt-2 flex-wrap">
+                <span className="text-[10px] bg-gray-100 text-gray-600 px-2 py-0.5 rounded">SLA: {r.slaDays} days</span>
+                <span className="text-[10px] bg-gray-100 text-gray-600 px-2 py-0.5 rounded">Owner: {r.owner}</span>
+                <StatusBadge status={r.status} />
+              </div>
+            </div>
+
+            {/* Control effectiveness */}
+            {r.controlEffectiveness?.length > 0 && (
+              <div>
+                <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-2">Control Effectiveness</p>
+                <div className="space-y-2">
+                  {r.controlEffectiveness.map(ce => (
+                    <div key={ce.control} className="p-3 rounded-lg border border-gray-100 bg-white">
+                      <div className="flex items-center justify-between mb-1.5">
+                        <span className="text-xs font-semibold text-gray-700">{ce.control}</span>
+                        <span className={`text-xs font-bold ${ce.effectiveness>=70?'text-emerald-600':ce.effectiveness>=40?'text-amber-600':'text-red-600'}`}>{ce.effectiveness}%</span>
+                      </div>
+                      <div className="w-full bg-gray-100 rounded-full h-1.5 mb-1.5">
+                        <div className="h-1.5 rounded-full" style={{ width:ce.effectiveness+'%', background:ce.effectiveness>=70?'#22C55E':ce.effectiveness>=40?'#EAB308':'#EF4444' }} />
+                      </div>
+                      <p className="text-[10px] text-gray-400 leading-snug">{ce.note}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Framework gaps */}
+            {r.controls?.length > 0 && (
+              <div>
+                <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-2">Framework Control Gaps ({r.controls.length})</p>
+                <div className="space-y-1.5">
+                  {r.controls.map(c => (
+                    <div key={c.framework} className="p-3 rounded-lg bg-red-50 border border-red-100">
+                      <div className="flex items-center gap-1.5 mb-1 flex-wrap">
+                        <span className="text-[10px] font-semibold text-red-700 bg-red-100 px-1.5 py-0.5 rounded">{c.framework}</span>
+                        <span className="text-[10px] text-red-600 font-medium">{c.requirement}</span>
+                      </div>
+                      <p className="text-[10px] text-red-800 leading-snug">{c.gap}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ── Treatment tab ── */}
+        {activeTab === 'treatment' && (
+          <div className="p-5 space-y-4">
+            {/* Projected score banner */}
+            <div className="p-4 rounded-xl bg-blue-50 border border-blue-200">
+              <p className="text-[10px] font-semibold text-blue-700 uppercase tracking-wider mb-2">Score Projection — All Actions Complete</p>
+              <div className="flex items-center gap-3">
+                <div className="text-center">
+                  <p className="text-2xl font-bold" style={{ color: getRiskColor(r.residualScore) }}>{r.residualScore}</p>
+                  <p className="text-[10px] text-gray-500 mt-0.5">Now · {getRiskRating(r.residualScore)}</p>
+                </div>
+                <div className="flex-1 flex items-center gap-1">
+                  <div className="flex-1 h-px bg-blue-200" />
+                  <ArrowRight size={14} className="text-blue-400 flex-shrink-0" />
+                  <div className="flex-1 h-px bg-blue-200" />
+                </div>
+                <div className="text-center">
+                  <p className="text-2xl font-bold text-blue-700">{projResidual}</p>
+                  <p className="text-[10px] text-gray-500 mt-0.5">Target · {getRiskRating(projResidual)}</p>
+                </div>
+              </div>
+              <div className="mt-3">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-[10px] text-blue-600 font-medium">Treatment progress</span>
+                  <span className="text-[10px] text-blue-600">{completedCount} / {riskActions.length} complete</span>
+                </div>
+                <div className="w-full bg-blue-100 rounded-full h-2">
+                  <div className="h-2 rounded-full bg-blue-600 transition-all" style={{ width: riskActions.length > 0 ? `${(completedCount/riskActions.length)*100}%` : '0%' }} />
+                </div>
+              </div>
+            </div>
+
+            {/* Action cards — grouped by phase */}
+            {[1,2,3].map(phase => {
+              const phaseActions = riskActions.filter(a => a.phase === phase);
+              if (!phaseActions.length) return null;
+              const phaseDone = phaseActions.filter(a => a.status === 'Complete' || a.status === 'Accepted').length;
+              return (
+                <div key={phase}>
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${phaseDone===phaseActions.length?'bg-emerald-100 text-emerald-700':'bg-gray-100 text-gray-600'}`}>Phase {phase}</span>
+                    <span className="text-[10px] text-gray-400">{phaseDone}/{phaseActions.length} done</span>
+                  </div>
+                  <div className="space-y-2">
+                    {phaseActions.map(action => (
+                      <TreatmentActionCard key={action.id} action={action} onCycleStatus={() => cycleStatus(action)} />
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+
+            {/* Jira migration note */}
+            <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 flex items-center gap-2.5">
+              <div className="w-5 h-5 bg-blue-600 rounded flex items-center justify-center flex-shrink-0">
+                <span className="text-white text-[9px] font-bold">J</span>
+              </div>
+              <div>
+                <p className="text-[10px] font-semibold text-slate-700">{riskActions.length} tickets structured for Jira import</p>
+                <p className="text-[9px] text-slate-500">Epic: {r.id} · Each action maps 1:1 to a Jira task with AC, assignee, labels, and priority</p>
+              </div>
             </div>
           </div>
         )}
 
-        {/* Linked Third-Party Vendors */}
-        {linkedVendors.length > 0 && (
-          <div>
-            <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-2">Third-Party Vendors ({linkedVendors.length})</p>
-            <div className="space-y-1.5">
-              {linkedVendors.map(v => (
-                <div key={v.id} className={`p-3 rounded-lg border ${v.riskScore>=70?'bg-red-50 border-red-200':v.riskScore>=50?'bg-orange-50 border-orange-200':'bg-gray-50 border-gray-100'}`}>
-                  <div className="flex items-center justify-between mb-1">
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                      <span className="font-mono text-[10px] bg-white/80 px-1.5 py-0.5 rounded border border-gray-200 text-gray-500">{v.id}</span>
-                      {v.ai && <span className="text-[10px] bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded font-semibold">AI</span>}
-                      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${v.status==='No Contract'?'bg-red-100 text-red-700':v.status==='Questionnaire Overdue'?'bg-orange-100 text-orange-700':v.status==='Review Pending'?'bg-amber-100 text-amber-700':'bg-green-100 text-green-700'}`}>{v.status}</span>
+        {/* ── Evidence tab ── */}
+        {activeTab === 'evidence' && (
+          <div className="p-5 space-y-5">
+            {linkedVulns.length > 0 && (
+              <div>
+                <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-2">Linked Vulnerabilities ({linkedVulns.length})</p>
+                <div className="space-y-1.5">
+                  {linkedVulns.map(v => (
+                    <div key={v.id} className={`p-3 rounded-lg border ${v.severity==='Critical'?'bg-red-50 border-red-200':v.severity==='High'?'bg-orange-50 border-orange-200':'bg-amber-50 border-amber-200'}`}>
+                      <div className="flex items-center justify-between mb-1.5 flex-wrap gap-1">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="font-mono text-[10px] bg-white/80 px-1.5 py-0.5 rounded border border-gray-200 text-gray-500">{v.id}</span>
+                          {v.cve && <span className="font-mono text-[10px] bg-blue-50 px-1.5 py-0.5 rounded border border-blue-200 text-blue-700">{v.cve}</span>}
+                          <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${v.priority==='P0'?'bg-red-700 text-white':v.priority==='P1'?'bg-red-100 text-red-700':v.priority==='P2'?'bg-orange-100 text-orange-700':'bg-amber-100 text-amber-700'}`}>{v.priority}</span>
+                          {v.isCisaKev && <span className="text-[10px] bg-red-700 text-white px-1.5 py-0.5 rounded font-bold">KEV</span>}
+                          {v.eol && <span className="text-[10px] bg-gray-700 text-white px-1.5 py-0.5 rounded font-semibold">EoL</span>}
+                          {v.ai && <span className="text-[10px] bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded font-semibold">AI</span>}
+                        </div>
+                        <StatusBadge status={v.status} />
+                      </div>
+                      <p className="text-xs font-semibold text-gray-800 leading-snug">{v.title}</p>
+                      <p className="text-[10px] text-gray-500 mt-0.5">{v.asset} · CVSS {v.cvss ?? 'N/A'} · Due: {v.dueDate}</p>
                     </div>
-                    <span className={`text-sm font-bold ${v.riskScore>=70?'text-red-600':v.riskScore>=50?'text-orange-600':'text-green-600'}`}>{v.riskScore}</span>
-                  </div>
-                  <p className="text-xs font-semibold text-gray-800">{v.name}</p>
-                  <p className="text-[10px] text-gray-500 mt-0.5">{v.category} · Data shared: {v.dataShared}</p>
+                  ))}
                 </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Policy Coverage */}
-        {linkedPolicies.length > 0 && (
-          <div>
-            <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-2">Policy Coverage ({linkedPolicies.length})</p>
-            <div className="space-y-1.5">
-              {linkedPolicies.map(p => (
-                <div key={p.id} className={`p-3 rounded-lg border ${p.status==='Missing'?'bg-red-50 border-red-200':p.status==='Overdue'?'bg-orange-50 border-orange-200':p.status==='Due for Review'?'bg-amber-50 border-amber-200':'bg-gray-50 border-gray-100'}`}>
-                  <div className="flex items-center justify-between mb-1 flex-wrap gap-1">
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                      <span className="font-mono text-[10px] bg-white/80 px-1.5 py-0.5 rounded border border-gray-200 text-gray-500">{p.id}</span>
-                      {p.ai && <span className="text-[10px] bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded font-semibold">AI</span>}
-                      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${p.status==='Missing'?'bg-red-100 text-red-700':p.status==='Overdue'?'bg-orange-100 text-orange-700':p.status==='Due for Review'?'bg-amber-100 text-amber-700':'bg-green-100 text-green-700'}`}>{p.status}</span>
+              </div>
+            )}
+            {linkedVendors.length > 0 && (
+              <div>
+                <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-2">Third-Party Vendors ({linkedVendors.length})</p>
+                <div className="space-y-1.5">
+                  {linkedVendors.map(v => (
+                    <div key={v.id} className={`p-3 rounded-lg border ${v.riskScore>=70?'bg-red-50 border-red-200':v.riskScore>=50?'bg-orange-50 border-orange-200':'bg-gray-50 border-gray-100'}`}>
+                      <div className="flex items-center justify-between mb-1">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="font-mono text-[10px] bg-white/80 px-1.5 py-0.5 rounded border border-gray-200 text-gray-500">{v.id}</span>
+                          {v.ai && <span className="text-[10px] bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded font-semibold">AI</span>}
+                          <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${v.status==='No Contract'?'bg-red-100 text-red-700':v.status==='Questionnaire Overdue'?'bg-orange-100 text-orange-700':v.status==='Review Pending'?'bg-amber-100 text-amber-700':'bg-green-100 text-green-700'}`}>{v.status}</span>
+                        </div>
+                        <span className={`text-sm font-bold ${v.riskScore>=70?'text-red-600':v.riskScore>=50?'text-orange-600':'text-green-600'}`}>{v.riskScore}</span>
+                      </div>
+                      <p className="text-xs font-semibold text-gray-800">{v.name}</p>
+                      <p className="text-[10px] text-gray-500 mt-0.5">{v.category} · Data shared: {v.dataShared}</p>
                     </div>
-                    {p.exceptions > 0 && <span className="text-[10px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded font-semibold">{p.exceptions} exception{p.exceptions>1?'s':''}</span>}
-                  </div>
-                  <p className="text-xs font-semibold text-gray-800">{p.title}</p>
-                  <p className="text-[10px] text-gray-500 mt-0.5">{p.category} · Owner: {p.owner}{p.reviewDate?` · Review: ${p.reviewDate}`:' · No review date set'}</p>
+                  ))}
                 </div>
-              ))}
-            </div>
+              </div>
+            )}
+            {linkedPolicies.length > 0 && (
+              <div>
+                <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-2">Policy Coverage ({linkedPolicies.length})</p>
+                <div className="space-y-1.5">
+                  {linkedPolicies.map(p => (
+                    <div key={p.id} className={`p-3 rounded-lg border ${p.status==='Missing'?'bg-red-50 border-red-200':p.status==='Overdue'?'bg-orange-50 border-orange-200':p.status==='Due for Review'?'bg-amber-50 border-amber-200':'bg-gray-50 border-gray-100'}`}>
+                      <div className="flex items-center justify-between mb-1 flex-wrap gap-1">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="font-mono text-[10px] bg-white/80 px-1.5 py-0.5 rounded border border-gray-200 text-gray-500">{p.id}</span>
+                          {p.ai && <span className="text-[10px] bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded font-semibold">AI</span>}
+                          <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${p.status==='Missing'?'bg-red-100 text-red-700':p.status==='Overdue'?'bg-orange-100 text-orange-700':p.status==='Due for Review'?'bg-amber-100 text-amber-700':'bg-green-100 text-green-700'}`}>{p.status}</span>
+                        </div>
+                        {p.exceptions > 0 && <span className="text-[10px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded font-semibold">{p.exceptions} exception{p.exceptions>1?'s':''}</span>}
+                      </div>
+                      <p className="text-xs font-semibold text-gray-800">{p.title}</p>
+                      <p className="text-[10px] text-gray-500 mt-0.5">{p.category} · Owner: {p.owner}{p.reviewDate?` · Review: ${p.reviewDate}`:' · No review date set'}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>
 
       {/* Footer */}
-      <div className="p-5 border-t border-gray-100 flex gap-2 flex-shrink-0">
-        <button className="flex-1 py-2.5 bg-blue-600 text-white text-sm font-semibold rounded-lg hover:bg-blue-700 transition-colors">Open Treatment Workflow</button>
-        <button onClick={onClose} className="px-4 py-2.5 border border-gray-200 text-gray-600 text-sm font-medium rounded-lg hover:bg-gray-50 transition-colors">Close</button>
+      <div className="p-4 border-t border-gray-100 flex gap-2 flex-shrink-0">
+        <button onClick={() => setActiveTab('treatment')} className={`flex-1 py-2 text-sm font-semibold rounded-lg transition-colors ${activeTab==='treatment'?'bg-gray-100 text-gray-700':'bg-blue-600 text-white hover:bg-blue-700'}`}>
+          {activeTab === 'treatment' ? 'Reviewing Treatment' : 'Review Treatment'}
+        </button>
+        <button onClick={onClose} className="px-4 py-2 border border-gray-200 text-gray-600 text-sm font-medium rounded-lg hover:bg-gray-50 transition-colors">Close</button>
       </div>
     </div>
   );
@@ -5475,6 +5669,12 @@ export default function GRCDashboard() {
 
   const [focusId, setFocusId] = useState(null);
   const [detailRisk, setDetailRisk] = useState(null);
+  const [treatmentStatuses, setTreatmentStatuses] = useState(
+    () => Object.fromEntries(treatmentActions.map(a => [a.id, a.status]))
+  );
+  const updateTreatmentStatus = useCallback((id, status) => {
+    setTreatmentStatuses(prev => ({ ...prev, [id]: status }));
+  }, []);
 
   const handleNavClick = (id, itemId = null) => {
     setPage(id);
@@ -5507,6 +5707,7 @@ export default function GRCDashboard() {
   };
 
   return (
+    <TreatmentContext.Provider value={{ treatmentStatuses, updateTreatmentStatus }}>
     <RiskDetailContext.Provider value={setDetailRisk}>
     <DataContext.Provider value={liveData}>
     {detailRisk && (
@@ -5649,5 +5850,6 @@ export default function GRCDashboard() {
     </div>
     </DataContext.Provider>
     </RiskDetailContext.Provider>
+    </TreatmentContext.Provider>
   );
 }
