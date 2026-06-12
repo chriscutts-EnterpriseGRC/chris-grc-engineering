@@ -100,7 +100,7 @@ const vulns = [
     priority: 'P1', secTier: 0, environment: 'Production', exposure: 'Internal',
     exploitability: 'Actively Exploited', isCisaKev: false,
     assignedTo: null, dueDate: '2026-06-18',
-    notes: 'TeamPCP supply chain worm. No hash-pinned lockfiles. Related to RISK-2026-0043.' },
+    notes: 'TeamPCP supply chain worm. No hash-pinned lockfiles. Related to HULL-2026-0043.' },
 
   // VSRM: Production + Public + CVSS 8.0 + Mature Exploit → P1 (AI socket mount)
   { id: 'V-004', cve: null, title: 'Docker socket mounted in AI agent sidecar container',
@@ -109,7 +109,7 @@ const vulns = [
     priority: 'P1', secTier: 0, environment: 'Production', exposure: 'Internal',
     exploitability: 'Mature Exploit', isCisaKev: false, ai: true,
     assignedTo: 'A. Patel', dueDate: '2026-06-19',
-    notes: 'AI agent running under engineer credentials with full Docker API access. RISK-2026-0044.' },
+    notes: 'AI agent running under engineer credentials with full Docker API access. LEAK-2026-0044.' },
 
   // VSRM: Production + Internal + CVSS 7.5 + POC → P2
   { id: 'V-005', cve: 'CVE-2025-44411', title: 'containerd image config tampering (TOCTOU)',
@@ -284,22 +284,22 @@ const risks = riskSeed.map(r => {
 
 // ─── Risk ↔ linked-item maps (drives RiskDetailDrawer drill-down) ─────────────
 const RISK_VULN_MAP = {
-  'RISK-2026-0042': ['V-001','V-002','V-005','V-006','V-010'],
-  'RISK-2026-0043': ['V-003'],
-  'RISK-2026-0044': ['V-004','V-008','V-011'],
-  'RISK-2026-0045': ['V-004','V-008','V-009'],
+  'HULL-2026-0042': ['V-001','V-002','V-005','V-006','V-010'],
+  'HULL-2026-0043': ['V-003'],
+  'LEAK-2026-0044': ['V-004','V-008','V-011'],
+  'LEAK-2026-0045': ['V-004','V-008','V-009'],
 };
 const RISK_VENDOR_MAP = {
-  'RISK-2026-0042': ['TP-003'],
-  'RISK-2026-0043': ['TP-001','TP-002','TP-005','TP-006','TP-009'],
-  'RISK-2026-0044': ['TP-007','TP-008'],
-  'RISK-2026-0045': ['TP-007','TP-008'],
+  'HULL-2026-0042': ['TP-003'],
+  'HULL-2026-0043': ['TP-001','TP-002','TP-005','TP-006','TP-009'],
+  'LEAK-2026-0044': ['TP-007','TP-008'],
+  'LEAK-2026-0045': ['TP-007','TP-008'],
 };
 const RISK_POLICY_MAP = {
-  'RISK-2026-0042': ['POL-001','POL-003','POL-004','POL-006'],
-  'RISK-2026-0043': ['POL-002','POL-005'],
-  'RISK-2026-0044': ['POL-007','POL-008'],
-  'RISK-2026-0045': ['POL-007','POL-009'],
+  'HULL-2026-0042': ['POL-001','POL-003','POL-004','POL-006'],
+  'HULL-2026-0043': ['POL-002','POL-005'],
+  'LEAK-2026-0044': ['POL-007','POL-008'],
+  'LEAK-2026-0045': ['POL-007','POL-009'],
 };
 
 // ─── Audit Management Data ────────────────────────────────────────────────────
@@ -311,14 +311,14 @@ const audits = [
   { id:'AUD-005', name:'ISO 27001 Surveillance Audit',             framework:'ISO 27001',            auditor:'BSI Group',       status:'In Preparation', startDate:'2026-10-06', endDate:'2026-10-10', readiness:79, scope:'Full ISMS scope including container & AI workloads',        color:'#7C3AED' },
 ];
 const auditFindings = [
-  { id:'FND-001', auditId:'AUD-001', title:'No hash-pinned lockfiles — npm packages pulled without integrity verification', severity:'Critical', controlId:'UCF.06.01', status:'Open',           dueDate:'2026-06-20', owner:'T. Williams', riskId:'RISK-2026-0043' },
-  { id:'FND-002', auditId:'AUD-001', title:'Docker daemon socket accessible without mTLS on 3 worker nodes',               severity:'Critical', controlId:'UCF.03.02', status:'In Remediation', dueDate:'2026-06-18', owner:'T. Williams', riskId:'RISK-2026-0042' },
-  { id:'FND-003', auditId:'AUD-001', title:'Containers running as root (no USER directive in 8 of 14 Dockerfiles)',        severity:'High',    controlId:'UCF.03.02', status:'In Remediation', dueDate:'2026-06-30', owner:'T. Williams', riskId:'RISK-2026-0042' },
-  { id:'FND-004', auditId:'AUD-001', title:'Missing SBOM for 6 production images — supply chain provenance unverifiable',  severity:'High',    controlId:'UCF.06.02', status:'Open',           dueDate:'2026-07-05', owner:'S. Chen',     riskId:'RISK-2026-0043' },
-  { id:'FND-005', auditId:'AUD-001', title:'AI API keys stored in container environment variables, not secrets manager',   severity:'High',    controlId:'UCF.AI.04', status:'Open',           dueDate:'2026-06-25', owner:'A. Patel',    riskId:'RISK-2026-0045' },
-  { id:'FND-006', auditId:'AUD-002', title:'No SLSA provenance attestation generated in CI pipeline',                       severity:'High',    controlId:'UCF.06.01', status:'Open',           dueDate:'2026-07-15', owner:'S. Chen',     riskId:'RISK-2026-0043' },
-  { id:'FND-007', auditId:'AUD-003', title:'AI agent container has no egress network policy — unrestricted outbound',       severity:'Critical', controlId:'UCF.AI.03', status:'Open',           dueDate:'2026-07-01', owner:'T. Williams', riskId:'RISK-2026-0044' },
-  { id:'FND-008', auditId:'AUD-003', title:'No LLM API gateway — agents call OpenAI/Anthropic directly without audit log',  severity:'High',    controlId:'UCF.AI.05', status:'Open',           dueDate:'2026-07-10', owner:'K. Thompson', riskId:'RISK-2026-0045' },
+  { id:'FND-001', auditId:'AUD-001', title:'No hash-pinned lockfiles — npm packages pulled without integrity verification', severity:'Critical', controlId:'UCF.06.01', status:'Open',           dueDate:'2026-06-20', owner:'T. Williams', riskId:'HULL-2026-0043' },
+  { id:'FND-002', auditId:'AUD-001', title:'Docker daemon socket accessible without mTLS on 3 worker nodes',               severity:'Critical', controlId:'UCF.03.02', status:'In Remediation', dueDate:'2026-06-18', owner:'T. Williams', riskId:'HULL-2026-0042' },
+  { id:'FND-003', auditId:'AUD-001', title:'Containers running as root (no USER directive in 8 of 14 Dockerfiles)',        severity:'High',    controlId:'UCF.03.02', status:'In Remediation', dueDate:'2026-06-30', owner:'T. Williams', riskId:'HULL-2026-0042' },
+  { id:'FND-004', auditId:'AUD-001', title:'Missing SBOM for 6 production images — supply chain provenance unverifiable',  severity:'High',    controlId:'UCF.06.02', status:'Open',           dueDate:'2026-07-05', owner:'S. Chen',     riskId:'HULL-2026-0043' },
+  { id:'FND-005', auditId:'AUD-001', title:'AI API keys stored in container environment variables, not secrets manager',   severity:'High',    controlId:'UCF.AI.04', status:'Open',           dueDate:'2026-06-25', owner:'A. Patel',    riskId:'LEAK-2026-0045' },
+  { id:'FND-006', auditId:'AUD-002', title:'No SLSA provenance attestation generated in CI pipeline',                       severity:'High',    controlId:'UCF.06.01', status:'Open',           dueDate:'2026-07-15', owner:'S. Chen',     riskId:'HULL-2026-0043' },
+  { id:'FND-007', auditId:'AUD-003', title:'AI agent container has no egress network policy — unrestricted outbound',       severity:'Critical', controlId:'UCF.AI.03', status:'Open',           dueDate:'2026-07-01', owner:'T. Williams', riskId:'LEAK-2026-0044' },
+  { id:'FND-008', auditId:'AUD-003', title:'No LLM API gateway — agents call OpenAI/Anthropic directly without audit log',  severity:'High',    controlId:'UCF.AI.05', status:'Open',           dueDate:'2026-07-10', owner:'K. Thompson', riskId:'LEAK-2026-0045' },
 ];
 
 // ─── Evidence Locker Data ─────────────────────────────────────────────────────
@@ -4654,7 +4654,7 @@ function RiskRegister({ focusId }) {
                         className="w-5 h-5 rounded-full flex items-center justify-center text-white font-bold cursor-pointer hover:scale-125 transition-transform shadow-sm"
                         style={{background:getRiskColor(r.inherentScore),fontSize:'8px'}}
                         onClick={()=>setWorkflow(r)}>
-                        {r.id.replace('RISK-2026-','').replace('RSK-','')}
+                        {r.id.replace('HULL-2026-','H-').replace('LEAK-2026-','L-').replace('RSK-','')}
                       </span>
                     ))}
                   </div>

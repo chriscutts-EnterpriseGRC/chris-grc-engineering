@@ -8,10 +8,10 @@
 
 export const treatmentActions = [
 
-  // ── RISK-2026-0042 · Docker Engine AuthZ Bypass ───────────────────────────
+  // ── HULL-2026-0042 · Docker Engine AuthZ Bypass ───────────────────────────
   {
     id: 'TRT-001',
-    riskId: 'RISK-2026-0042',
+    riskId: 'HULL-2026-0042',
     phase: 1,
     jiraIssueType: 'Task',
     summary: 'Upgrade Docker Engine to ≥v27.3 on all production hosts',
@@ -33,7 +33,7 @@ export const treatmentActions = [
   },
   {
     id: 'TRT-002',
-    riskId: 'RISK-2026-0042',
+    riskId: 'HULL-2026-0042',
     phase: 1,
     jiraIssueType: 'Task',
     summary: 'Deploy Docker socket proxy with mTLS for all CI/CD access',
@@ -56,7 +56,7 @@ export const treatmentActions = [
   },
   {
     id: 'TRT-003',
-    riskId: 'RISK-2026-0042',
+    riskId: 'HULL-2026-0042',
     phase: 2,
     jiraIssueType: 'Task',
     summary: 'Enable User Namespace Remapping on all container hosts',
@@ -78,7 +78,7 @@ export const treatmentActions = [
   },
   {
     id: 'TRT-004',
-    riskId: 'RISK-2026-0042',
+    riskId: 'HULL-2026-0042',
     phase: 2,
     jiraIssueType: 'Task',
     summary: 'Complete CIS Docker Benchmark hardening — host configuration',
@@ -99,10 +99,10 @@ export const treatmentActions = [
     blockedBy: 'TRT-001',
   },
 
-  // ── RISK-2026-0043 · npm/PyPI Supply Chain Worm ───────────────────────────
+  // ── HULL-2026-0043 · npm/PyPI Supply Chain Worm ───────────────────────────
   {
     id: 'TRT-005',
-    riskId: 'RISK-2026-0043',
+    riskId: 'HULL-2026-0043',
     phase: 1,
     jiraIssueType: 'Task',
     summary: 'Pin all npm and PyPI dependencies with hash-verified lockfiles in CI',
@@ -124,7 +124,7 @@ export const treatmentActions = [
   },
   {
     id: 'TRT-006',
-    riskId: 'RISK-2026-0043',
+    riskId: 'HULL-2026-0043',
     phase: 1,
     jiraIssueType: 'Task',
     summary: 'Generate and publish SBOM for all 6 production container images',
@@ -146,7 +146,7 @@ export const treatmentActions = [
   },
   {
     id: 'TRT-007',
-    riskId: 'RISK-2026-0043',
+    riskId: 'HULL-2026-0043',
     phase: 2,
     jiraIssueType: 'Task',
     summary: 'Enforce Docker Content Trust (image signing) across all registries',
@@ -168,7 +168,7 @@ export const treatmentActions = [
   },
   {
     id: 'TRT-008',
-    riskId: 'RISK-2026-0043',
+    riskId: 'HULL-2026-0043',
     phase: 3,
     jiraIssueType: 'Task',
     summary: 'Implement SLSA Level 3 build provenance in GitHub Actions',
@@ -190,7 +190,7 @@ export const treatmentActions = [
   },
   {
     id: 'TRT-009',
-    riskId: 'RISK-2026-0043',
+    riskId: 'HULL-2026-0043',
     phase: 3,
     jiraIssueType: 'Task',
     summary: 'Complete vendor questionnaires and SLAs for npmjs.com and PyPI',
@@ -211,10 +211,10 @@ export const treatmentActions = [
     blockedBy: null,
   },
 
-  // ── RISK-2026-0044 · Shadow AI — Ungoverned Agent Access ──────────────────
+  // ── LEAK-2026-0044 · Shadow AI — Ungoverned Agent Access ──────────────────
   {
     id: 'TRT-010',
-    riskId: 'RISK-2026-0044',
+    riskId: 'LEAK-2026-0044',
     phase: 1,
     jiraIssueType: 'Task',
     summary: 'Remove Docker socket mounts from all AI agent sidecar containers',
@@ -236,7 +236,7 @@ export const treatmentActions = [
   },
   {
     id: 'TRT-011',
-    riskId: 'RISK-2026-0044',
+    riskId: 'LEAK-2026-0044',
     phase: 1,
     jiraIssueType: 'Task',
     summary: 'Build AI system inventory — document all AI tools with production access',
@@ -258,7 +258,7 @@ export const treatmentActions = [
   },
   {
     id: 'TRT-012',
-    riskId: 'RISK-2026-0044',
+    riskId: 'LEAK-2026-0044',
     phase: 2,
     jiraIssueType: 'Task',
     summary: 'Issue scoped service accounts for all AI agent identities',
@@ -280,7 +280,7 @@ export const treatmentActions = [
   },
   {
     id: 'TRT-013',
-    riskId: 'RISK-2026-0044',
+    riskId: 'LEAK-2026-0044',
     phase: 2,
     jiraIssueType: 'Task',
     summary: 'Enforce AI agent container network policy — restrict egress',
@@ -302,7 +302,7 @@ export const treatmentActions = [
   },
   {
     id: 'TRT-014',
-    riskId: 'RISK-2026-0044',
+    riskId: 'LEAK-2026-0044',
     phase: 2,
     jiraIssueType: 'Task',
     summary: 'Author and publish AI Agent Container Isolation Policy (POL-008)',
@@ -323,10 +323,10 @@ export const treatmentActions = [
     blockedBy: 'TRT-011',
   },
 
-  // ── RISK-2026-0045 · Ungoverned LLM Calls ────────────────────────────────
+  // ── LEAK-2026-0045 · Ungoverned LLM Calls ────────────────────────────────
   {
     id: 'TRT-015',
-    riskId: 'RISK-2026-0045',
+    riskId: 'LEAK-2026-0045',
     phase: 1,
     jiraIssueType: 'Task',
     summary: 'Deploy LLM API gateway (LiteLLM / Portkey) as mandatory call boundary',
@@ -349,7 +349,7 @@ export const treatmentActions = [
   },
   {
     id: 'TRT-016',
-    riskId: 'RISK-2026-0045',
+    riskId: 'LEAK-2026-0045',
     phase: 1,
     jiraIssueType: 'Task',
     summary: 'Migrate all LLM API keys to secrets manager — remove from env vars',
@@ -372,7 +372,7 @@ export const treatmentActions = [
   },
   {
     id: 'TRT-017',
-    riskId: 'RISK-2026-0045',
+    riskId: 'LEAK-2026-0045',
     phase: 2,
     jiraIssueType: 'Task',
     summary: 'Negotiate Data Processing Agreement (DPA) with OpenAI',
@@ -394,7 +394,7 @@ export const treatmentActions = [
   },
   {
     id: 'TRT-018',
-    riskId: 'RISK-2026-0045',
+    riskId: 'LEAK-2026-0045',
     phase: 3,
     jiraIssueType: 'Task',
     summary: 'Implement prompt and output DLP via LLM gateway',
@@ -419,8 +419,8 @@ export const treatmentActions = [
 // ─── Projected control effectiveness after ALL actions per risk complete ──────
 // Used by RiskDetailDrawer to simulate target residual score.
 export const projectedCtrlEffByRisk = {
-  'RISK-2026-0042': { 'UCF.03.02': 92, 'UCF.05.01': 90 },
-  'RISK-2026-0043': { 'UCF.06.01': 88, 'UCF.06.02': 85 },
-  'RISK-2026-0044': { 'UCF.AI.01': 80, 'UCF.AI.02': 70, 'UCF.AI.03': 72 },
-  'RISK-2026-0045': { 'UCF.AI.03': 82, 'UCF.AI.04': 85, 'UCF.01.02': 72 },
+  'HULL-2026-0042': { 'UCF.03.02': 92, 'UCF.05.01': 90 },
+  'HULL-2026-0043': { 'UCF.06.01': 88, 'UCF.06.02': 85 },
+  'LEAK-2026-0044': { 'UCF.AI.01': 80, 'UCF.AI.02': 70, 'UCF.AI.03': 72 },
+  'LEAK-2026-0045': { 'UCF.AI.03': 82, 'UCF.AI.04': 85, 'UCF.01.02': 72 },
 };

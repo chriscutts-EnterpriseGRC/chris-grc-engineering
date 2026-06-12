@@ -12,9 +12,9 @@
 // The controls[] array drives the Compliance hotspot view.
 
 export const riskSeed = [
-  // ── RISK-2026-0042 ─────────────────────────────────────────────────────────
+  // ── HULL-2026-0042 ─────────────────────────────────────────────────────────
   {
-    id: 'RISK-2026-0042',
+    id: 'HULL-2026-0042',
     title: 'Docker Engine Authorization Bypass (CVE-2026-34040)',
     signalSource: 'vulnerability',
     category: 'Vuln Mgmt',
@@ -57,9 +57,9 @@ export const riskSeed = [
     isException: false,
   },
 
-  // ── RISK-2026-0043 ─────────────────────────────────────────────────────────
+  // ── HULL-2026-0043 ─────────────────────────────────────────────────────────
   {
-    id: 'RISK-2026-0043',
+    id: 'HULL-2026-0043',
     title: 'npm / PyPI Supply Chain Worm (Shai-Hulud class)',
     signalSource: 'supply_chain',
     category: 'Third Party',
@@ -98,9 +98,9 @@ export const riskSeed = [
     isException: false,
   },
 
-  // ── RISK-2026-0044 ─────────────────────────────────────────────────────────
+  // ── LEAK-2026-0044 ─────────────────────────────────────────────────────────
   {
-    id: 'RISK-2026-0044',
+    id: 'LEAK-2026-0044',
     title: 'Shadow AI: Ungoverned AI Agent Access to Production Systems',
     signalSource: 'ai_governance',
     category: 'AI Governance',
@@ -140,9 +140,9 @@ export const riskSeed = [
     isException: false,
   },
 
-  // ── RISK-2026-0045 ─────────────────────────────────────────────────────────
+  // ── LEAK-2026-0045 ─────────────────────────────────────────────────────────
   {
-    id: 'RISK-2026-0045',
+    id: 'LEAK-2026-0045',
     title: 'Ungoverned LLM Calls: No API Gateway or Outbound Control',
     signalSource: 'ai_governance',
     category: 'AI Security',
@@ -153,7 +153,7 @@ export const riskSeed = [
     controlIds: ['UCF.AI.03', 'UCF.AI.04', 'UCF.01.02'],
     treatment: 'Mitigate',
     treatmentStrategy: 'mitigate',
-    treatmentPlan: 'Deploy LLM gateway (LiteLLM / Portkey); enforce scoped service accounts for all AI calls; implement model allowlist; add prompt and output DLP; directly remediates RISK-2026-0044',
+    treatmentPlan: 'Deploy LLM gateway (LiteLLM / Portkey); enforce scoped service accounts for all AI calls; implement model allowlist; add prompt and output DLP; directly remediates LEAK-2026-0044',
     status: 'Open',
     reviewDate: '2026-07-10',
     slaDays: 30,
