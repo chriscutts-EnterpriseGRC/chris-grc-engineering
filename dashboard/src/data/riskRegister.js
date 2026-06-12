@@ -181,6 +181,90 @@ export const riskSeed = [
 
     isException: false,
   },
+
+  // ── LEAK-2026-0046 ─────────────────────────────────────────────────────────
+  {
+    id: 'LEAK-2026-0046',
+    title: 'Unsigned / Unverified Container Image Provenance',
+    signalSource: 'supply_chain',
+    category: 'Third Party',
+    asset: 'Production Container Images, Registry, CI/CD Pipeline',
+    owner: 'T. Williams',
+    likelihood: 4,
+    impact: 4,
+    controlIds: ['UCF.06.02', 'UCF.08.03'],
+    treatment: 'Mitigate',
+    treatmentStrategy: 'mitigate',
+    treatmentPlan: 'Enforce cosign/Sigstore image signing at publish; deploy admission policy rejecting unsigned images at deploy time; add SLSA provenance attestation in CI pipeline. Governed exception for legacy publisher tracked in LEAK-2026-0047.',
+    status: 'Open',
+    reviewDate: '2026-07-07',
+    slaDays: 21,
+    ai: false,
+    isException: false,
+    linkedTo: 'LEAK-2026-0047',
+
+    threatAgent: 'External attacker publishing malicious or typosquatted images; compromised maintainer; insider pushing unauthorized image; supply chain worm (HULL-2026-0043) tampering with build output',
+    threatVector: 'Consumer pulls an image with no signature or provenance verification and runs a tampered or impersonated image. Typosquatting, dependency confusion, or post-build tampering go undetected without enforcement at pull/deploy.',
+    vulnerability: 'No enforced image signing (cosign/Sigstore), no provenance attestation (SLSA), no admission policy rejecting unsigned images at deploy',
+    assetAtRisk: 'Production workloads, customer trust, build integrity, any host running a tampered image',
+    existingExposure: 'Mixed signing coverage; Docker Content Trust not consistently enforced; pull-time verification not enforced at admission; legacy publisher exception pending (LEAK-2026-0047)',
+    whyItMatters: 'An unsigned image is a promise — signing is a proof. One tampered image in production is every container on the host.',
+
+    controls: [
+      { framework: 'OWASP A03:2025',    requirement: 'Software & data integrity failures',   gap: 'No enforced signing or attestation at build or pull time' },
+      { framework: 'NIST SSDF PS.2',    requirement: 'Provenance & integrity verification',  gap: 'SLSA provenance attestation absent from CI pipeline' },
+      { framework: 'ISO 27001 A.8.9',   requirement: 'Admission control on deploy',          gap: 'Unsigned images admitted to production without gate' },
+      { framework: 'SOC 2 CC8.1',       requirement: 'Change and integrity controls',        gap: 'Image changes unverifiable without provenance chain' },
+      { framework: 'CIS Docker 4.x',    requirement: 'Image trust and content verification', gap: 'Docker Content Trust not enforced across all registries' },
+    ],
+
+    controlEffectiveness: [
+      { control: 'UCF.06.02 Container Registry Governance', effectiveness: 62, note: 'Docker Content Trust not consistently enforced; signing coverage partial' },
+      { control: 'UCF.08.03 Image Signing & Provenance',    effectiveness: 0,  note: 'Not implemented — no cosign, no SLSA attestation, no admission policy' },
+    ],
+  },
+
+  // ── LEAK-2026-0047 ─────────────────────────────────────────────────────────
+  {
+    id: 'LEAK-2026-0047',
+    title: 'Policy Exception — Legacy Publisher Cannot Meet Image Signing Requirement',
+    signalSource: 'policy_exception',
+    category: 'Third Party',
+    asset: 'Workloads consuming legacy publisher images during exception window',
+    owner: 'S. Chen',
+    likelihood: 3,
+    impact: 4,
+    controlIds: ['UCF.07.01', 'UCF.09.01'],
+    treatment: 'Accept',
+    treatmentStrategy: 'accept',
+    treatmentPlan: 'Time-boxed acceptance (90 days, expires 2026-09-13) with compensating controls: restricted pull scope to known internal consumers; heightened scanning on all images from this publisher; hard expiry enforced in admission policy. Remediation path: bring legacy publisher into cosign standard before expiry — no silent rollover.',
+    status: 'Open',
+    reviewDate: '2026-09-13',
+    slaDays: 90,
+    ai: false,
+    isException: true,
+    exceptionExpiry: '2026-09-13',
+    linkedTo: 'LEAK-2026-0046',
+
+    threatAgent: 'Same as LEAK-2026-0046 — attacker targeting the unsigned subset of images from the legacy publisher during the exception window',
+    threatVector: 'Images from this publisher bypass the signing admission gate, so consumers cannot verify provenance for this image subset during the exception window',
+    vulnerability: 'Legacy publisher cannot produce signatures or attestations; would violate the admission policy introduced by LEAK-2026-0046 treatment without this exception',
+    assetAtRisk: 'Workloads consuming this publisher\'s images; scoped and time-boxed by the exception',
+    existingExposure: 'Scoped to one publisher\'s image set; bounded by expiry date and compensating controls; residual managed below appetite with governance',
+    whyItMatters: 'A mature programme doesn\'t hide the gaps it accepts — it makes them visible, owned, compensated, and time-boxed. This is what governed risk acceptance looks like.',
+
+    controls: [
+      { framework: 'ISO 27001 A.5.1',   requirement: 'Policies for information security',  gap: 'MET — exception formally documented with owner, expiry, and CISO sign-off' },
+      { framework: 'ISO 27001 A.5.36',  requirement: 'Exception tracking & review',        gap: 'MET — expiry date set, owner assigned, compensating controls documented' },
+      { framework: 'SOC 2 CC3.x',       requirement: 'Risk acceptance governance',         gap: 'MET — documented acceptance with named approver' },
+      { framework: 'OWASP A03:2025',     requirement: 'Enforced signing',                   gap: 'Waived for one publisher, scoped and time-boxed to 2026-09-13' },
+    ],
+
+    controlEffectiveness: [
+      { control: 'UCF.07.01 Policy Management & Exceptions', effectiveness: 74, note: 'Exception formally documented with owner, expiry, and sign-off in register' },
+      { control: 'UCF.09.01 Compliance Monitoring',          effectiveness: 69, note: 'Exception tracked in risk register; expiry date monitored; review scheduled' },
+    ],
+  },
 ];
 
 // ─── Computed risk array ───────────────────────────────────────────────────────
@@ -189,7 +273,7 @@ const CTRL_EFF_LOCAL = {
   'UCF.01.01':92,'UCF.01.02':38,'UCF.02.02':45,'UCF.03.02':41,
   'UCF.AI.02':33,'UCF.AI.03':0,'UCF.AI.04':51,'UCF.AI.05':0,
   'UCF.04.01':87,'UCF.05.01':71,'UCF.06.01':63,'UCF.06.02':62,
-  'UCF.07.01':74,'UCF.09.01':69,'UCF.AI.01':29,
+  'UCF.07.01':74,'UCF.09.01':69,'UCF.AI.01':29,'UCF.08.03':0,
 };
 
 // PRD band thresholds: Critical 20-25, High 12-19, Medium 6-11, Low 2-5
