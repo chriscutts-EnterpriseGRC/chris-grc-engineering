@@ -69,11 +69,13 @@ const controls = [
   { id: 'UCF.AI.08', name: 'AI Explainability & Transparency', category: 'AI Governance',      frameworks: ['NIST AI RMF MEASURE 3.4','EU AI Act Art.13','GDPR Art.22'],   effectiveness: 'not_tested',   score: 0,  owner: 'A. Patel',    lastTested: null,           ai: true },
   { id: 'UCF.AI.09', name: 'AI Data Provenance & Lineage',     category: 'AI Security',        frameworks: ['NIST AI RMF MAP 2.4','GDPR Art.5','ISO/IEC 42001 8.4'],       effectiveness: 'not_tested',   score: 0,  owner: 'A. Patel',    lastTested: null,           ai: true },
   { id: 'UCF.AI.10', name: 'AI Model Lifecycle Management',    category: 'AI Governance',      frameworks: ['NIST AI RMF MANAGE 4.3','EU AI Act Art.9','ISO/IEC 42001 8.3'], effectiveness: 'partial',     score: 45, owner: 'K. Thompson', lastTested: '2026-02-20', ai: true },
+  // Supply Chain Controls
+  { id: 'UCF.08.03', name: 'Image Signing & Provenance',      category: 'Supply Chain',       frameworks: ['NIST SSDF PS.2','SOC2 CC8.1','OWASP A03:2025','SLSA L3'],       effectiveness: 'not_tested',   score: 0,  owner: 'T. Williams', lastTested: null,           ai: false },
 ];
 
 const ctrlMap = Object.fromEntries(controls.map(c => [c.id, c]));
 
-// ─── Module Data — Docker / Container Security ────────────────────────────────
+// ─── Module Data, Docker / Container Security ────────────────────────────────
 
 const vulns = [
   // VSRM: Production + Public + CVSS 10.0 + Actively Exploited → P0
@@ -151,17 +153,17 @@ const vulns = [
     exploitability: 'POC', isCisaKev: false,
     assignedTo: null, dueDate: '2026-07-02' },
 
-  // EOL: Production public-facing runtime — P1
-  { id: 'V-010', cve: null, title: 'Docker Engine 24.0.x — End of Life (Feb 2026)',
+  // EOL: Production public-facing runtime, P1
+  { id: 'V-010', cve: null, title: 'Docker Engine 24.0.x, End of Life (Feb 2026)',
     severity: 'High', cvss: null, status: 'Open', asset: 'legacy-prod-hosts (6)',
     controlId: 'UCF.03.02', discovered: '2026-06-01', eol: true, eolDate: '2026-02-01',
     priority: 'P1', secTier: 0, environment: 'Production', exposure: 'Public',
     exploitability: 'No patch path', isCisaKev: false,
     assignedTo: null, dueDate: '2026-06-25',
-    eolNote: 'No security patches for Docker 24.0.x after Feb 2026. Upgrade to 27.3+ required — directly remediates CVE-2026-34040.' },
+    eolNote: 'No security patches for Docker 24.0.x after Feb 2026. Upgrade to 27.3+ required, directly remediates CVE-2026-34040.' },
 
-  // EOL: AI/ML runtime — P2
-  { id: 'V-011', cve: null, title: 'Python 3.8 in ML base image — End of Life (Oct 2024)',
+  // EOL: AI/ML runtime, P2
+  { id: 'V-011', cve: null, title: 'Python 3.8 in ML base image, End of Life (Oct 2024)',
     severity: 'High', cvss: null, status: 'Open', asset: 'ml-inference-containers',
     controlId: 'UCF.AI.02', discovered: '2026-05-30', eol: true, eolDate: '2024-10-31', ai: true,
     priority: 'P2', secTier: 1, environment: 'Dev/Stage', exposure: 'Internal',
@@ -263,7 +265,7 @@ const getAppetite   = s => s > RISK_APPETITE.critical ? 'Significantly Exceeds' 
 const RESPONSE_SLA  = { Critical:'7 days', High:'30 days', Medium:'60 days', Low:'90 days' };
 // Approval authority for risk acceptance
 const ACCEPT_AUTH   = { Critical:'C-Suite / SVP+', High:'VP+', Medium:'Director+', Low:'Manager+' };
-const CTRL_EFF = {'UCF.01.01':92,'UCF.01.02':38,'UCF.02.02':45,'UCF.03.02':41,'UCF.AI.02':33,'UCF.AI.03':0,'UCF.AI.04':51,'UCF.AI.05':0,'UCF.04.01':87,'UCF.05.01':71,'UCF.06.01':63,'UCF.06.02':62,'UCF.07.01':74,'UCF.09.01':69,'UCF.AI.01':29};
+const CTRL_EFF = {'UCF.01.01':92,'UCF.01.02':38,'UCF.02.02':45,'UCF.03.02':41,'UCF.AI.02':33,'UCF.AI.03':0,'UCF.AI.04':51,'UCF.AI.05':0,'UCF.04.01':87,'UCF.05.01':71,'UCF.06.01':63,'UCF.06.02':62,'UCF.07.01':74,'UCF.09.01':69,'UCF.AI.01':29,'UCF.08.03':0};
 const getBusinessImpact = (score) => {
   if (score >= 20) return { label: 'Existential',  color: 'bg-red-100 text-red-800',      hint: 'Potential fines >€20M or operational shutdown' };
   if (score >= 15) return { label: 'Significant',  color: 'bg-orange-100 text-orange-800', hint: 'Material revenue or reputational impact' };
@@ -272,7 +274,7 @@ const getBusinessImpact = (score) => {
   return               { label: 'Negligible',  color: 'bg-gray-100 text-gray-600',     hint: 'Minimal business impact' };
 };
 
-// Four canonical risk records — single source of truth for all panels.
+// Four canonical risk records, single source of truth for all panels.
 // Sample / illustrative data built from public threat intelligence.
 const risks = riskSeed.map(r => {
   const inherentScore = r.likelihood * r.impact;
@@ -288,18 +290,24 @@ const RISK_VULN_MAP = {
   'HULL-2026-0043': ['V-003'],
   'LEAK-2026-0044': ['V-004','V-008','V-011'],
   'LEAK-2026-0045': ['V-004','V-008','V-009'],
+  'LEAK-2026-0046': ['V-003','V-007'],
+  'LEAK-2026-0047': [],
 };
 const RISK_VENDOR_MAP = {
   'HULL-2026-0042': ['TP-003'],
   'HULL-2026-0043': ['TP-001','TP-002','TP-005','TP-006','TP-009'],
   'LEAK-2026-0044': ['TP-007','TP-008'],
   'LEAK-2026-0045': ['TP-007','TP-008'],
+  'LEAK-2026-0046': ['TP-001','TP-005'],
+  'LEAK-2026-0047': ['TP-001','TP-005'],
 };
 const RISK_POLICY_MAP = {
   'HULL-2026-0042': ['POL-001','POL-003','POL-004','POL-006'],
   'HULL-2026-0043': ['POL-002','POL-005'],
   'LEAK-2026-0044': ['POL-007','POL-008'],
   'LEAK-2026-0045': ['POL-007','POL-009'],
+  'LEAK-2026-0046': ['POL-002','POL-005'],
+  'LEAK-2026-0047': ['POL-002','POL-005'],
 };
 
 // ─── Audit Management Data ────────────────────────────────────────────────────
@@ -307,34 +315,34 @@ const audits = [
   { id:'AUD-001', name:'CIS Docker Benchmark Assessment',          framework:'CIS Docker Benchmark', auditor:'Internal',        status:'In Progress',    startDate:'2026-06-01', endDate:'2026-06-30', readiness:52, scope:'Docker Engine, daemon config, host hardening',              color:'#059669' },
   { id:'AUD-002', name:'Container Supply Chain Security Audit',    framework:'SLSA',                 auditor:'Internal',        status:'Planning',       startDate:'2026-07-01', endDate:'2026-07-21', readiness:18, scope:'Image provenance, build pipeline, package registries',      color:'#D97706' },
   { id:'AUD-003', name:'EU AI Act / ISO 42001 Compliance Review',  framework:'EU AI Act',            auditor:'Internal',        status:'Planning',       startDate:'2026-08-01', endDate:'2026-08-31', readiness:22, scope:'AI agent workloads, LLM API usage, model governance',       color:'#9333EA' },
-  { id:'AUD-004', name:'SOC 2 Type II — Container Controls',       framework:'SOC 2',                auditor:'Deloitte',        status:'Scheduled',      startDate:'2026-09-10', endDate:'2026-10-25', readiness:82, scope:'Container security, access control, change management',    color:'#2563EB' },
+  { id:'AUD-004', name:'SOC 2 Type II, Container Controls',       framework:'SOC 2',                auditor:'Deloitte',        status:'Scheduled',      startDate:'2026-09-10', endDate:'2026-10-25', readiness:82, scope:'Container security, access control, change management',    color:'#2563EB' },
   { id:'AUD-005', name:'ISO 27001 Surveillance Audit',             framework:'ISO 27001',            auditor:'BSI Group',       status:'In Preparation', startDate:'2026-10-06', endDate:'2026-10-10', readiness:79, scope:'Full ISMS scope including container & AI workloads',        color:'#7C3AED' },
 ];
 const auditFindings = [
-  { id:'FND-001', auditId:'AUD-001', title:'No hash-pinned lockfiles — npm packages pulled without integrity verification', severity:'Critical', controlId:'UCF.06.01', status:'Open',           dueDate:'2026-06-20', owner:'T. Williams', riskId:'HULL-2026-0043' },
+  { id:'FND-001', auditId:'AUD-001', title:'No hash-pinned lockfiles, npm packages pulled without integrity verification', severity:'Critical', controlId:'UCF.06.01', status:'Open',           dueDate:'2026-06-20', owner:'T. Williams', riskId:'HULL-2026-0043' },
   { id:'FND-002', auditId:'AUD-001', title:'Docker daemon socket accessible without mTLS on 3 worker nodes',               severity:'Critical', controlId:'UCF.03.02', status:'In Remediation', dueDate:'2026-06-18', owner:'T. Williams', riskId:'HULL-2026-0042' },
   { id:'FND-003', auditId:'AUD-001', title:'Containers running as root (no USER directive in 8 of 14 Dockerfiles)',        severity:'High',    controlId:'UCF.03.02', status:'In Remediation', dueDate:'2026-06-30', owner:'T. Williams', riskId:'HULL-2026-0042' },
-  { id:'FND-004', auditId:'AUD-001', title:'Missing SBOM for 6 production images — supply chain provenance unverifiable',  severity:'High',    controlId:'UCF.06.02', status:'Open',           dueDate:'2026-07-05', owner:'S. Chen',     riskId:'HULL-2026-0043' },
+  { id:'FND-004', auditId:'AUD-001', title:'Missing SBOM for 6 production images, supply chain provenance unverifiable',  severity:'High',    controlId:'UCF.06.02', status:'Open',           dueDate:'2026-07-05', owner:'S. Chen',     riskId:'HULL-2026-0043' },
   { id:'FND-005', auditId:'AUD-001', title:'AI API keys stored in container environment variables, not secrets manager',   severity:'High',    controlId:'UCF.AI.04', status:'Open',           dueDate:'2026-06-25', owner:'A. Patel',    riskId:'LEAK-2026-0045' },
   { id:'FND-006', auditId:'AUD-002', title:'No SLSA provenance attestation generated in CI pipeline',                       severity:'High',    controlId:'UCF.06.01', status:'Open',           dueDate:'2026-07-15', owner:'S. Chen',     riskId:'HULL-2026-0043' },
-  { id:'FND-007', auditId:'AUD-003', title:'AI agent container has no egress network policy — unrestricted outbound',       severity:'Critical', controlId:'UCF.AI.03', status:'Open',           dueDate:'2026-07-01', owner:'T. Williams', riskId:'LEAK-2026-0044' },
-  { id:'FND-008', auditId:'AUD-003', title:'No LLM API gateway — agents call OpenAI/Anthropic directly without audit log',  severity:'High',    controlId:'UCF.AI.05', status:'Open',           dueDate:'2026-07-10', owner:'K. Thompson', riskId:'LEAK-2026-0045' },
+  { id:'FND-007', auditId:'AUD-003', title:'AI agent container has no egress network policy, unrestricted outbound',       severity:'Critical', controlId:'UCF.AI.03', status:'Open',           dueDate:'2026-07-01', owner:'T. Williams', riskId:'LEAK-2026-0044' },
+  { id:'FND-008', auditId:'AUD-003', title:'No LLM API gateway, agents call OpenAI/Anthropic directly without audit log',  severity:'High',    controlId:'UCF.AI.05', status:'Open',           dueDate:'2026-07-10', owner:'K. Thompson', riskId:'LEAK-2026-0045' },
 ];
 
 // ─── Evidence Locker Data ─────────────────────────────────────────────────────
 const evidenceItems = [
   { id:'EVD-001', controlId:'UCF.03.02', type:'Configuration',   name:'Docker daemon TLS config (dockerd --tlsverify)',         uploadedBy:'T. Williams', uploadDate:'2026-05-28', expiryDate:'2026-11-28', status:'Current'  },
-  { id:'EVD-002', controlId:'UCF.03.02', type:'Audit Report',    name:'CIS Docker Benchmark scan output — June 2026',           uploadedBy:'T. Williams', uploadDate:'2026-06-05', expiryDate:'2026-07-05', status:'Expiring' },
-  { id:'EVD-003', controlId:'UCF.06.01', type:'SBOM',            name:'Trivy SBOM export — prod image registry (2026-06-01)',   uploadedBy:'T. Williams', uploadDate:'2026-06-01', expiryDate:'2026-07-01', status:'Expiring' },
+  { id:'EVD-002', controlId:'UCF.03.02', type:'Audit Report',    name:'CIS Docker Benchmark scan output, June 2026',           uploadedBy:'T. Williams', uploadDate:'2026-06-05', expiryDate:'2026-07-05', status:'Expiring' },
+  { id:'EVD-003', controlId:'UCF.06.01', type:'SBOM',            name:'Trivy SBOM export, prod image registry (2026-06-01)',   uploadedBy:'T. Williams', uploadDate:'2026-06-01', expiryDate:'2026-07-01', status:'Expiring' },
   { id:'EVD-004', controlId:'UCF.06.02', type:'Screenshot',      name:'Docker Content Trust (DCT) enforcement policy in registry', uploadedBy:'S. Chen',  uploadDate:'2026-05-10', expiryDate:'2026-11-10', status:'Current'  },
-  { id:'EVD-005', controlId:'UCF.06.01', type:'Pipeline Config', name:'GitHub Actions pinned SHA workflow — ci-docker-build.yml', uploadedBy:'T. Williams', uploadDate:'2026-04-15', expiryDate:'2026-10-15', status:'Current'  },
+  { id:'EVD-005', controlId:'UCF.06.01', type:'Pipeline Config', name:'GitHub Actions pinned SHA workflow, ci-docker-build.yml', uploadedBy:'T. Williams', uploadDate:'2026-04-15', expiryDate:'2026-10-15', status:'Current'  },
   { id:'EVD-006', controlId:'UCF.AI.04', type:'Policy Document', name:'AI/LLM API Gateway Policy DRAFT v0.3',                   uploadedBy:'A. Patel',   uploadDate:'2026-02-20', expiryDate:'2026-02-20', status:'Expired'  },
-  { id:'EVD-007', controlId:'UCF.AI.03', type:'Configuration',   name:'Container network policy — AI agent namespace egress',    uploadedBy:'T. Williams', uploadDate:'2026-05-01', expiryDate:'2026-05-01', status:'Expired'  },
-  { id:'EVD-008', controlId:'UCF.01.02', type:'Test Result',     name:'Docker daemon socket access control test — June 2026',    uploadedBy:'T. Williams', uploadDate:'2026-06-08', expiryDate:'2026-12-08', status:'Current'  },
-  { id:'EVD-009', controlId:'UCF.04.01', type:'Test Result',     name:'Container breach IR tabletop exercise — May 2026',        uploadedBy:'K. Thompson', uploadDate:'2026-05-22', expiryDate:'2026-11-22', status:'Current'  },
-  { id:'EVD-010', controlId:'UCF.07.02', type:'Training Record', name:'Container security awareness — team completion May 2026', uploadedBy:'J. Martinez', uploadDate:'2026-05-15', expiryDate:'2026-11-15', status:'Current'  },
-  { id:'EVD-011', controlId:'UCF.AI.05', type:'Screenshot',      name:'LLM API call audit log — Splunk dashboard export',        uploadedBy:'K. Thompson', uploadDate:'2026-04-10', expiryDate:'2026-04-10', status:'Expired'  },
-  { id:'EVD-012', controlId:'UCF.06.02', type:'Scan Report',     name:'Docker Scout image vulnerability report — 2026-06-09',    uploadedBy:'T. Williams', uploadDate:'2026-06-09', expiryDate:'2026-07-09', status:'Current'  },
+  { id:'EVD-007', controlId:'UCF.AI.03', type:'Configuration',   name:'Container network policy, AI agent namespace egress',    uploadedBy:'T. Williams', uploadDate:'2026-05-01', expiryDate:'2026-05-01', status:'Expired'  },
+  { id:'EVD-008', controlId:'UCF.01.02', type:'Test Result',     name:'Docker daemon socket access control test, June 2026',    uploadedBy:'T. Williams', uploadDate:'2026-06-08', expiryDate:'2026-12-08', status:'Current'  },
+  { id:'EVD-009', controlId:'UCF.04.01', type:'Test Result',     name:'Container breach IR tabletop exercise, May 2026',        uploadedBy:'K. Thompson', uploadDate:'2026-05-22', expiryDate:'2026-11-22', status:'Current'  },
+  { id:'EVD-010', controlId:'UCF.07.02', type:'Training Record', name:'Container security awareness, team completion May 2026', uploadedBy:'J. Martinez', uploadDate:'2026-05-15', expiryDate:'2026-11-15', status:'Current'  },
+  { id:'EVD-011', controlId:'UCF.AI.05', type:'Screenshot',      name:'LLM API call audit log, Splunk dashboard export',        uploadedBy:'K. Thompson', uploadDate:'2026-04-10', expiryDate:'2026-04-10', status:'Expired'  },
+  { id:'EVD-012', controlId:'UCF.06.02', type:'Scan Report',     name:'Docker Scout image vulnerability report, 2026-06-09',    uploadedBy:'T. Williams', uploadDate:'2026-06-09', expiryDate:'2026-07-09', status:'Current'  },
 ];
 
 // ─── Shared Components ────────────────────────────────────────────────────────
@@ -636,7 +644,7 @@ function Overview({ navigate }) {
   const criticalInc  = activeInc.filter(i => i.severity === 'Critical').length;
   const policyGaps   = policies.filter(p => p.status === 'Overdue' || p.status === 'Missing');
   const highVendors  = vendors.filter(v => v.riskScore >= 60);
-  const topRisks     = [...risks].sort((a, b) => b.inherentScore - a.inherentScore).slice(0, 4);
+  const topRisks     = [...risks].sort((a, b) => b.inherentScore - a.inherentScore).slice(0, 6);
 
   // Posture narrative driven by score
   const posture = score >= 80 ? { label: 'Good', color: 'text-green-600', bg: 'bg-green-50', border: 'border-green-200', bar: '#22C55E' }
@@ -646,10 +654,10 @@ function Overview({ navigate }) {
   const postureText = breachedSLA.length
     ? `${breachedSLA.length} SLA breach${breachedSLA.length > 1 ? 'es' : ''} require immediate action`
     : p0Open || p1Open
-    ? `${p0Open + p1Open} critical vulnerabilit${p0Open + p1Open > 1 ? 'ies' : 'y'} within SLA — monitoring required`
+    ? `${p0Open + p1Open} critical vulnerabilit${p0Open + p1Open > 1 ? 'ies' : 'y'} within SLA, monitoring required`
     : allGaps.length > 8
     ? `${allGaps.length} control gaps are widening your attack surface`
-    : 'No immediate fires — focus on closing control gaps';
+    : 'No immediate fires, focus on closing control gaps';
 
   // Computed weekly priorities from live data
   const priorities = [
@@ -678,24 +686,24 @@ function Overview({ navigate }) {
   })[0];
   if (worstIncident) {
     const activeCount = incidents.filter(i => i.status !== 'Resolved').length;
-    execBullets.push({ color:'#EF4444', text: `${activeCount} active incident${activeCount>1?'s':''} — "${worstIncident.title}" is ${worstIncident.severity.toLowerCase()} severity and ${worstIncident.status.toLowerCase()}` });
+    execBullets.push({ color:'#EF4444', text: `${activeCount} active incident${activeCount>1?'s':''}, "${worstIncident.title}" is ${worstIncident.severity.toLowerCase()} severity and ${worstIncident.status.toLowerCase()}` });
   }
   const euAiActFw = frameworks.find(f => f.name === 'EU AI Act');
   if (euAiActFw) {
     const failing = euAiActFw.controls - euAiActFw.passing;
-    execBullets.push({ color:'#9333EA', text: `EU AI Act at ${euAiActFw.progress}% with enforcement approaching — ${failing} of ${euAiActFw.controls} controls failing` });
+    execBullets.push({ color:'#9333EA', text: `EU AI Act at ${euAiActFw.progress}% with enforcement approaching, ${failing} of ${euAiActFw.controls} controls failing` });
   }
   const noContractVendor = vendors.find(v => v.status === 'No Contract');
   if (noContractVendor) {
-    execBullets.push({ color:'#F97316', text: `${noContractVendor.name} has no contract or DPA — highest liability vendor in the register (risk score ${noContractVendor.riskScore})` });
+    execBullets.push({ color:'#F97316', text: `${noContractVendor.name} has no contract or DPA, highest liability vendor in the register (risk score ${noContractVendor.riskScore})` });
   } else {
     const topVendor = [...vendors].sort((a,b) => b.riskScore - a.riskScore)[0];
-    if (topVendor) execBullets.push({ color:'#F97316', text: `${topVendor.name} is your highest-risk vendor with a score of ${topVendor.riskScore} — ${topVendor.status.toLowerCase()}` });
+    if (topVendor) execBullets.push({ color:'#F97316', text: `${topVendor.name} is your highest-risk vendor with a score of ${topVendor.riskScore}, ${topVendor.status.toLowerCase()}` });
   }
 
   const topRiskByResidual = [...risks].sort((a,b) => b.residualScore - a.residualScore)[0];
   if (topRiskByResidual && topRiskByResidual.residualScore >= 12) {
-    execBullets.push({ color: getRiskColor(topRiskByResidual.residualScore), text: `${topRiskByResidual.id}: "${topRiskByResidual.title.slice(0,50)}${topRiskByResidual.title.length>50?'…':''}" — residual score ${topRiskByResidual.residualScore} · ${topRiskByResidual.treatmentPlan.slice(0,80)}${topRiskByResidual.treatmentPlan.length>80?'…':''}` });
+    execBullets.push({ color: getRiskColor(topRiskByResidual.residualScore), text: `${topRiskByResidual.id}: "${topRiskByResidual.title.slice(0,50)}${topRiskByResidual.title.length>50?'…':''}", residual score ${topRiskByResidual.residualScore} · ${topRiskByResidual.treatmentPlan.slice(0,80)}${topRiskByResidual.treatmentPlan.length>80?'…':''}` });
   }
 
   // ── Prioritisation Engine leverage actions ──────────────────────────────────
@@ -723,7 +731,7 @@ function Overview({ navigate }) {
   return (
     <div className="space-y-5">
 
-      {/* ── 0. Decisions + Alert Tray — two equal tiles ─────────────── */}
+      {/* ── 0. Decisions + Alert Tray, two equal tiles ─────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 items-start">
         <DecisionsRequired navigate={navigate} />
         <AlertTray navigate={navigate} />
@@ -784,7 +792,7 @@ function Overview({ navigate }) {
             <div className="flex items-center gap-2 mb-1">
               <span className="text-xl font-bold text-gray-900">{score} / 100</span>
               <span className={`text-xs font-bold px-2.5 py-0.5 rounded-full ${posture.bg} ${posture.color}`}>{posture.label}</span>
-              <span className={`text-xs ml-1 ${p0Open > 0 ? 'text-amber-600 font-medium' : 'text-gray-400'}`}>{p0Open > 0 ? `↑3 open vulns — patch SLA slipping` : `+3 vs last week`}</span>
+              <span className={`text-xs ml-1 ${p0Open > 0 ? 'text-amber-600 font-medium' : 'text-gray-400'}`}>{p0Open > 0 ? `↑3 open vulns, patch SLA slipping` : `+3 vs last week`}</span>
               <span title="Weighted composite score: Control Effectiveness 40% · Vulnerability Posture 30% · Incident Response 20% · Operational Maturity 10%" className="text-xs text-blue-500 hover:text-blue-700 cursor-help ml-1 underline decoration-dotted select-none">How scored?</span>
             </div>
             <p className="text-sm text-gray-600 leading-snug">{postureText}</p>
@@ -857,7 +865,7 @@ function Overview({ navigate }) {
             <span className="text-xs text-gray-400">{priorities.length} items</span>
           </div>
           {priorities.length === 0
-            ? <p className="text-sm text-emerald-600">No critical priorities — maintain momentum.</p>
+            ? <p className="text-sm text-emerald-600">No critical priorities, maintain momentum.</p>
             : (
               <div className="space-y-3">
                 {priorities.map((p, i) => {
@@ -963,7 +971,7 @@ function PriorityBadge({ priority }) {
 }
 
 function fmtDate(str) {
-  if (!str) return '—';
+  if (!str) return '-';
   const d = new Date(str + 'T00:00:00');
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
@@ -999,9 +1007,9 @@ function AlertTray({ navigate }) {
     ...incidents.filter(i => i.severity === 'Critical' && i.status !== 'Resolved')
       .map(i => ({ id: `inc-${i.id}`, itemId: i.id, level: 0, label: 'Critical Incident', text: i.title, action: 'Incident commander sign-off required', nav: 'incidents', color: '#F97316', bg: 'bg-orange-50', border: 'border-orange-200', textCol: 'text-orange-800' })),
     ...policies.filter(p => p.status === 'Missing')
-      .map(p => ({ id: `pol-${p.id}`, itemId: p.id, level: 1, label: 'Policy Missing', text: p.title, action: 'Create or approve policy — blocks compliance controls', nav: 'policy', color: '#7C3AED', bg: 'bg-purple-50', border: 'border-purple-200', textCol: 'text-purple-800' })),
+      .map(p => ({ id: `pol-${p.id}`, itemId: p.id, level: 1, label: 'Policy Missing', text: p.title, action: 'Create or approve policy, blocks compliance controls', nav: 'policy', color: '#7C3AED', bg: 'bg-purple-50', border: 'border-purple-200', textCol: 'text-purple-800' })),
     ...vendors.filter(v => v.status === 'No Contract')
-      .map(v => ({ id: `vnd-${v.id}`, itemId: v.id, level: 1, label: 'No Contract', text: `${v.name} — ${v.dataShared}`, action: 'Legal must initiate DPA before next data processing', nav: 'thirdparty', color: '#0891B2', bg: 'bg-cyan-50', border: 'border-cyan-200', textCol: 'text-cyan-800' })),
+      .map(v => ({ id: `vnd-${v.id}`, itemId: v.id, level: 1, label: 'No Contract', text: `${v.name}, ${v.dataShared}`, action: 'Legal must initiate DPA before next data processing', nav: 'thirdparty', color: '#0891B2', bg: 'bg-cyan-50', border: 'border-cyan-200', textCol: 'text-cyan-800' })),
   ].filter(a => !dismissed.includes(a.id)).sort((a, b) => a.level - b.level);
 
   return (
@@ -1051,19 +1059,19 @@ function DecisionsRequired({ navigate }) {
     ...vulns.filter(v => v.priority === 'P0' && v.status !== 'Patched' && v.dueDate && daysFromToday(v.dueDate) < 0)
       .map(v => ({ id: v.id, itemId: v.id, icon: Bug, color: '#EF4444', title: `Escalate or declare incident: ${v.title}`, context: `P0 · ${Math.abs(daysFromToday(v.dueDate))}d past SLA · CISO sign-off required`, nav: 'vulns' })),
     ...risks.filter(r => r.status === 'Open' && r.inherentScore > 19)
-      .map(r => ({ id: r.id, itemId: r.id, icon: AlertTriangle, color: '#EF4444', title: `Board-level risk: ${r.title}`, context: `Score ${r.inherentScore} — significantly exceeds risk appetite · ${r.owner}`, nav: 'risks' })),
+      .map(r => ({ id: r.id, itemId: r.id, icon: AlertTriangle, color: '#EF4444', title: `Board-level risk: ${r.title}`, context: `Score ${r.inherentScore}, significantly exceeds risk appetite · ${r.owner}`, nav: 'risks' })),
     ...incidents.filter(i => i.severity === 'Critical' && i.status !== 'Resolved')
       .map(i => ({ id: i.id, itemId: i.id, icon: Flame, color: '#F97316', title: `Critical incident unresolved: ${i.title}`, context: `Detected ${i.detected} · ${i.systems} system${i.systems !== 1 ? 's' : ''} affected · IMT activation required`, nav: 'incidents' })),
     ...policies.filter(p => p.status === 'Missing').slice(0, 2)
-      .map(p => ({ id: p.id, itemId: p.id, icon: BookOpen, color: '#7C3AED', title: `Approve and ratify: ${p.title}`, context: `Missing — blocks EU AI Act, ISO 42001, and GDPR compliance · ${p.owner}`, nav: 'policy' })),
+      .map(p => ({ id: p.id, itemId: p.id, icon: BookOpen, color: '#7C3AED', title: `Approve and ratify: ${p.title}`, context: `Missing, blocks EU AI Act, ISO 42001, and GDPR compliance · ${p.owner}`, nav: 'policy' })),
     ...vendors.filter(v => v.status === 'No Contract')
-      .map(v => ({ id: v.id, itemId: v.id, icon: Building2, color: '#0891B2', title: `Offboard or contract: ${v.name}`, context: `No DPA — ${v.dataShared} being processed without legal basis · Legal sign-off required`, nav: 'thirdparty' })),
+      .map(v => ({ id: v.id, itemId: v.id, icon: Building2, color: '#0891B2', title: `Offboard or contract: ${v.name}`, context: `No DPA, ${v.dataShared} being processed without legal basis · Legal sign-off required`, nav: 'thirdparty' })),
   ];
 
   if (decisions.length === 0) return (
     <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 flex items-center gap-3">
       <CheckCircle size={16} className="text-emerald-600 flex-shrink-0" />
-      <p className="text-sm font-semibold text-emerald-800">No decisions required today — maintain momentum on open treatment plans.</p>
+      <p className="text-sm font-semibold text-emerald-800">No decisions required today, maintain momentum on open treatment plans.</p>
     </div>
   );
 
@@ -1173,7 +1181,7 @@ function Vulnerabilities({ focusId }) {
   const vulnAsk = p0OverdueCount > 0
     ? `P0 SLA breach: declare incident or escalate today. ${eolUnassigned > 0 ? `${eolUnassigned} EOL component${eolUnassigned>1?'s':''} need upgrade owners assigned.` : ''}`
     : eolUnassigned > 0
-      ? `Assign upgrade owners to ${eolUnassigned} EOL component${eolUnassigned>1?'s':''} — these cannot be patched, only migrated.`
+      ? `Assign upgrade owners to ${eolUnassigned} EOL component${eolUnassigned>1?'s':''}, these cannot be patched, only migrated.`
       : 'No critical blockers. Review P1/P2 SLA compliance and confirm upgrade timelines.';
   const vulnUrgency = p0OverdueCount > 0 ? 'critical' : eolUnassigned > 0 ? 'high' : 'normal';
   // Risks with signalSource === 'vulnerability' surface here
@@ -1182,8 +1190,8 @@ function Vulnerabilities({ focusId }) {
   return (
     <div className="space-y-4">
       <SectionContext
-        what="Real-time tracking of CVEs, EOL components, and CISA KEV threats across all production assets. Every finding is scored through the VSRM — 4 dimensions of contextual risk, not raw CVSS."
-        why="Unpatched vulnerabilities are the most common breach vector. EOL runtimes create permanent exposure that no security patch can ever close — only migration eliminates the risk."
+        what="Real-time tracking of CVEs, EOL components, and CISA KEV threats across all production assets. Every finding is scored through the VSRM, 4 dimensions of contextual risk, not raw CVSS."
+        why="Unpatched vulnerabilities are the most common breach vector. EOL runtimes create permanent exposure that no security patch can ever close, only migration eliminates the risk."
         ask={vulnAsk}
         askUrgency={vulnUrgency}
       />
@@ -1193,7 +1201,7 @@ function Vulnerabilities({ focusId }) {
         <div className="bg-white rounded-xl border border-red-100 shadow-sm">
           <div className="px-5 py-3 border-b border-red-50 flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-red-500" />
-            <span className="text-sm font-semibold text-gray-800">Risk Register — Vulnerability Signals</span>
+            <span className="text-sm font-semibold text-gray-800">Risk Register, Vulnerability Signals</span>
             <span className="ml-auto text-[10px] text-gray-400 italic">sample · illustrative data</span>
           </div>
           <div className="divide-y divide-gray-50">
@@ -1250,10 +1258,10 @@ function Vulnerabilities({ focusId }) {
       {(() => {
         const p0Breach = open.filter(v => v.priority==='P0' && v.dueDate && daysFromToday(v.dueDate) < 0)[0];
         const nextAction = p0Breach
-          ? { action: `Patch ${p0Breach.title} immediately — SLA breached`, owner: p0Breach.assignedTo || 'Unassigned', deadline: `${Math.abs(daysFromToday(p0Breach.dueDate))}d overdue`, urgency: 'high' }
+          ? { action: `Patch ${p0Breach.title} immediately, SLA breached`, owner: p0Breach.assignedTo || 'Unassigned', deadline: `${Math.abs(daysFromToday(p0Breach.dueDate))}d overdue`, urgency: 'high' }
           : unassignedCritical > 0
           ? { action: `Assign owner to ${unassignedCritical} unassigned P0/P1 vulnerabilities`, owner: 'T. Williams', deadline: 'Today', urgency: 'high' }
-          : { action: `Review P1 SLA compliance — ${slaCompliance}% in SLA`, owner: 'T. Williams', deadline: 'This week', urgency: 'medium' };
+          : { action: `Review P1 SLA compliance, ${slaCompliance}% in SLA`, owner: 'T. Williams', deadline: 'This week', urgency: 'medium' };
         return <NextActionCard {...nextAction} />;
       })()}
 
@@ -1351,7 +1359,7 @@ function Vulnerabilities({ focusId }) {
                   <PriorityBadge priority={v.priority} />
                   <span className="text-xs text-gray-700">{v.title}</span>
                   <span className="text-xs font-semibold text-amber-700">
-                    breaches in {daysFromToday(v.dueDate)}d — assign to {v.assignedTo || 'owner now'}
+                    breaches in {daysFromToday(v.dueDate)}d, assign to {v.assignedTo || 'owner now'}
                   </span>
                 </div>
               ))}
@@ -1377,10 +1385,10 @@ function Vulnerabilities({ focusId }) {
             <Activity size={16} className="text-rose-600 flex-shrink-0 mt-0.5" />
             <div className="flex-1">
               <p className="text-sm font-semibold text-rose-800">
-                {eolOpen.length} End-of-Life Component{eolOpen.length !== 1 ? 's' : ''} — No Patch Path
+                {eolOpen.length} End-of-Life Component{eolOpen.length !== 1 ? 's' : ''}, No Patch Path
               </p>
               <p className="text-xs text-rose-700 mt-0.5 mb-2">
-                EOL software receives no security patches. Every new CVE discovered after EOL is permanently unmitigable without upgrading or migrating. Standard VSRM patch SLAs do not apply — remediation requires an upgrade or migration plan.
+                EOL software receives no security patches. Every new CVE discovered after EOL is permanently unmitigable without upgrading or migrating. Standard VSRM patch SLAs do not apply, remediation requires an upgrade or migration plan.
               </p>
               <div className="space-y-1.5">
                 {eolOpen.map(v => (
@@ -1466,7 +1474,7 @@ function Vulnerabilities({ focusId }) {
                 ? <span className="text-xs text-gray-600">{r.assignedTo}</span>
                 : (r.status !== 'Patched' && (r.priority === 'P0' || r.priority === 'P1'))
                   ? <span className="text-xs font-semibold text-red-600">⚠ Unassigned</span>
-                  : <span className="text-xs text-gray-400">—</span> },
+                  : <span className="text-xs text-gray-400">-</span> },
             { key: 'status', label: 'Status',
               render: r => <StatusBadge status={r.status} /> },
             ...(tableExpanded ? [
@@ -1526,13 +1534,13 @@ function Incidents({ focusId }) {
 
   const getTriageSteps = (incident) => {
     const steps = {
-      'Data Breach':    ['1. Isolate affected systems immediately', '2. Notify DPO within 1 hour (GDPR Art.33 72h clock starts)', '3. Preserve logs — do not wipe', '4. Identify data subjects affected', '5. Engage legal for regulatory notification'],
+      'Data Breach':    ['1. Isolate affected systems immediately', '2. Notify DPO within 1 hour (GDPR Art.33 72h clock starts)', '3. Preserve logs, do not wipe', '4. Identify data subjects affected', '5. Engage legal for regulatory notification'],
       'Intrusion':      ['1. Block source IPs at perimeter firewall', '2. Reset credentials for affected accounts', '3. Preserve forensic evidence', '4. Check lateral movement via UCF.05.01', '5. Notify CISO if Critical severity'],
       'Malware':        ['1. Quarantine affected endpoints immediately', '2. Run full AV scan on adjacent systems', '3. Block C2 domains at DNS layer', '4. Check UCF.08.01 SIEM for propagation', '5. Initiate UCF.09.01 BCP if >3 systems affected'],
       'Phishing':       ['1. Block sender domain in email gateway', '2. Reset passwords for all users who clicked', '3. Revoke active sessions for affected accounts', '4. Scan for credential harvesting payloads', '5. Send security awareness reminder via UCF.07.02'],
-      'AI Data Leak':   ['1. Suspend affected AI model endpoint immediately', '2. Identify what PII was exposed and to whom', '3. Notify DPO — AI-generated PII exposure may trigger GDPR Art.33', '4. Review prompt logs for scope of exposure', '5. Engage UCF.AI.05 AI Incident Response plan'],
-      'AI Governance':  ['1. Document the hallucination — capture exact input/output', '2. Assess if compliance-impacting decision was made on bad output', '3. Review model version and confidence thresholds', '4. Escalate to AI Governance Lead if regulatory impact', '5. Add to AI model performance monitoring (UCF.AI.07)'],
-      'Insider Threat': ['1. Preserve access logs without alerting the subject', '2. Engage HR and Legal before taking action', '3. Review UCF.01.02 PAM — check for privilege abuse', '4. Determine scope of data accessed', '5. Coordinate with legal on evidence preservation'],
+      'AI Data Leak':   ['1. Suspend affected AI model endpoint immediately', '2. Identify what PII was exposed and to whom', '3. Notify DPO, AI-generated PII exposure may trigger GDPR Art.33', '4. Review prompt logs for scope of exposure', '5. Engage UCF.AI.05 AI Incident Response plan'],
+      'AI Governance':  ['1. Document the hallucination, capture exact input/output', '2. Assess if compliance-impacting decision was made on bad output', '3. Review model version and confidence thresholds', '4. Escalate to AI Governance Lead if regulatory impact', '5. Add to AI model performance monitoring (UCF.AI.07)'],
+      'Insider Threat': ['1. Preserve access logs without alerting the subject', '2. Engage HR and Legal before taking action', '3. Review UCF.01.02 PAM, check for privilege abuse', '4. Determine scope of data accessed', '5. Coordinate with legal on evidence preservation'],
       'Data Exposure':  ['1. Revoke the exposed credentials immediately', '2. Audit access logs for the past 30 days', '3. Identify any data that was accessed with the key', '4. Rotate all adjacent credentials proactively', '5. Review UCF.06.02 vendor questionnaire for this vendor'],
     };
     return steps[incident.type] || ['1. Assess impact scope', '2. Escalate to incident commander', '3. Preserve evidence', '4. Notify stakeholders per severity', '5. Document timeline'];
@@ -1548,14 +1556,14 @@ function Incidents({ focusId }) {
   const mttrAvg = '3.2h';
   const aiIncOpen = incidents.filter(i => i.ai && i.status !== 'Resolved').length;
   const incAsk = active.length > 0
-    ? `${active.length} incident${active.length>1?'s':''} unresolved.${aiIncOpen > 0 ? ` ${aiIncOpen} AI-related ${aiIncOpen>1?'incidents require':'incident requires'} dedicated IR playbook coverage under EU AI Act Art. 9 — assign a Security Lead.` : ' Confirm IR control is tested and playbook is current.'}`
+    ? `${active.length} incident${active.length>1?'s':''} unresolved.${aiIncOpen > 0 ? ` ${aiIncOpen} AI-related ${aiIncOpen>1?'incidents require':'incident requires'} dedicated IR playbook coverage under EU AI Act Art. 9, assign a Security Lead.` : ' Confirm IR control is tested and playbook is current.'}`
     : 'No active incidents. Validate IR playbook and schedule a tabletop exercise for AI-related scenarios.';
 
   return (
     <div className="space-y-4">
       <SectionContext
         what="Active and historical security events tracked from initial detection through full resolution. Every incident links back to a UCF control and drives MTTR measurement."
-        why="Fast containment limits blast radius. AI-related incidents carry regulatory weight — EU AI Act Art. 9 requires documented risk management and logging for every AI failure in production."
+        why="Fast containment limits blast radius. AI-related incidents carry regulatory weight, EU AI Act Art. 9 requires documented risk management and logging for every AI failure in production."
         ask={incAsk}
         askUrgency={active.length > 0 ? 'high' : 'normal'}
       />
@@ -1575,8 +1583,8 @@ function Incidents({ focusId }) {
         const activeInc = incidents.filter(i => i.status !== 'Resolved');
         const worstActive = [...activeInc].sort((a,b) => {const s={Critical:3,High:2,Medium:1,Low:0}; return (s[b.severity]||0)-(s[a.severity]||0);})[0];
         const nextAction = worstActive
-          ? { action: `Resolve "${worstActive.title}" — ${worstActive.severity.toLowerCase()} severity, currently ${worstActive.status.toLowerCase()}`, owner: ctrlMap[worstActive.controlId]?.owner || 'K. Thompson', deadline: worstActive.severity==='Critical'?'Immediately':'48h', urgency: worstActive.severity==='Critical'?'high':'medium' }
-          : { action: 'No critical incidents — validate IR playbook is current', owner: 'K. Thompson', deadline: 'This month', urgency: 'low' };
+          ? { action: `Resolve "${worstActive.title}", ${worstActive.severity.toLowerCase()} severity, currently ${worstActive.status.toLowerCase()}`, owner: ctrlMap[worstActive.controlId]?.owner || 'K. Thompson', deadline: worstActive.severity==='Critical'?'Immediately':'48h', urgency: worstActive.severity==='Critical'?'high':'medium' }
+          : { action: 'No critical incidents, validate IR playbook is current', owner: 'K. Thompson', deadline: 'This month', urgency: 'low' };
         return <NextActionCard {...nextAction} />;
       })()}
 
@@ -1589,7 +1597,7 @@ function Incidents({ focusId }) {
         <EffectivenessBadge effectiveness={ctrlMap['UCF.AI.05']?.effectiveness} score={ctrlMap['UCF.AI.05']?.score} />
       </div>
 
-      {/* Pending risk escalation — risks that could become incidents if exploited */}
+      {/* Pending risk escalation, risks that could become incidents if exploited */}
       {(() => {
         const escalatable = risks.filter(r => r.signalSource === 'vulnerability' || r.signalSource === 'supply_chain');
         if (!escalatable.length) return null;
@@ -1811,7 +1819,7 @@ function PolicyModule({ focusId }) {
     if (focusId) { setStatusFilter('All'); setSearch(''); setShowAI(false); }
   }, [focusId]);
 
-  const getDraftText = (policy) => `# ${policy.title}\n\n**Status:** Draft v0.1 — AI-assisted\n**Owner:** ${policy.owner}\n**Category:** ${policy.category}\n\n## 1. Purpose\nThis policy establishes requirements for ${policy.title.toLowerCase()} within the GRC platform and all AI systems operated by the organisation.\n\n## 2. Scope\nApplies to all employees, contractors, and third parties who develop, operate, or interact with AI systems.\n\n## 3. Policy Requirements\n[Requirements to be completed by ${policy.owner} — framework references: ${ctrlMap[policy.controlId]?.frameworks?.join(', ') || 'UCF controls'}]\n\n## 4. Controls & Compliance\nLinked control: ${policy.controlId} — ${ctrlMap[policy.controlId]?.name}\n\n## 5. Review Cycle\nAnnual review or upon material change to AI systems.\n\n_This draft was generated to accelerate policy creation. Review and approval required before publishing._`;
+  const getDraftText = (policy) => `# ${policy.title}\n\n**Status:** Draft v0.1, AI-assisted\n**Owner:** ${policy.owner}\n**Category:** ${policy.category}\n\n## 1. Purpose\nThis policy establishes requirements for ${policy.title.toLowerCase()} within the GRC platform and all AI systems operated by the organisation.\n\n## 2. Scope\nApplies to all employees, contractors, and third parties who develop, operate, or interact with AI systems.\n\n## 3. Policy Requirements\n[Requirements to be completed by ${policy.owner}, framework references: ${ctrlMap[policy.controlId]?.frameworks?.join(', ') || 'UCF controls'}]\n\n## 4. Controls & Compliance\nLinked control: ${policy.controlId}, ${ctrlMap[policy.controlId]?.name}\n\n## 5. Review Cycle\nAnnual review or upon material change to AI systems.\n\n_This draft was generated to accelerate policy creation. Review and approval required before publishing._`;
 
   const data = policies.filter(p =>
     (statusFilter === 'All' || p.status === statusFilter) &&
@@ -1830,9 +1838,9 @@ function PolicyModule({ focusId }) {
       {draftPolicy && <PolicyDraftModal policy={draftPolicy} onClose={() => setDraftPolicy(null)} />}
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <KPICard title="Missing Policies"  value={missing}    icon={AlertTriangle} color="#EF4444" subtitle={`${missing} AI policies don't exist yet — blocks EU AI Act & ISO 42001`} />
-        <KPICard title="Overdue Reviews"   value={overdue}    icon={FileText}      color="#F97316" subtitle="Review deadline passed — policy may no longer reflect current risk" />
-        <KPICard title="Open Exceptions"   value={exceptions} icon={Eye}           color="#EAB308" subtitle="Each exception is an approved deviation from policy — needs annual review" />
+        <KPICard title="Missing Policies"  value={missing}    icon={AlertTriangle} color="#EF4444" subtitle={`${missing} AI policies don't exist yet, blocks EU AI Act & ISO 42001`} />
+        <KPICard title="Overdue Reviews"   value={overdue}    icon={FileText}      color="#F97316" subtitle="Review deadline passed, policy may no longer reflect current risk" />
+        <KPICard title="Open Exceptions"   value={exceptions} icon={Eye}           color="#EAB308" subtitle="Each exception is an approved deviation from policy, needs annual review" />
         <div className="bg-white rounded-xl border border-gray-100 p-4 shadow-sm">
           <p className="text-xs text-gray-400 mb-1">Policy Control · {ctrlMap['UCF.07.01']?.id}</p>
           <p className="text-sm font-semibold text-gray-800 mb-2">{ctrlMap['UCF.07.01']?.name}</p>
@@ -1848,7 +1856,7 @@ function PolicyModule({ focusId }) {
           <div className="bg-white rounded-xl border border-purple-100 shadow-sm">
             <div className="px-5 py-3 border-b border-purple-50 flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-purple-500" />
-              <span className="text-sm font-semibold text-gray-800">Risk Register — AI Governance Signals</span>
+              <span className="text-sm font-semibold text-gray-800">Risk Register, AI Governance Signals</span>
               <span className="ml-auto text-[10px] text-gray-400 italic">sample · illustrative data</span>
             </div>
             <div className="divide-y divide-gray-50">
@@ -1887,9 +1895,9 @@ function PolicyModule({ focusId }) {
         const missingAI = policies.filter(p => p.status === 'Missing' && p.ai)[0];
         const overduePolicy = policies.filter(p => p.status === 'Overdue')[0];
         const nextAction = missingAI
-          ? { action: `Create ${missingAI.title} — blocks EU AI Act remediation`, owner: missingAI.owner, deadline: 'Jun 30', urgency: 'high' }
+          ? { action: `Create ${missingAI.title}, blocks EU AI Act remediation`, owner: missingAI.owner, deadline: 'Jun 30', urgency: 'high' }
           : overduePolicy
-          ? { action: `Review ${overduePolicy.title} — overdue since ${overduePolicy.reviewDate}`, owner: overduePolicy.owner, deadline: 'This week', urgency: 'medium' }
+          ? { action: `Review ${overduePolicy.title}, overdue since ${overduePolicy.reviewDate}`, owner: overduePolicy.owner, deadline: 'This week', urgency: 'medium' }
           : { action: 'Schedule policy reviews for next quarter', owner: 'S. Chen', deadline: 'Q3 2026', urgency: 'low' };
         return <NextActionCard {...nextAction} />;
       })()}
@@ -1898,7 +1906,7 @@ function PolicyModule({ focusId }) {
         <Cpu size={16} className="text-purple-600 flex-shrink-0 mt-0.5" />
         <div className="flex-1">
           <p className="text-sm font-semibold text-red-800">3 AI Policies Missing · Action Required</p>
-          <p className="text-xs text-red-700 mt-0.5 font-medium">Blocks EU AI Act remediation — immediate action required</p>
+          <p className="text-xs text-red-700 mt-0.5 font-medium">Blocks EU AI Act remediation, immediate action required</p>
           <p className="text-xs text-gray-600 mt-1 mb-3">Required by EU AI Act, ISO/IEC 42001, and GDPR Art.22. Controls {ctrlMap['UCF.AI.01']?.id}, {ctrlMap['UCF.AI.02']?.id}, {ctrlMap['UCF.AI.04']?.id} are ineffective until these policies exist.</p>
           <div className="flex flex-wrap gap-2">
             {missingAIPolicies.map(p => (
@@ -1949,7 +1957,7 @@ function PolicyModule({ focusId }) {
         />
       </div>
 
-      {/* Policy Exceptions — derived from risk register */}
+      {/* Policy Exceptions, derived from risk register */}
       {(() => {
         const exceptions = risks.filter(r => r.isException);
         return (
@@ -1993,13 +2001,13 @@ function PolicyModule({ focusId }) {
             <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
               <div className="flex items-center gap-2">
                 <Cpu size={15} className="text-purple-600" />
-                <h3 className="font-semibold text-gray-900">AI Policy Draft — {draftPolicy.title}</h3>
+                <h3 className="font-semibold text-gray-900">AI Policy Draft, {draftPolicy.title}</h3>
               </div>
               <button onClick={() => setDraftPolicy(null)} className="text-gray-400 hover:text-gray-600"><X size={16} /></button>
             </div>
             <div className="flex-1 overflow-y-auto p-5">
               <div className="bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mb-4">
-                <p className="text-xs text-amber-700">AI-generated draft — review and approval required before publishing. This is a starting point only.</p>
+                <p className="text-xs text-amber-700">AI-generated draft, review and approval required before publishing. This is a starting point only.</p>
               </div>
               <pre className="text-sm text-gray-700 whitespace-pre-wrap font-sans leading-relaxed">{getDraftText(draftPolicy)}</pre>
             </div>
@@ -2041,7 +2049,7 @@ function ThirdParty({ focusId }) {
   const aiVendors = vendors.filter(v => v.ai).length;
   const aiNoDpa = vendors.filter(v => v.ai && v.status !== 'Active').length;
   const tpAsk = aiNoDpa > 0
-    ? `${aiNoDpa} AI vendor${aiNoDpa>1?'s':''} operating without a Data Processing Agreement — GDPR Art. 28 exposure (fine up to 2% of global revenue). Legal must initiate DPAs or offboard these vendors this week.`
+    ? `${aiNoDpa} AI vendor${aiNoDpa>1?'s':''} operating without a Data Processing Agreement, GDPR Art. 28 exposure (fine up to 2% of global revenue). Legal must initiate DPAs or offboard these vendors this week.`
     : noContract > 0
       ? `${noContract} vendor${noContract>1?'s':''} without active contracts. Procurement sign-off required before these vendors process any company data.`
       : 'Vendor contracts in order. Schedule annual risk re-assessments for high-risk vendors.';
@@ -2053,7 +2061,7 @@ function ThirdParty({ focusId }) {
     <div className="space-y-4">
       <SectionContext
         what="All vendor relationships scored for security posture, contract status, and data processing compliance. AI vendors receive enhanced scrutiny due to data transfer and model governance obligations."
-        why="Third-party integrations extend your attack surface. A vendor breach becomes your breach. Missing DPAs create direct GDPR Art. 28 liability — not a supplier problem, your problem."
+        why="Third-party integrations extend your attack surface. A vendor breach becomes your breach. Missing DPAs create direct GDPR Art. 28 liability, not a supplier problem, your problem."
         ask={tpAsk}
         askUrgency={aiNoDpa > 0 ? 'critical' : noContract > 0 ? 'high' : 'normal'}
       />
@@ -2063,7 +2071,7 @@ function ThirdParty({ focusId }) {
         <div className="bg-white rounded-xl border border-orange-100 shadow-sm">
           <div className="px-5 py-3 border-b border-orange-50 flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-orange-500" />
-            <span className="text-sm font-semibold text-gray-800">Risk Register — Supply Chain Signals</span>
+            <span className="text-sm font-semibold text-gray-800">Risk Register, Supply Chain Signals</span>
             <span className="ml-auto text-[10px] text-gray-400 italic">sample · illustrative data</span>
           </div>
           <div className="divide-y divide-gray-50">
@@ -2111,7 +2119,7 @@ function ThirdParty({ focusId }) {
       {(() => {
         const noContractVendor = vendors.find(v => v.status === 'No Contract');
         const nextAction = noContractVendor
-          ? { action: `Execute DPA with ${noContractVendor.name} — no contract, processes prompt data`, owner: noContractVendor.id === 'TP-007' ? 'S. Chen' : ctrlMap['UCF.AI.04']?.owner, deadline: 'Jul 1', urgency: 'high' }
+          ? { action: `Execute DPA with ${noContractVendor.name}, no contract, processes prompt data`, owner: noContractVendor.id === 'TP-007' ? 'S. Chen' : ctrlMap['UCF.AI.04']?.owner, deadline: 'Jul 1', urgency: 'high' }
           : { action: 'Complete overdue vendor questionnaires', owner: 'S. Chen', deadline: 'This week', urgency: 'medium' };
         return <NextActionCard {...nextAction} />;
       })()}
@@ -2190,7 +2198,7 @@ function Compliance() {
   const gapPlan = [
     { step: 1, action: 'Create AI Usage & Governance Policy (POL-007)', impact: '+4 controls', owner: 'A. Patel', deadline: 'Jun 30', effort: 'Low' },
     { step: 2, action: 'Test UCF.AI.01 (AI Model Governance) and document evidence', impact: '+3 controls', owner: 'A. Patel', deadline: 'Jul 15', effort: 'Medium' },
-    { step: 3, action: 'Execute OpenAI DPA — satisfies EU AI Act Art.28', impact: '+2 controls', owner: 'S. Chen', deadline: 'Jul 1', effort: 'Low' },
+    { step: 3, action: 'Execute OpenAI DPA, satisfies EU AI Act Art.28', impact: '+2 controls', owner: 'S. Chen', deadline: 'Jul 1', effort: 'Low' },
     { step: 4, action: 'Run AI risk categorisation for all 6 AI use cases', impact: '+2 controls', owner: 'A. Patel', deadline: 'Jul 31', effort: 'Medium' },
     { step: 5, action: 'Conduct AI tabletop exercise (UCF.AI.05)', impact: '+2 controls', owner: 'K. Thompson', deadline: 'Aug 30', effort: 'High' },
   ];
@@ -2200,7 +2208,7 @@ function Compliance() {
     <div className="space-y-4">
       <SectionContext
         what="Coverage across all active regulatory frameworks: SOC 2, ISO 27001, ISO 42001, EU AI Act, NIST CSF, and NIST AI RMF. Each framework maps to UCF controls with live effectiveness scores."
-        why="Compliance gaps are not just audit findings — they are unmitigated legal and regulatory exposure. EU AI Act enforcement is live in 2026 with fines up to 3% of global annual turnover."
+        why="Compliance gaps are not just audit findings, they are unmitigated legal and regulatory exposure. EU AI Act enforcement is live in 2026 with fines up to 3% of global annual turnover."
         ask={compAsk}
         askUrgency={aiCoverage < 30 ? 'critical' : gapCount > 0 ? 'high' : 'normal'}
       />
@@ -2208,7 +2216,7 @@ function Compliance() {
       {/* KPI row */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <KPICard title="Overall Coverage"      value={`${overall}%`}   icon={Shield}        color="#2563EB" subtitle={`avg across ${frameworks.length} frameworks`} />
-        <KPICard title="AI Compliance"         value={`${aiCoverage}%`} icon={Cpu}          color="#9333EA" subtitle={aiTotal > 0 ? `${aiPassing} of ${aiTotal} controls · EU AI Act ${euAiActFw?.progress ?? '—'}% · ISO 42001 ${iso42001Fw?.progress ?? '—'}%` : 'EU AI Act + ISO 42001'} />
+        <KPICard title="AI Compliance"         value={`${aiCoverage}%`} icon={Cpu}          color="#9333EA" subtitle={aiTotal > 0 ? `${aiPassing} of ${aiTotal} controls · EU AI Act ${euAiActFw?.progress ?? '-'}% · ISO 42001 ${iso42001Fw?.progress ?? '-'}%` : 'EU AI Act + ISO 42001'} />
         <KPICard title="Certified / Compliant" value={certified}       icon={CheckCircle}   color="#22C55E" subtitle={`of ${frameworks.length} total frameworks`} />
         <KPICard title="Frameworks at Gap"     value={gapCount}        icon={AlertTriangle} color="#EF4444" subtitle="immediate remediation required" />
       </div>
@@ -2217,7 +2225,7 @@ function Compliance() {
       {(() => {
         const worstFramework = [...frameworks].filter(f => f.status === 'Gap').sort((a,b) => a.progress-b.progress)[0];
         const nextAction = worstFramework
-          ? { action: `${worstFramework.name} at ${worstFramework.progress}% — ${worstFramework.controls - worstFramework.passing} controls failing`, owner: 'A. Patel', deadline: 'Q4 2026', urgency: 'high' }
+          ? { action: `${worstFramework.name} at ${worstFramework.progress}%, ${worstFramework.controls - worstFramework.passing} controls failing`, owner: 'A. Patel', deadline: 'Q4 2026', urgency: 'high' }
           : { action: 'Review framework coverage gaps with engineering teams', owner: 'S. Chen', deadline: 'This quarter', urgency: 'low' };
         return <NextActionCard {...nextAction} />;
       })()}
@@ -2237,7 +2245,7 @@ function Compliance() {
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
               <Cpu size={14} className="text-purple-600" />
-              <h3 className="font-semibold text-gray-900 text-sm">EU AI Act — Gap Analysis & Remediation Plan</h3>
+              <h3 className="font-semibold text-gray-900 text-sm">EU AI Act, Gap Analysis & Remediation Plan</h3>
               <span className="text-xs text-gray-400">Current: 22% → Projected: ~{projectedProgress}%</span>
             </div>
             <button onClick={() => setShowGapAnalysis(false)} className="text-gray-400 hover:text-gray-600"><X size={13} /></button>
@@ -2341,7 +2349,7 @@ function Compliance() {
               <p className="text-xs text-right font-semibold text-gray-700">{f.progress}%</p>
               {f.name === 'EU AI Act' && (
                 <p className="text-xs text-red-600 mt-1 font-medium">
-                  {f.controls - f.passing} of {f.controls} controls failing — enforcement approaching
+                  {f.controls - f.passing} of {f.controls} controls failing, enforcement approaching
                 </p>
               )}
             </div>
@@ -2604,7 +2612,7 @@ function Scorecard({ onViewReport }) {
   const prevTotalGaps  = Object.values(monthlyHistory).reduce((s, h) => s + (h[h.length - 2]?.gaps ?? 0), 0);
   const gapDelta       = totalGaps - prevTotalGaps;
 
-  // Leadership decisions — items requiring explicit sign-off or resource decision
+  // Leadership decisions, items requiring explicit sign-off or resource decision
   const p0Breach       = vulns.filter(v => v.priority === 'P0' && v.status !== 'Patched' && v.dueDate && daysFromToday(v.dueDate) < 0);
   const euAiAct        = frameworks.find(f => f.name === 'EU AI Act');
   const aiVendorGaps   = vendors.filter(v => v.ai && v.status !== 'Active').length;
@@ -2614,28 +2622,28 @@ function Scorecard({ onViewReport }) {
     ...p0Breach.map(v => ({
       urgency: 'critical', urgencyRank: 0, color: '#EF4444', bg: 'bg-red-50', border: 'border-red-200',
       icon: AlertTriangle, tier: 'Board / CISO',
-      title: 'P0 SLA Breach — CISO Escalation Required',
+      title: 'P0 SLA Breach, CISO Escalation Required',
       detail: `${v.id} (${v.title}) is ${Math.abs(daysFromToday(v.dueDate))}d overdue on a 1-day SLA. Requires CISO sign-off or formal incident declaration.`,
       ask: 'Escalate / Declare Incident',
     })),
     ...(euAiAct && euAiAct.progress < 40 ? [{
       urgency: 'high', urgencyRank: 1, color: '#D97706', bg: 'bg-amber-50', border: 'border-amber-200',
       icon: Globe, tier: 'Board / CISO',
-      title: 'EU AI Act — Board Decision Required',
+      title: 'EU AI Act, Board Decision Required',
       detail: `${euAiAct.progress}% coverage with enforcement active. Options: approve remediation budget or formally accept regulatory exposure as residual risk.`,
       ask: 'Approve budget / Accept risk',
     }] : []),
     ...crisisTeams.map(t => ({
       urgency: 'high', urgencyRank: 1, color: '#F97316', bg: 'bg-orange-50', border: 'border-orange-200',
       icon: AlertTriangle, tier: 'VP+',
-      title: `${t.name} in Crisis (${t.health}%) — Resource Decision`,
+      title: `${t.name} in Crisis (${t.health}%), Resource Decision`,
       detail: `${t.gaps} control gap${t.gaps !== 1 ? 's' : ''}, ${t.openVulns} open vuln${t.openVulns !== 1 ? 's' : ''}, ${t.openInc} unresolved incident${t.openInc !== 1 ? 's' : ''}. Requires resource allocation or formal risk acceptance.`,
       ask: 'Assign resources / Accept risk',
     })),
     ...(aiVendorGaps > 0 ? [{
       urgency: 'medium', urgencyRank: 2, color: '#EAB308', bg: 'bg-yellow-50', border: 'border-yellow-200',
       icon: Building2, tier: 'Director+',
-      title: `${aiVendorGaps} AI Vendor${aiVendorGaps > 1 ? 's' : ''} Without DPA — Legal Action`,
+      title: `${aiVendorGaps} AI Vendor${aiVendorGaps > 1 ? 's' : ''} Without DPA, Legal Action`,
       detail: `${aiVendorGaps} AI vendor${aiVendorGaps > 1 ? 's' : ''} operating without Data Processing Agreements. GDPR Art. 28 exposure. Procurement or Legal sign-off required.`,
       ask: 'Approve DPA / Offboard vendor',
     }] : []),
@@ -2643,13 +2651,13 @@ function Scorecard({ onViewReport }) {
 
   const scorecardAsk = leadershipDecisions.length > 0
     ? `${leadershipDecisions.length} item${leadershipDecisions.length>1?'s':''} need your sign-off. ${leadershipDecisions[0]?.ask ? `Start with: ${leadershipDecisions[0].title}.` : ''} Each item below lists the exact decision required.`
-    : 'No decisions pending. Program is tracking positively — review team health trends and upcoming review dates.';
+    : 'No decisions pending. Program is tracking positively, review team health trends and upcoming review dates.';
 
   return (
     <div className="space-y-5">
       <SectionContext
         what="Program-level health across all security domains, team control ownership, and open decisions requiring leadership sign-off. Aggregates signals from every module into a single executive view."
-        why="Security outcomes are determined by decisions made at leadership level — resource allocation, risk acceptance, incident escalation, regulatory investment. This module surfaces exactly those decisions."
+        why="Security outcomes are determined by decisions made at leadership level, resource allocation, risk acceptance, incident escalation, regulatory investment. This module surfaces exactly those decisions."
         ask={scorecardAsk}
         askUrgency={leadershipDecisions.length > 0 ? (p0Breach.length > 0 ? 'critical' : 'high') : 'normal'}
       />
@@ -2745,7 +2753,7 @@ function Scorecard({ onViewReport }) {
         </div>
       )}
 
-      {/* Pending Sign-offs — in-flight workflows */}
+      {/* Pending Sign-offs, in-flight workflows */}
       {workflows.filter(w => w.status === 'in_progress').length > 0 && (
         <div className="bg-white rounded-xl border border-blue-200 shadow-sm overflow-hidden">
           <div className="px-5 py-3 border-b border-blue-100 flex items-center gap-2 bg-blue-50">
@@ -2800,7 +2808,7 @@ function Scorecard({ onViewReport }) {
                     isActing ? (
                       <div className="bg-gray-50 rounded-lg p-3 space-y-2">
                         <p className="text-xs font-semibold text-gray-700">
-                          {actionNote.action} — add a note <span className="font-normal text-gray-400">(optional)</span>
+                          {actionNote.action}, add a note <span className="font-normal text-gray-400">(optional)</span>
                         </p>
                         <textarea
                           autoFocus
@@ -2981,7 +2989,7 @@ function Scorecard({ onViewReport }) {
                     const ineffective = teamControls.filter(c => c.effectiveness==='ineffective'||c.effectiveness==='not_tested');
                     if (ineffective.length > 0) {
                       const names = ineffective.slice(0,2).map(c => c.id).join(', ');
-                      return <p className="text-xs text-red-400 mt-0.5">{ineffective.length} controls ineffective — {names}</p>;
+                      return <p className="text-xs text-red-400 mt-0.5">{ineffective.length} controls ineffective, {names}</p>;
                     }
                     return null;
                   })()}
@@ -3086,283 +3094,174 @@ function Scorecard({ onViewReport }) {
 
 // ─── Leader Monthly Report ────────────────────────────────────────────────────
 
-function LeaderReport({ teamId: initialTeamId, onBack }) {
-  const { controls, vulns, incidents, policies, vendors } = useGRCData();
-  const ctrlMap  = Object.fromEntries(controls.map(c => [c.id, c]));
-  const [teamId, setTeamId] = useState(initialTeamId);
-  const team = teams.find(t => t.id === teamId);
+function LeaderReport({ onBack }) {
+  const { vulns, incidents } = useGRCData();
+  const { treatmentStatuses } = useTreatment();
+  const openDetail = useRiskDetail();
 
-  // Team picker when no team is selected
-  if (!team) {
-    return (
-      <div className="space-y-5 max-w-3xl mx-auto">
+  // ── Derived data ────────────────────────────────────────────────────────────
+  const portfolioResidual = risks.reduce((s, r) => s + r.residualScore, 0);
+  const portfolioStatus   = portfolioResidual <= 40
+    ? { label: 'Within Appetite', color: 'text-emerald-600', dot: 'bg-emerald-500' }
+    : portfolioResidual <= 55
+    ? { label: 'Approaches Threshold', color: 'text-amber-600', dot: 'bg-amber-400' }
+    : { label: 'Exceeds Appetite', color: 'text-red-600', dot: 'bg-red-500' };
+
+  const allActions      = treatmentActions;
+  const inProgress      = allActions.filter(a => (treatmentStatuses[a.id] ?? a.status) === 'In Progress').length;
+  const complete        = allActions.filter(a => (treatmentStatuses[a.id] ?? a.status) === 'Complete').length;
+  const notStarted      = allActions.filter(a => (treatmentStatuses[a.id] ?? a.status) === 'Not Started').length;
+  const p0Actions       = allActions.filter(a => a.priority === 'P0' && (treatmentStatuses[a.id] ?? a.status) !== 'Complete');
+
+  const openVulnsAll    = vulns.filter(v => v.status !== 'Patched');
+  const p0Vulns         = openVulnsAll.filter(v => v.priority === 'P0');
+  const activeIncAll    = incidents.filter(i => i.status !== 'Resolved');
+
+  const decisionsNeeded = [
+    ...risks.filter(r => getAppetite(r.residualScore) === 'Exceeds' || getAppetite(r.residualScore) === 'Significantly Exceeds')
+      .map(r => ({ label: `Approve treatment plan for ${r.id}`, sub: `${r.title}, residual ${r.residualScore}, requires VP+ sign-off`, urgent: true })),
+    ...p0Actions.slice(0, 2).map(a => ({ label: a.summary, sub: `${a.id} · ${a.priority} · due ${a.dueDate} · owner ${a.assignee}`, urgent: a.priority === 'P0' })),
+    ...risks.filter(r => r.isException && r.exceptionExpiry)
+      .map(r => ({ label: `Review policy exception expiry: ${r.id}`, sub: `Expires ${r.exceptionExpiry}, renew or close`, urgent: false })),
+  ].slice(0, 5);
+
+  const reportMonth = new Date(new Date().setMonth(new Date().getMonth()-1))
+    .toLocaleString('default', { month: 'long', year: 'numeric' });
+
+  return (
+    <div className="space-y-5 max-w-3xl mx-auto">
+
+      {/* ── Header ──────────────────────────────────────────────────────────── */}
+      <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-xl font-bold text-gray-900">Monthly Report</h2>
-          <p className="text-sm text-gray-400 mt-1">Select a team to view their {new Date(new Date().setMonth(new Date().getMonth()-1)).toLocaleString('default', { month: 'long', year: 'numeric' })} report</p>
+          <h2 className="text-xl font-bold text-gray-900">Docker Security Programme</h2>
+          <p className="text-xs text-gray-400 mt-0.5">Monthly Report · {reportMonth} · Chris Cutts</p>
         </div>
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          {teams.map(t => {
-            const Icon  = t.icon;
-            const owned = t.controls.map(id => ctrlMap[id]).filter(Boolean);
-            const health = owned.length ? Math.round((owned.filter(c=>c.effectiveness==='effective').length + owned.filter(c=>c.effectiveness==='partial').length * 0.5) / owned.length * 100) : 0;
-            const lvl   = getLevel(health);
-            const hist  = monthlyHistory[t.id] ?? [];
-            const prev  = hist[hist.length - 2]?.health ?? health;
-            const delta = health - prev;
+        <button onClick={() => window.print()} className="flex items-center gap-1.5 text-xs text-white bg-blue-600 rounded-lg px-3 py-1.5 hover:bg-blue-700 transition-colors">
+          <Download size={12} /> Export PDF
+        </button>
+      </div>
+
+      {/* ── Section 1: Programme snapshot ───────────────────────────────────── */}
+      <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
+        <h3 className="font-semibold text-gray-900 mb-4">Programme Snapshot</h3>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="text-center p-3 bg-gray-50 rounded-xl">
+            <p className={`text-3xl font-bold ${portfolioStatus.color}`}>{portfolioResidual}</p>
+            <p className="text-xs text-gray-500 mt-1">Portfolio risk score</p>
+            <div className="flex items-center justify-center gap-1 mt-1">
+              <span className={`w-1.5 h-1.5 rounded-full ${portfolioStatus.dot}`} />
+              <p className={`text-[10px] font-semibold ${portfolioStatus.color}`}>{portfolioStatus.label}</p>
+            </div>
+          </div>
+          <div className="text-center p-3 bg-gray-50 rounded-xl">
+            <p className={`text-3xl font-bold ${risks.filter(r=>getAppetite(r.residualScore)!=='Within').length > 0 ? 'text-amber-500' : 'text-emerald-600'}`}>
+              {risks.filter(r=>getAppetite(r.residualScore)!=='Within').length}
+            </p>
+            <p className="text-xs text-gray-500 mt-1">Risks above appetite</p>
+            <p className="text-[10px] text-gray-400 mt-1">of {risks.length} total open risks</p>
+          </div>
+          <div className="text-center p-3 bg-gray-50 rounded-xl">
+            <p className={`text-3xl font-bold ${p0Vulns.length > 0 ? 'text-red-500' : 'text-emerald-600'}`}>{openVulnsAll.length}</p>
+            <p className="text-xs text-gray-500 mt-1">Open vulnerabilities</p>
+            <p className="text-[10px] text-gray-400 mt-1">{p0Vulns.length} P0 · {activeIncAll.length} active incidents</p>
+          </div>
+          <div className="text-center p-3 bg-gray-50 rounded-xl">
+            <p className={`text-3xl font-bold ${complete > 0 ? 'text-emerald-600' : 'text-gray-500'}`}>{complete}/{allActions.length}</p>
+            <p className="text-xs text-gray-500 mt-1">Treatment actions done</p>
+            <p className="text-[10px] text-gray-400 mt-1">{inProgress} in progress · {notStarted} not started</p>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Section 2: Risk register ─────────────────────────────────────────── */}
+      <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="font-semibold text-gray-900">Risk Register</h3>
+          <span className="text-xs text-gray-400">Portfolio residual {portfolioResidual} / threshold 55</span>
+        </div>
+        <div className="space-y-2">
+          {[...risks].sort((a,b) => b.residualScore - a.residualScore).map(r => {
+            const appetite   = getAppetite(r.residualScore);
+            const aptColor   = appetite === 'Within' ? 'bg-emerald-50 text-emerald-700' : appetite === 'Approaches' ? 'bg-amber-50 text-amber-700' : 'bg-red-50 text-red-700';
+            const riskTrts   = treatmentActions.filter(a => a.riskId === r.id);
+            const doneTrts   = riskTrts.filter(a => (treatmentStatuses[a.id] ?? a.status) === 'Complete').length;
             return (
-              <button key={t.id} onClick={() => { setTeamId(t.id); window.history.replaceState(null,'',`?leader=${t.id}`); }}
-                className="bg-white rounded-xl border border-gray-100 p-5 shadow-sm hover:shadow-md hover:border-blue-200 transition-all text-left group">
-                <div className="flex items-center gap-3 mb-3">
-                  <div className="p-2 rounded-lg" style={{ background: t.color + '18' }}><Icon size={16} style={{ color: t.color }} /></div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-gray-900 text-sm">{t.name}</p>
-                    <p className="text-xs text-gray-400">{t.dept} · {t.lead}</p>
+              <div key={r.id} onClick={() => openDetail(r)}
+                className="flex items-center gap-3 p-3 rounded-lg border border-gray-100 hover:bg-blue-50 cursor-pointer transition-colors">
+                <div className="w-1.5 self-stretch rounded-full flex-shrink-0" style={{ background: getRiskColor(r.inherentScore) }} />
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-0.5">
+                    <span className="font-mono text-[10px] text-gray-400">{r.id}</span>
+                    {r.isException && <span className="text-[10px] px-1 py-0.5 bg-blue-50 text-blue-600 rounded font-semibold">Exception</span>}
                   </div>
-                  <ChevronRight size={14} className="text-gray-300 group-hover:text-blue-400 transition-colors" />
+                  <p className="text-sm font-medium text-gray-800 leading-snug">{r.title}</p>
+                  <p className="text-[10px] text-gray-400 mt-0.5">{r.owner} · review {r.reviewDate || '-'} · {doneTrts}/{riskTrts.length} actions done</p>
                 </div>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className={`text-xl font-bold ${health >= 70 ? 'text-emerald-600' : health >= 50 ? 'text-amber-500' : 'text-red-500'}`}>{health}%</span>
-                    <span className={`text-xs px-1.5 py-0.5 rounded font-bold ${lvl.bg} ${lvl.text}`}>{lvl.icon} {lvl.name}</span>
+                <div className="flex items-center gap-3 flex-shrink-0 text-right">
+                  <div>
+                    <p className="text-xs text-gray-400">Inherent → Residual</p>
+                    <p className="text-sm font-bold text-gray-700">{r.inherentScore} → {r.residualScore}</p>
                   </div>
-                  {delta > 0
-                    ? <span className="text-xs text-emerald-600 font-semibold flex items-center gap-0.5"><TrendingUp size={11}/>+{delta}%</span>
-                    : delta < 0
-                    ? <span className="text-xs text-red-500 font-semibold flex items-center gap-0.5"><TrendingDown size={11}/>{delta}%</span>
-                    : <span className="text-xs text-gray-300">-</span>}
+                  <span className={`text-xs font-semibold px-2 py-0.5 rounded-full whitespace-nowrap ${aptColor}`}>{appetite}</span>
                 </div>
-              </button>
+              </div>
+            );
+          })}
+        </div>
+        <p className="text-[10px] text-gray-400 mt-3 text-center">Click any risk to open the full CISO drill-down</p>
+      </div>
+
+      {/* ── Section 3: Treatment progress ────────────────────────────────────── */}
+      <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="font-semibold text-gray-900">Treatment Progress</h3>
+          <span className="text-xs text-gray-400">{complete} of {allActions.length} actions complete</span>
+        </div>
+        <div className="w-full bg-gray-100 rounded-full h-2 mb-4">
+          <div className="h-2 rounded-full bg-emerald-500 transition-all" style={{ width: `${Math.round(complete/allActions.length*100)}%` }} />
+        </div>
+        <div className="space-y-3">
+          {risks.map(r => {
+            const riskTrts  = treatmentActions.filter(a => a.riskId === r.id);
+            const done      = riskTrts.filter(a => (treatmentStatuses[a.id] ?? a.status) === 'Complete').length;
+            const active    = riskTrts.filter(a => (treatmentStatuses[a.id] ?? a.status) === 'In Progress').length;
+            const pct       = riskTrts.length ? Math.round(done/riskTrts.length*100) : 0;
+            const nextUp    = riskTrts.find(a => (treatmentStatuses[a.id] ?? a.status) === 'In Progress') ||
+                              riskTrts.find(a => (treatmentStatuses[a.id] ?? a.status) === 'Not Started');
+            return (
+              <div key={r.id} className="flex items-center gap-3">
+                <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: getRiskColor(r.inherentScore) }} />
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between mb-1">
+                    <p className="text-xs font-medium text-gray-700 truncate">{r.title}</p>
+                    <span className="text-[10px] text-gray-400 flex-shrink-0 ml-2">{done}/{riskTrts.length}</span>
+                  </div>
+                  <div className="w-full bg-gray-100 rounded-full h-1.5">
+                    <div className="h-1.5 rounded-full transition-all" style={{ width: `${pct}%`, background: pct === 100 ? '#22C55E' : active > 0 ? '#3B82F6' : '#94A3B8' }} />
+                  </div>
+                  {nextUp && <p className="text-[10px] text-gray-400 mt-0.5 truncate">Next: {nextUp.summary}</p>}
+                </div>
+              </div>
             );
           })}
         </div>
       </div>
-    );
-  }
 
-  const owned     = team.controls.map(id => ctrlMap[id]).filter(Boolean);
-  const effective = owned.filter(c => c.effectiveness === 'effective').length;
-  const partial   = owned.filter(c => c.effectiveness === 'partial').length;
-  const gaps      = owned.filter(c => c.effectiveness === 'ineffective' || c.effectiveness === 'not_tested').length;
-  const health    = owned.length ? Math.round(((effective + partial * 0.5) / owned.length) * 100) : 0;
-  const hist      = monthlyHistory[team.id] ?? [];
-  const level     = getLevel(health);
-  const badges    = computeBadges(team.id, { gaps, openInc: incidents.filter(i => owned.some(c => c.id === i.controlId) && i.status !== 'Resolved').length, owned }, hist);
-  const prevHealth = hist[hist.length - 2]?.health ?? health;
-  const delta      = health - prevHealth;
-
-  const myVulns     = vulns.filter(v => owned.some(c => c.id === v.controlId) && v.status !== 'Patched');
-  const myIncidents = incidents.filter(i => owned.some(c => c.id === i.controlId) && i.status !== 'Resolved');
-  const myPolicies  = policies.filter(p => p.owner === team.lead);
-  const myRisks     = risks.filter(r => r.owner === team.lead || owned.some(c => r.controlIds.includes(c.id)));
-
-  const actions = [
-    ...owned.filter(c => c.effectiveness === 'not_tested').map(c => ({ priority:'High',   action:`Test and document effectiveness of ${c.name}`,  due:'Jun 30, 2026' })),
-    ...owned.filter(c => c.effectiveness === 'ineffective').map(c => ({ priority:'High',   action:`Remediate ineffective control: ${c.name}`,        due:'Jun 30, 2026' })),
-    ...myPolicies.filter(p => p.status === 'Missing').map(p => ({ priority:'High',   action:`Create missing policy: ${p.title}`,              due:'Jun 15, 2026' })),
-    ...myPolicies.filter(p => p.status === 'Overdue').map(p => ({ priority:'Medium', action:`Review overdue policy: ${p.title}`,             due:'Jun 20, 2026' })),
-    ...myRisks.filter(r => r.status === 'Open' && r.inherentScore >= 15).map(r => ({ priority:'High', action:`Progress risk treatment: ${r.title}`, due: r.reviewDate || 'Jul 1, 2026' })),
-  ].slice(0, 6);
-
-  const shareUrl = () => {
-    const url = `${window.location.href.split('?')[0]}?leader=${teamId}`;
-    navigator.clipboard.writeText(url).then(() => alert('Link copied to clipboard'));
-  };
-
-  const Icon = team.icon;
-
-  return (
-    <div className="space-y-5 max-w-4xl mx-auto">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <button onClick={onBack} className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-800 transition-colors">
-          <ChevronRight size={14} className="rotate-180" /> Back to Scorecard
-        </button>
-        <div className="flex items-center gap-2">
-          <button onClick={shareUrl} className="flex items-center gap-1.5 text-xs text-gray-500 border border-gray-200 rounded-lg px-3 py-1.5 hover:bg-gray-50 transition-colors">
-            <Globe size={12} /> Copy Share Link
-          </button>
-          <button onClick={() => window.print()} className="flex items-center gap-1.5 text-xs text-white bg-blue-600 rounded-lg px-3 py-1.5 hover:bg-blue-700 transition-colors">
-            <Download size={12} /> Print / Export PDF
-          </button>
-        </div>
-      </div>
-
-      {/* Leader header card */}
-      <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6">
-        <div className="flex items-start justify-between">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-xl flex items-center justify-center" style={{ background: team.color + '20' }}>
-              <Icon size={22} style={{ color: team.color }} />
-            </div>
-            <div>
-              <h2 className="text-xl font-bold text-gray-900">{team.name}</h2>
-              <p className="text-sm text-gray-500">{team.dept} · {team.lead}</p>
-              <p className="text-xs text-gray-400 mt-0.5">Monthly Report · {new Date(new Date().setMonth(new Date().getMonth()-1)).toLocaleString('default', { month: 'long', year: 'numeric' })}</p>
-            </div>
-          </div>
-          <div className="text-right">
-            <p className={`text-4xl font-bold ${health >= 70 ? 'text-emerald-600' : health >= 50 ? 'text-amber-500' : 'text-red-500'}`}>{health}%</p>
-            <span className={`text-sm font-bold px-2 py-1 rounded ${level.bg} ${level.text}`}>{level.icon} {level.name}</span>
-            <p className="text-xs text-gray-400 mt-1">
-              {delta > 0 ? <span className="text-emerald-600">▲ +{delta}% vs last month</span>
-               : delta < 0 ? <span className="text-red-500">▼ {delta}% vs last month</span>
-               : 'No change'}
-            </p>
-          </div>
-        </div>
-
-        {/* Badges */}
-        {badges.length > 0 && (
-          <div className="flex flex-wrap gap-2 mt-4 pt-4 border-t border-gray-50">
-            <span className="text-xs text-gray-400 self-center">May badges:</span>
-            {badges.map(b => (
-              <span key={b.label} className="flex items-center gap-1.5 text-sm bg-slate-50 border border-slate-200 px-3 py-1 rounded-full text-slate-700 font-medium">
-                {b.icon} {b.label} <span className="text-xs text-gray-400 font-normal">· {b.desc}</span>
-              </span>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* 3-month trend */}
-      <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
-        <h3 className="font-semibold text-gray-900 mb-4">Health Score Trend · Q2 2026</h3>
-        <div className="flex items-end gap-6">
-          {hist.map((h, i) => (
-            <div key={i} className="flex-1 flex flex-col items-center gap-2">
-              <span className={`text-lg font-bold ${h.health >= 70 ? 'text-emerald-600' : h.health >= 50 ? 'text-amber-500' : 'text-red-500'}`}>{h.health}%</span>
-              <div className="w-full rounded-t-lg" style={{ height: `${(h.health / 100) * 80}px`, background: h.health >= 70 ? '#22C55E' : h.health >= 50 ? '#F59E0B' : '#EF4444', opacity: i === hist.length - 1 ? 1 : 0.5 }} />
-              <div className="text-center">
-                <p className="text-xs font-semibold text-gray-700">{h.month}</p>
-                <p className="text-xs text-gray-400">{h.gaps} gaps · {h.vulns + h.incidents} issues</p>
-              </div>
-            </div>
-          ))}
-        </div>
-        <div className="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-100">
-          <p className="text-xs text-blue-800">
-            <strong>Level goal:</strong> Reach {level.next}% to advance from {level.name} to {LEVELS[Math.min(LEVELS.indexOf(level)+1,LEVELS.length-1)].name}.
-            Need {Math.max(0, level.next - health)}% improvement · address {Math.ceil((level.next - health) * owned.length / 100)} control{Math.ceil((level.next - health) * owned.length / 100) !== 1 ? 's' : ''}.
-          </p>
-        </div>
-      </div>
-
-      {/* Controls */}
-      <div className="bg-white rounded-xl border border-gray-100 shadow-sm">
-        <div className="p-5 border-b border-gray-100 flex items-center justify-between">
-          <h3 className="font-semibold text-gray-900">Your Controls ({owned.length})</h3>
-          <div className="flex gap-2 text-xs">
-            <span className="text-emerald-600 font-semibold">{effective} effective</span>
-            <span className="text-gray-300">·</span>
-            <span className="text-amber-500 font-semibold">{partial} partial</span>
-            <span className="text-gray-300">·</span>
-            <span className="text-red-500 font-semibold">{gaps} gaps</span>
-          </div>
-        </div>
-        <div className="divide-y divide-gray-50">
-          {owned.map(c => (
-            <div key={c.id} className="flex items-center justify-between px-5 py-3 hover:bg-gray-50">
-              <div className="flex items-center gap-3 min-w-0">
-                {c.ai && <Cpu size={13} className="text-purple-400 flex-shrink-0" />}
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="font-mono text-xs text-gray-400">{c.id}</span>
-                    <span className="text-sm font-medium text-gray-800">{c.name}</span>
-                  </div>
-                  <p className="text-xs text-gray-400 truncate">{c.frameworks.slice(0,3).join(' · ')}</p>
-                </div>
-              </div>
-              <EffectivenessBadge effectiveness={c.effectiveness} score={c.score} />
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Open issues */}
-      {(myVulns.length > 0 || myIncidents.length > 0) && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          {myVulns.length > 0 && (
-            <div className="bg-white rounded-xl border border-red-100 shadow-sm p-5">
-              <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2"><Bug size={14} className="text-red-500" /> Open Vulnerabilities ({myVulns.length})</h3>
-              <div className="space-y-2">
-                {[...myVulns].sort((a,b) => ['P0','P1','P2','P3','P4'].indexOf(a.priority??'P4') - ['P0','P1','P2','P3','P4'].indexOf(b.priority??'P4')).map(v => (
-                  <div key={v.id} className={`flex items-center gap-3 p-2 rounded-lg ${v.priority==='P0'?'bg-red-50 border border-red-100':v.priority==='P1'?'bg-orange-50 border border-orange-100':'border border-gray-50'}`}>
-                    <PriorityBadge priority={v.priority} />
-                    <div className="min-w-0 flex-1">
-                      <p className="text-xs font-mono text-blue-600">{v.cve}</p>
-                      <p className="text-xs text-gray-700 truncate">{v.title}</p>
-                    </div>
-                    <SLACountdown dueDate={v.dueDate} status={v.status} />
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-          {myIncidents.length > 0 && (
-            <div className="bg-white rounded-xl border border-orange-100 shadow-sm p-5">
-              <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2"><Flame size={14} className="text-orange-500" /> Active Incidents ({myIncidents.length})</h3>
-              <div className="space-y-2">
-                {myIncidents.map(i => (
-                  <div key={i.id} className="flex items-center justify-between gap-2">
-                    <div className="min-w-0"><p className="text-xs text-gray-700 truncate">{i.title}</p><p className="text-xs text-gray-400">{i.type}</p></div>
-                    <StatusBadge status={i.status} />
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Policies */}
-      {myPolicies.length > 0 && (
-        <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
-          <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2"><BookOpen size={14} className="text-purple-500" /> Policies You Own ({myPolicies.length})</h3>
-          <div className="space-y-2">
-            {myPolicies.map(p => (
-              <div key={p.id} className="flex items-center justify-between gap-2">
-                <div className="min-w-0"><p className="text-sm text-gray-800">{p.title}</p><p className="text-xs text-gray-400">{p.category} · v{p.version || 'draft'}</p></div>
-                <StatusBadge status={p.status} />
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Risks */}
-      {myRisks.length > 0 && (
-        <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
-          <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2"><AlertTriangle size={14} className="text-amber-500" /> Risk Register · Your Items ({myRisks.length})</h3>
-          <div className="space-y-2">
-            {myRisks.map(r => (
-              <div key={r.id} className="flex items-center justify-between gap-3">
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-bold" style={{ color: r.inherentScore >= 20 ? '#EF4444' : r.inherentScore >= 12 ? '#F97316' : '#EAB308' }}>{r.inherentScore}</span>
-                    <span className="text-xs font-medium text-gray-800 truncate">{r.title}</span>
-                  </div>
-                  <p className="text-xs text-gray-400">{r.category} · residual: {r.residualScore}</p>
-                </div>
-                <StatusBadge status={r.status} />
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Actions for next month */}
-      <div className="bg-white rounded-xl border border-blue-100 shadow-sm p-5">
-        <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2"><Play size={14} className="text-blue-600" /> Recommended Actions · {new Date().toLocaleString('default', { month: 'long', year: 'numeric' })}</h3>
-        {actions.length === 0
-          ? <p className="text-sm text-emerald-600">No critical actions · maintain current momentum and target Platinum level.</p>
+      {/* ── Section 4: Decisions needed ──────────────────────────────────────── */}
+      <div className={`rounded-xl border shadow-sm p-5 ${decisionsNeeded.some(d=>d.urgent) ? 'bg-amber-50 border-amber-100' : 'bg-white border-gray-100'}`}>
+        <h3 className="font-semibold text-gray-900 mb-1">Decisions Needed</h3>
+        <p className="text-xs text-gray-400 mb-4">Items that require your sign-off or awareness this month</p>
+        {decisionsNeeded.length === 0
+          ? <p className="text-sm text-emerald-600 font-medium">No decisions required, programme is on track.</p>
           : (
             <div className="space-y-2">
-              {actions.map((a, i) => (
-                <div key={i} className="flex items-start gap-3 p-3 rounded-lg bg-gray-50 border border-gray-100">
-                  <span className={`text-xs font-bold px-1.5 py-0.5 rounded flex-shrink-0 mt-0.5 ${a.priority === 'High' ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'}`}>{a.priority}</span>
+              {decisionsNeeded.map((d, i) => (
+                <div key={i} className="flex items-start gap-3 bg-white rounded-lg p-3 border border-gray-100">
+                  <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 mt-2 ${d.urgent ? 'bg-red-500' : 'bg-amber-400'}`} />
                   <div className="min-w-0">
-                    <p className="text-sm text-gray-800">{a.action}</p>
-                    <p className="text-xs text-gray-400 mt-0.5">Due: {a.due}</p>
+                    <p className="text-sm font-medium text-gray-800">{d.label}</p>
+                    <p className="text-xs text-gray-400 mt-0.5">{d.sub}</p>
                   </div>
                 </div>
               ))}
@@ -3370,6 +3269,7 @@ function LeaderReport({ teamId: initialTeamId, onBack }) {
           )
         }
       </div>
+
     </div>
   );
 }
@@ -3451,12 +3351,12 @@ function ControlAlignment() {
     ? `${untestedAI} AI control${untestedAI>1?'s':''} untested. Auditors will treat untested controls as automatic findings in SOC 2 and EU AI Act assessments. Schedule effectiveness tests before the next audit window.`
     : untestedControls > 0
       ? `${untestedControls} control${untestedControls>1?'s':''} not yet tested. Assign owners and schedule test dates to close evidence gaps before the next audit cycle.`
-      : 'All controls tested. Maintain cadence — export OSCAL SSP for audit evidence packages.';
+      : 'All controls tested. Maintain cadence, export OSCAL SSP for audit evidence packages.';
 
   return (
     <div className="space-y-5">
       <SectionContext
-        what="UCF control effectiveness scores mapped across every active framework. Shows which controls are tested and effective, which are partial, and which are gaps — with OSCAL export for audit submissions."
+        what="UCF control effectiveness scores mapped across every active framework. Shows which controls are tested and effective, which are partial, and which are gaps, with OSCAL export for audit submissions."
         why="Controls are the mechanism that turns policy into evidence. Untested controls fail audits automatically. Gaps in AI controls create direct EU AI Act Art. 9 and ISO 42001 findings."
         ask={ctrlAsk}
         askUrgency={untestedAI > 0 ? 'high' : untestedControls > 0 ? 'high' : 'normal'}
@@ -3679,7 +3579,7 @@ function ControlAlignment() {
                           const linked = risks.filter(r => r.controlIds.includes(ctrl.id));
                           return linked.length > 0
                             ? <div className="flex gap-1 flex-wrap">{linked.map(r => <span key={r.id} onClick={e => { e.stopPropagation(); openDetail(r); }} className={`text-[10px] font-mono px-1.5 py-0.5 rounded border cursor-pointer hover:opacity-75 transition-opacity ${r.residualScore >= 12 ? 'bg-red-50 text-red-600 border-red-100' : 'bg-amber-50 text-amber-600 border-amber-100'}`}>{r.id}</span>)}</div>
-                            : <span className="text-xs text-gray-300">—</span>;
+                            : <span className="text-xs text-gray-300">-</span>;
                         })()}
                       </td>
                     </tr>
@@ -4220,7 +4120,7 @@ function RiskDetailDrawer({ risk: r, onClose }) {
             {/* Threat Analysis */}
             {(r.threatAgent || r.threatVector || r.vulnerability || r.assetAtRisk || r.existingExposure) && (
               <div>
-                <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-2">Threat Analysis — ISO 27005</p>
+                <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-2">Threat Analysis, ISO 27005</p>
                 <div className="space-y-1.5">
                   {[['Threat Agent',r.threatAgent],['Attack Vector',r.threatVector],['Vulnerability',r.vulnerability],['Asset at Risk',r.assetAtRisk],['Existing Exposure',r.existingExposure]].filter(([,v])=>v).map(([label,val])=>(
                     <div key={label} className="p-3 rounded-lg bg-gray-50 border border-gray-100">
@@ -4234,7 +4134,7 @@ function RiskDetailDrawer({ risk: r, onClose }) {
 
             {/* Treatment strategy */}
             <div>
-              <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-2">Treatment Strategy — {r.treatment}</p>
+              <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-2">Treatment Strategy, {r.treatment}</p>
               <div className="p-3 rounded-xl border border-amber-200 bg-amber-50">
                 <p className="text-xs text-amber-900 leading-relaxed">{r.treatmentPlan}</p>
               </div>
@@ -4291,7 +4191,7 @@ function RiskDetailDrawer({ risk: r, onClose }) {
           <div className="p-5 space-y-4">
             {/* Projected score banner */}
             <div className="p-4 rounded-xl bg-blue-50 border border-blue-200">
-              <p className="text-[10px] font-semibold text-blue-700 uppercase tracking-wider mb-2">Score Projection — All Actions Complete</p>
+              <p className="text-[10px] font-semibold text-blue-700 uppercase tracking-wider mb-2">Score Projection, All Actions Complete</p>
               <div className="flex items-center gap-3">
                 <div className="text-center">
                   <p className="text-2xl font-bold" style={{ color: getRiskColor(r.residualScore) }}>{r.residualScore}</p>
@@ -4318,7 +4218,7 @@ function RiskDetailDrawer({ risk: r, onClose }) {
               </div>
             </div>
 
-            {/* Action cards — grouped by phase */}
+            {/* Action cards, grouped by phase */}
             {[1,2,3].map(phase => {
               const phaseActions = riskActions.filter(a => a.phase === phase);
               if (!phaseActions.length) return null;
@@ -4690,22 +4590,22 @@ function RiskRegister({ focusId }) {
       <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 flex items-start gap-3">
         <Database size={15} className="text-slate-500 flex-shrink-0 mt-0.5" />
         <div className="flex-1 min-w-0">
-          <p className="text-xs font-semibold text-slate-700 mb-1">One system — all panels derive from these four records</p>
+          <p className="text-xs font-semibold text-slate-700 mb-1">One system, all panels derive from these six records</p>
           <div className="flex items-center gap-1.5 flex-wrap text-[10px] text-slate-500">
-            {[['vulnerability','bg-red-50 text-red-600','Vulnerabilities panel'],['supply_chain','bg-orange-50 text-orange-600','Third Party / Supply Chain'],['ai_governance','bg-purple-50 text-purple-600','AI Governance panel']].map(([src,cls,label])=>(
+            {[['vulnerability','bg-red-50 text-red-600','Vulnerabilities panel'],['supply_chain','bg-orange-50 text-orange-600','Third Party / Supply Chain'],['ai_governance','bg-purple-50 text-purple-600','AI Governance panel'],['policy_exception','bg-blue-50 text-blue-600','Policy Exceptions']].map(([src,cls,label])=>(
               <span key={src} className="flex items-center gap-1">
                 <span className={`px-1.5 py-0.5 rounded font-semibold ${cls}`}>{src.replace('_',' ')}</span>
                 <span className="text-slate-400">→ {label}</span>
                 <span className="text-slate-300 mx-1">·</span>
               </span>
             ))}
-            <span className="text-slate-400 italic">Sample data — built from public threat intelligence</span>
+            <span className="text-slate-400 italic">Sample data, built from public threat intelligence</span>
           </div>
         </div>
       </div>
 
       <SectionContext
-        what="All identified risks in formal treatment — each with a VSRM-style inherent and residual score, owner, treatment plan, and review date. Heat matrix shows likelihood × impact across the full portfolio."
+        what="All identified risks in formal treatment, each with a VSRM-style inherent and residual score, owner, treatment plan, and review date. Heat matrix shows likelihood × impact across the full portfolio."
         why="Untreated high-impact risks compound over time. The risk register is the source of truth for audit evidence, insurance underwriting, and budget justification for security investment."
         ask={riskAsk}
         askUrgency={exceedsAppetite > 0 ? 'high' : 'normal'}
@@ -4723,9 +4623,9 @@ function RiskRegister({ focusId }) {
       {(() => {
         const boardRisk = risks.find(r => r.residualScore > RISK_APPETITE.severe);
         const nextAction = boardRisk
-          ? { action: `${boardRisk.id} requires board sign-off — residual score ${boardRisk.residualScore} significantly exceeds appetite`, owner: boardRisk.owner, deadline: RESPONSE_SLA[getRiskRating(boardRisk.residualScore)], urgency: 'high' }
+          ? { action: `${boardRisk.id} requires board sign-off, residual score ${boardRisk.residualScore} significantly exceeds appetite`, owner: boardRisk.owner, deadline: RESPONSE_SLA[getRiskRating(boardRisk.residualScore)], urgency: 'high' }
           : risks.filter(r => r.status==='Open' && r.inherentScore >= 16).length > 0
-          ? { action: `${risks.filter(r=>r.status==='Open'&&r.inherentScore>=16).length} risks exceed appetite — treatment plans required`, owner: 'A. Patel', deadline: 'This week', urgency: 'medium' }
+          ? { action: `${risks.filter(r=>r.status==='Open'&&r.inherentScore>=16).length} risks exceed appetite, treatment plans required`, owner: 'A. Patel', deadline: 'This week', urgency: 'medium' }
           : { action: 'Risk register is within appetite thresholds', owner: 'S. Chen', deadline: 'Review Q3', urgency: 'low' };
         return <NextActionCard {...nextAction} />;
       })()}
@@ -4781,7 +4681,7 @@ function RiskRegister({ focusId }) {
             const top = [...risks].sort((a,b) => b.inherentScore - a.inherentScore).slice(0,3);
             const exceedingAppetite = risks.filter(r => getAppetite(r.residualScore) === 'Significantly Exceeds' || getAppetite(r.residualScore) === 'Exceeds').length;
             const aiRisksOpen = risks.filter(r => r.ai && r.status === 'Open').length;
-            const riskNarrative = `The most critical unmitigated risk is "${top[0].title}" (inherent score ${top[0].inherentScore}, residual ${top[0].residualScore}) owned by ${top[0].owner}. Treatment plan: ${top[0].treatmentPlan}.\n\n${exceedingAppetite} risks currently exceed the board-approved risk appetite — these require VP+ or C-Suite sign-off before acceptance. ${aiRisksOpen} open AI-related risks have no tested controls, creating regulatory exposure under the EU AI Act.\n\nRecommended board action: approve the treatment plans for ${top[0].id} and ${risks.filter(r=>r.ai&&r.status==='Open')[0]?.id || top[1]?.id}, and authorise the DPA negotiation with OpenAI (RSK-004).`;
+            const riskNarrative = `The most critical unmitigated risk is "${top[0].title}" (inherent score ${top[0].inherentScore}, residual ${top[0].residualScore}) owned by ${top[0].owner}. Treatment plan: ${top[0].treatmentPlan}.\n\n${exceedingAppetite} risks currently exceed the board-approved risk appetite, these require VP+ or C-Suite sign-off before acceptance. ${aiRisksOpen} open AI-related risks have no tested controls, creating regulatory exposure under the EU AI Act.\n\nRecommended board action: approve the treatment plans for ${top[0].id} and ${risks.filter(r=>r.ai&&r.status==='Open')[0]?.id || top[1]?.id}, and authorise the DPA negotiation with OpenAI (RSK-004).`;
             return (
               <div className="mx-5 mb-4 p-4 bg-slate-50 border border-slate-200 rounded-xl">
                 <div className="flex items-center justify-between mb-2">
@@ -4940,11 +4840,11 @@ function AuditManagement() {
           </div>
         ))}
       </div>
-      {/* Risk-register audit gaps — which framework controls are failing per risk */}
+      {/* Risk-register audit gaps, which framework controls are failing per risk */}
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm">
         <div className="px-5 py-3 border-b border-gray-50 flex items-center gap-2">
           <span className="w-2 h-2 rounded-full bg-red-500" />
-          <span className="text-sm font-semibold text-gray-800">Risk Register — Audit Control Gaps</span>
+          <span className="text-sm font-semibold text-gray-800">Risk Register, Audit Control Gaps</span>
           <span className="ml-auto text-[10px] text-gray-400 italic">framework gaps per canonical risk</span>
         </div>
         <div className="divide-y divide-gray-50">
@@ -4958,7 +4858,7 @@ function AuditManagement() {
               <div className="flex gap-1.5 flex-wrap">
                 {r.controls.map(c => (
                   <span key={c.framework} title={c.gap} className="text-[10px] bg-red-50 text-red-600 border border-red-100 px-2 py-0.5 rounded cursor-default">
-                    {c.framework} — {c.gap.length > 55 ? c.gap.slice(0, 55) + '…' : c.gap}
+                    {c.framework}, {c.gap.length > 55 ? c.gap.slice(0, 55) + '…' : c.gap}
                   </span>
                 ))}
               </div>
@@ -5040,7 +4940,7 @@ function EvidenceLocker() {
         <p className="text-sm font-semibold text-gray-800 mb-1">Audit Readiness · Evidence Coverage</p>
         <p className="text-xs text-gray-600">{evidenceItems.length} evidence items across {[...new Set(evidenceItems.map(e=>e.controlId))].length} of {controls.length} controls. {noEvidence} controls have no evidence · required for SOC 2 Type II and ISO 27001.</p>
       </div>
-      {/* Risk-critical evidence gaps — controls that directly reduce residual scores */}
+      {/* Risk-critical evidence gaps, controls that directly reduce residual scores */}
       {(() => {
         const missing = riskCriticalIds.filter(id => !evByCtrl[id]?.length);
         const expired = riskCriticalIds.filter(id => evByCtrl[id]?.some(e => e.status === 'Expired'));
@@ -5051,7 +4951,7 @@ function EvidenceLocker() {
             <p className="text-xs text-red-700 leading-relaxed">
               {missing.length > 0 && <span>{missing.length} risk-critical control{missing.length > 1 ? 's' : ''} lack evidence: <strong>{missing.join(', ')}</strong>. </span>}
               {expired.length > 0 && <span>{expired.length} have expired evidence: <strong>{expired.join(', ')}</strong>. </span>}
-              These controls directly reduce residual scores in the Risk Register — missing evidence is an automatic audit finding.
+              These controls directly reduce residual scores in the Risk Register, missing evidence is an automatic audit finding.
             </p>
           </div>
         );
@@ -5624,7 +5524,7 @@ export default function GRCDashboard() {
       const euAI = frameworks.find(f => f.name === 'EU AI Act');
       const failing = euAI ? euAI.controls - euAI.passing : 24;
       const missingPols = policies.filter(p => p.status === 'Missing' && p.ai);
-      answer = `EU AI Act is at ${euAI?.progress || 22}% — ${failing} controls failing. The fastest path to improvement: (1) Create ${missingPols.map(p=>p.title).join(' and ')} — this unblocks 4 controls. (2) Test UCF.AI.01 through UCF.AI.06 — all currently untested. (3) Execute OpenAI DPA to satisfy Art.28. Realistic timeline to 60%: 8–10 weeks with dedicated effort.`;
+      answer = `EU AI Act is at ${euAI?.progress || 22}%, ${failing} controls failing. The fastest path to improvement: (1) Create ${missingPols.map(p=>p.title).join(' and ')}, this unblocks 4 controls. (2) Test UCF.AI.01 through UCF.AI.06, all currently untested. (3) Execute OpenAI DPA to satisfy Art.28. Realistic timeline to 60%: 8–10 weeks with dedicated effort.`;
     } else if (ql.includes('p1') || ql.includes('team') || ql.includes('unresolved')) {
       const teamVulns = teams.map(t => ({
         team: t,
@@ -5633,12 +5533,12 @@ export default function GRCDashboard() {
       const worst = teamVulns[0];
       answer = `${worst.team.name} (${worst.team.lead}) has the most open P1 vulnerabilities with ${worst.p1s} unresolved. They own controls ${worst.team.controls.slice(0,3).join(', ')}. Recommend immediate triage session with ${worst.team.lead}.`;
     } else if (ql.includes('board') || ql.includes('risk') || ql.includes('summarise') || ql.includes('summarize')) {
-      const topRisks = [..._rawRisks].sort((a,b) => (b.likelihood*b.impact)-(a.likelihood*a.impact)).slice(0,3);
-      answer = `Top 3 risks for the board:\n\n1. ${topRisks[0].title} (score ${topRisks[0].likelihood*topRisks[0].impact}) — owner: ${topRisks[0].owner}, treatment: ${topRisks[0].treatmentPlan.slice(0,60)}…\n\n2. ${topRisks[1].title} (score ${topRisks[1].likelihood*topRisks[1].impact}) — ${topRisks[1].owner}\n\n3. ${topRisks[2].title} (score ${topRisks[2].likelihood*topRisks[2].impact}) — ${topRisks[2].owner}\n\nAll three require VP+ approval for risk acceptance.`;
+      const topRisks = [...risks].sort((a,b) => (b.likelihood*b.impact)-(a.likelihood*a.impact)).slice(0,3);
+      answer = `Top 3 risks for the board:\n\n1. ${topRisks[0].title} (score ${topRisks[0].likelihood*topRisks[0].impact}), owner: ${topRisks[0].owner}, treatment: ${topRisks[0].treatmentPlan.slice(0,60)}…\n\n2. ${topRisks[1].title} (score ${topRisks[1].likelihood*topRisks[1].impact}), ${topRisks[1].owner}\n\n3. ${topRisks[2].title} (score ${topRisks[2].likelihood*topRisks[2].impact}), ${topRisks[2].owner}\n\nAll three require VP+ approval for risk acceptance.`;
     } else if (ql.includes('decide') || ql.includes('this week') || ql.includes('action')) {
       const p0Breach = vulns.filter(v => v.priority==='P0' && v.status!=='Patched' && daysFromToday(v.dueDate) < 0);
       const boardRisks = risks.filter(r => r.residualScore > RISK_APPETITE.severe);
-      answer = `This week you need to: (1) ${p0Breach.length > 0 ? `Escalate P0 SLA breach on "${p0Breach[0].title}" — ${Math.abs(daysFromToday(p0Breach[0].dueDate))}d overdue` : 'Review P0/P1 patch SLA compliance'}. (2) ${boardRisks.length > 0 ? `Sign off on ${boardRisks[0].id} — residual score ${boardRisks[0].residualScore} significantly exceeds appetite` : 'Review risk register items approaching appetite'}. (3) Initiate OpenAI DPA process — vendor RSK-004 is your highest liability item.`;
+      answer = `This week you need to: (1) ${p0Breach.length > 0 ? `Escalate P0 SLA breach on "${p0Breach[0].title}", ${Math.abs(daysFromToday(p0Breach[0].dueDate))}d overdue` : 'Review P0/P1 patch SLA compliance'}. (2) ${boardRisks.length > 0 ? `Sign off on ${boardRisks[0].id}, residual score ${boardRisks[0].residualScore} significantly exceeds appetite` : 'Review risk register items approaching appetite'}. (3) Initiate OpenAI DPA process, vendor RSK-004 is your highest liability item.`;
     } else {
       answer = `Based on your current posture (71/100): ${vulns.filter(v=>v.status!=='Patched').length} open vulnerabilities, ${incidents.filter(i=>i.status!=='Resolved').length} active incidents, ${policies.filter(p=>p.status==='Missing'||p.status==='Overdue').length} policy gaps, and EU AI Act at 22%. Your most urgent action is addressing the P0 SLA breach and the 3 missing AI governance policies. What specific area would you like to dig into?`;
     }
@@ -5703,7 +5603,7 @@ export default function GRCDashboard() {
     evidence:       <EvidenceLocker />,
     architecture:   <Architecture />,
     scorecard:      <Scorecard onViewReport={navigateToReport} />,
-    'leader-report':<LeaderReport teamId={leaderTeamId} onBack={navigateBack} />,
+    'leader-report':<LeaderReport onBack={navigateBack} />,
   };
 
   return (
@@ -5723,7 +5623,7 @@ export default function GRCDashboard() {
         <div className="fixed inset-0 bg-black/50 z-40 lg:hidden" onClick={() => setSidebarOpen(false)} />
       )}
 
-      {/* Sidebar — overlay on mobile, flex item on desktop */}
+      {/* Sidebar, overlay on mobile, flex item on desktop */}
       <aside className={`
         fixed inset-y-0 left-0 z-50 flex flex-col bg-slate-900 transition-all duration-200
         lg:relative lg:translate-x-0 lg:z-auto
