@@ -38,7 +38,7 @@ export const riskSeed = [
     vulnerability: 'Docker daemon socket exposed within prod subnet; AuthZ plugin enforcement inconsistently applied; container-to-host privilege escalation path open',
     assetAtRisk: 'Docker daemon host OS, all container workloads, CI/CD pipeline secrets',
     existingExposure: 'Docker API accessible within prod subnet; no socket proxy; partial network segmentation only',
-    whyItMatters: 'A single exploited container becomes a full host takeover — every container on that host is compromised.',
+    whyItMatters: 'A single exploited container becomes a full host takeover, every container on that host is compromised.',
 
     // Framework control mappings (drives Compliance hotspot view)
     controls: [
@@ -81,7 +81,7 @@ export const riskSeed = [
     vulnerability: 'No dependency hash pinning; no build provenance attestation; no package registry monitoring or allowlist; SBOM absent',
     assetAtRisk: 'Build artifacts, developer machines, production container images, secrets in CI environment',
     existingExposure: 'Direct PyPI/npm installs in CI without hash verification; no SBOM; no registry allowlist enforced',
-    whyItMatters: '"Latest" is no longer a sufficient answer — supply chain compromise is now the fastest path to code execution in production.',
+    whyItMatters: '"Latest" is no longer a sufficient answer. Supply chain compromise is now the fastest path to code execution in production.',
 
     controls: [
       { framework: 'ISO 27001 A.15.2.1',    requirement: 'Monitoring and review of supplier services',  gap: 'Package registries not treated as suppliers; no monitoring' },
@@ -122,7 +122,7 @@ export const riskSeed = [
     vulnerability: 'No AI inventory; no AI-specific DLP; agent identities ungoverned and over-permissioned; no approval workflow for production AI access grants',
     assetAtRisk: 'Customer PII, proprietary source code, production credentials, internal communications',
     existingExposure: 'Multiple AI tools in use without IT oversight; CI/CD integrations granted broad repo access; no outbound AI API monitoring',
-    whyItMatters: 'This is a governance gap, not a hacking gap — risk materialises from approved tools used without appropriate controls.',
+    whyItMatters: 'This is a governance gap, not a hacking gap. Risk materialises from approved tools used without appropriate controls.',
 
     controls: [
       { framework: 'EU AI Act Art. 9',          requirement: 'Risk management system',              gap: 'No AI risk register or mandatory impact assessments' },
@@ -164,7 +164,7 @@ export const riskSeed = [
     vulnerability: 'No LLM gateway; AI calls made under individual human credentials; no approved model allowlist; no cost controls or API usage monitoring',
     assetAtRisk: 'Confidential data in prompts, corporate identity and credentials in API headers, cost exposure from uncontrolled model calls',
     existingExposure: 'Engineers calling OpenAI directly from production code; no API key rotation policy; no centralised usage dashboard',
-    whyItMatters: 'Today there is no central boundary — deploying one gateway immediately enforces every AI control across all integrations.',
+    whyItMatters: 'Today there is no central boundary. Deploying one gateway immediately enforces every AI control across all integrations.',
 
     controls: [
       { framework: 'EU AI Act Art. 13',          requirement: 'Transparency obligations',              gap: 'No logging of AI decisions or outputs; end-users not informed' },
@@ -208,7 +208,7 @@ export const riskSeed = [
     vulnerability: 'No enforced image signing (cosign/Sigstore), no provenance attestation (SLSA), no admission policy rejecting unsigned images at deploy',
     assetAtRisk: 'Production workloads, customer trust, build integrity, any host running a tampered image',
     existingExposure: 'Mixed signing coverage; Docker Content Trust not consistently enforced; pull-time verification not enforced at admission; legacy publisher exception pending (LEAK-2026-0047)',
-    whyItMatters: 'An unsigned image is a promise — signing is a proof. One tampered image in production is every container on the host.',
+    whyItMatters: 'An unsigned image is a promise; signing is a proof. One tampered image in production is every container on the host.',
 
     controls: [
       { framework: 'OWASP A03:2025',    requirement: 'Software & data integrity failures',   gap: 'No enforced signing or attestation at build or pull time' },
@@ -251,7 +251,7 @@ export const riskSeed = [
     vulnerability: 'Legacy publisher cannot produce signatures or attestations; would violate the admission policy introduced by LEAK-2026-0046 treatment without this exception',
     assetAtRisk: 'Workloads consuming this publisher\'s images; scoped and time-boxed by the exception',
     existingExposure: 'Scoped to one publisher\'s image set; bounded by expiry date and compensating controls; residual managed below appetite with governance',
-    whyItMatters: 'A mature programme doesn\'t hide the gaps it accepts — it makes them visible, owned, compensated, and time-boxed. This is what governed risk acceptance looks like.',
+    whyItMatters: 'A mature programme doesn\'t hide the gaps it accepts. It makes them visible, owned, compensated, and time-boxed. This is what governed risk acceptance looks like.',
 
     controls: [
       { framework: 'ISO 27001 A.5.1',   requirement: 'Policies for information security',  gap: 'MET — exception formally documented with owner, expiry, and CISO sign-off' },
