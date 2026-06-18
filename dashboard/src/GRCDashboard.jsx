@@ -78,23 +78,6 @@ const ctrlMap = Object.fromEntries(controls.map(c => [c.id, c]));
 // ─── Module Data, Docker / Container Security ────────────────────────────────
 
 const vulns = [
-  // VSRM: Production + Public + CVSS 10.0 + Actively Exploited → P0
-  { id: 'V-001', cve: 'CVE-2026-34040', title: 'Docker Engine AuthZ Plugin Bypass',
-    severity: 'Critical', cvss: 10.0, status: 'Open', asset: 'prod-docker-hosts (all)',
-    controlId: 'UCF.03.02', discovered: '2026-06-10',
-    priority: 'P0', secTier: 0, environment: 'Production', exposure: 'Public',
-    exploitability: 'Actively Exploited', isCisaKev: true,
-    assignedTo: 'T. Williams', dueDate: '2026-06-24',
-    notes: 'HTTP request >1 MB bypasses AuthZ plugin. Upgrade to Docker ≥ v27.3 immediately.' },
-
-  // VSRM: Production + Internal + CVSS 8.6 + Mature Exploit → P1
-  { id: 'V-002', cve: 'CVE-2024-21626', title: 'runc container escape via /proc/self/fd',
-    severity: 'High', cvss: 8.6, status: 'In Progress', asset: 'k8s-node-pool',
-    controlId: 'UCF.03.02', discovered: '2026-05-28',
-    priority: 'P1', secTier: 0, environment: 'Production', exposure: 'Internal',
-    exploitability: 'Mature Exploit', isCisaKev: true,
-    assignedTo: 'T. Williams', dueDate: '2026-06-11' },
-
   // VSRM: Production + Internal + CVSS 9.1 + Mature Exploit → P1 (supply chain)
   { id: 'V-003', cve: null, title: 'Malicious npm preinstall hook in CI base image',
     severity: 'Critical', cvss: 9.1, status: 'Open', asset: 'ci-build-containers',
@@ -112,22 +95,6 @@ const vulns = [
     exploitability: 'Mature Exploit', isCisaKev: false, ai: true,
     assignedTo: 'A. Patel', dueDate: '2026-06-19',
     notes: 'AI agent running under engineer credentials with full Docker API access. LEAK-2026-0044.' },
-
-  // VSRM: Production + Internal + CVSS 7.5 + POC → P2
-  { id: 'V-005', cve: 'CVE-2025-44411', title: 'containerd image config tampering (TOCTOU)',
-    severity: 'High', cvss: 7.5, status: 'Open', asset: 'container-runtime',
-    controlId: 'UCF.03.02', discovered: '2026-05-30',
-    priority: 'P2', secTier: 1, environment: 'Production', exposure: 'Internal',
-    exploitability: 'POC', isCisaKev: false,
-    assignedTo: null, dueDate: '2026-06-29' },
-
-  // VSRM: Production + Internet + CVSS 9.8 + POC → P2 (daemon exposed)
-  { id: 'V-006', cve: null, title: 'Docker daemon API port 2375 exposed without TLS',
-    severity: 'Critical', cvss: 9.8, status: 'Open', asset: 'docker-daemon-prod',
-    controlId: 'UCF.05.01', discovered: '2026-06-01',
-    priority: 'P2', secTier: 0, environment: 'Production', exposure: 'Internet',
-    exploitability: 'POC', isCisaKev: false,
-    assignedTo: 'T. Williams', dueDate: '2026-07-01' },
 
   // VSRM: Dev/Stage + Internal + CVSS 6.5 + No Exploit → P4
   { id: 'V-007', cve: null, title: 'Secrets hardcoded in Dockerfile ARGs exposed in image layers',
@@ -152,15 +119,6 @@ const vulns = [
     priority: 'P3', secTier: 1, environment: 'Dev/Stage', exposure: 'Internal',
     exploitability: 'POC', isCisaKev: false,
     assignedTo: null, dueDate: '2026-07-02' },
-
-  // EOL: Production public-facing runtime, P1
-  { id: 'V-010', cve: null, title: 'Docker Engine 24.0.x, End of Life (Feb 2026)',
-    severity: 'High', cvss: null, status: 'Open', asset: 'legacy-prod-hosts (6)',
-    controlId: 'UCF.03.02', discovered: '2026-06-01', eol: true, eolDate: '2026-02-01',
-    priority: 'P1', secTier: 0, environment: 'Production', exposure: 'Public',
-    exploitability: 'No patch path', isCisaKev: false,
-    assignedTo: null, dueDate: '2026-06-25',
-    eolNote: 'No security patches for Docker 24.0.x after Feb 2026. Upgrade to 27.3+ required, directly remediates CVE-2026-34040.' },
 
   // EOL: AI/ML runtime, P2
   { id: 'V-011', cve: null, title: 'Python 3.8 in ML base image, End of Life (Oct 2024)',
@@ -286,7 +244,6 @@ const risks = riskSeed.map(r => {
 
 // ─── Risk ↔ linked-item maps (drives RiskDetailDrawer drill-down) ─────────────
 const RISK_VULN_MAP = {
-  'HULL-2026-0042': ['V-001','V-002','V-005','V-006','V-010'],
   'HULL-2026-0043': ['V-003'],
   'LEAK-2026-0044': ['V-004','V-008','V-011'],
   'LEAK-2026-0045': ['V-004','V-008','V-009'],
@@ -294,7 +251,6 @@ const RISK_VULN_MAP = {
   'LEAK-2026-0047': [],
 };
 const RISK_VENDOR_MAP = {
-  'HULL-2026-0042': ['TP-003'],
   'HULL-2026-0043': ['TP-001','TP-002','TP-005','TP-006','TP-009'],
   'LEAK-2026-0044': ['TP-007','TP-008'],
   'LEAK-2026-0045': ['TP-007','TP-008'],
@@ -302,7 +258,6 @@ const RISK_VENDOR_MAP = {
   'LEAK-2026-0047': ['TP-001','TP-005'],
 };
 const RISK_POLICY_MAP = {
-  'HULL-2026-0042': ['POL-001','POL-003','POL-004','POL-006'],
   'HULL-2026-0043': ['POL-002','POL-005'],
   'LEAK-2026-0044': ['POL-007','POL-008'],
   'LEAK-2026-0045': ['POL-007','POL-009'],
@@ -320,8 +275,6 @@ const audits = [
 ];
 const auditFindings = [
   { id:'FND-001', auditId:'AUD-001', title:'No hash-pinned lockfiles, npm packages pulled without integrity verification', severity:'Critical', controlId:'UCF.06.01', status:'Open',           dueDate:'2026-06-20', owner:'T. Williams', riskId:'HULL-2026-0043' },
-  { id:'FND-002', auditId:'AUD-001', title:'Docker daemon socket accessible without mTLS on 3 worker nodes',               severity:'Critical', controlId:'UCF.03.02', status:'In Remediation', dueDate:'2026-06-18', owner:'T. Williams', riskId:'HULL-2026-0042' },
-  { id:'FND-003', auditId:'AUD-001', title:'Containers running as root (no USER directive in 8 of 14 Dockerfiles)',        severity:'High',    controlId:'UCF.03.02', status:'In Remediation', dueDate:'2026-06-30', owner:'T. Williams', riskId:'HULL-2026-0042' },
   { id:'FND-004', auditId:'AUD-001', title:'Missing SBOM for 6 production images, supply chain provenance unverifiable',  severity:'High',    controlId:'UCF.06.02', status:'Open',           dueDate:'2026-07-05', owner:'S. Chen',     riskId:'HULL-2026-0043' },
   { id:'FND-005', auditId:'AUD-001', title:'AI API keys stored in container environment variables, not secrets manager',   severity:'High',    controlId:'UCF.AI.04', status:'Open',           dueDate:'2026-06-25', owner:'A. Patel',    riskId:'LEAK-2026-0045' },
   { id:'FND-006', auditId:'AUD-002', title:'No SLSA provenance attestation generated in CI pipeline',                       severity:'High',    controlId:'UCF.06.01', status:'Open',           dueDate:'2026-07-15', owner:'S. Chen',     riskId:'HULL-2026-0043' },

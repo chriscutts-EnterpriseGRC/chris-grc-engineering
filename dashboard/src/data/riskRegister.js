@@ -12,51 +12,6 @@
 // The controls[] array drives the Compliance hotspot view.
 
 export const riskSeed = [
-  // ── HULL-2026-0042 ─────────────────────────────────────────────────────────
-  {
-    id: 'HULL-2026-0042',
-    title: 'Docker Engine Authorization Bypass (CVE-2026-34040)',
-    signalSource: 'vulnerability',
-    category: 'Vuln Mgmt',
-    asset: 'Docker Daemon / Container Hosts',
-    owner: 'T. Williams',
-    likelihood: 4,
-    impact: 5,
-    // controlIds fed to CTRL_EFF scoring in GRCDashboard.jsx
-    controlIds: ['UCF.03.02', 'UCF.05.01'],
-    treatment: 'Mitigate',
-    treatmentStrategy: 'mitigate',
-    treatmentPlan: 'Upgrade Docker Engine to ≥v27.3; restrict daemon socket access; enable User Namespace Remapping; deploy socket proxy with mTLS for CI/CD',
-    status: 'In Review',
-    reviewDate: '2026-06-24',
-    slaDays: 14,
-    ai: false,
-
-    // ISO 27005 identification
-    threatAgent: 'External attacker with Docker API reachability; malicious insider; compromised CI/CD identity',
-    threatVector: 'HTTP request >1MB padded to exceed AuthZ plugin inspection threshold — daemon processes request before plugin can evaluate it',
-    vulnerability: 'Docker daemon socket exposed within prod subnet; AuthZ plugin enforcement inconsistently applied; container-to-host privilege escalation path open',
-    assetAtRisk: 'Docker daemon host OS, all container workloads, CI/CD pipeline secrets',
-    existingExposure: 'Docker API accessible within prod subnet; no socket proxy; partial network segmentation only',
-    whyItMatters: 'A single exploited container becomes a full host takeover, every container on that host is compromised.',
-
-    // Framework control mappings (drives Compliance hotspot view)
-    controls: [
-      { framework: 'NIST SI-2',              requirement: 'Flaw Remediation',                          gap: 'Docker Engine not patched within 14-day SLA' },
-      { framework: 'ISO 27001 A.12.6.1',     requirement: 'Management of technical vulnerabilities',   gap: 'Vulnerability SLA not enforced for container runtime' },
-      { framework: 'SOC 2 CC7.1',            requirement: 'Change and risk assessment',                 gap: 'Patch process does not cover container runtime components' },
-      { framework: 'CIS Docker Benchmark 2.1', requirement: 'Restrict network traffic',                gap: 'Docker API socket accessible from CI/CD without mTLS' },
-    ],
-
-    // Per-control scoring for the detail view
-    controlEffectiveness: [
-      { control: 'UCF.03.02 Patch Management',    effectiveness: 41, note: 'Pipeline does not cover container runtime' },
-      { control: 'UCF.05.01 Network Segmentation', effectiveness: 71, note: 'Partial — Docker socket not network-isolated' },
-    ],
-
-    isException: false,
-  },
-
   // ── HULL-2026-0043 ─────────────────────────────────────────────────────────
   {
     id: 'HULL-2026-0043',
