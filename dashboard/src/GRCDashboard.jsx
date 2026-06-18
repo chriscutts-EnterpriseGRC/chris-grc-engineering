@@ -232,8 +232,8 @@ const getBusinessImpact = (score) => {
   return               { label: 'Negligible',  color: 'bg-gray-100 text-gray-600',     hint: 'Minimal business impact' };
 };
 
-// Four canonical risk records, single source of truth for all panels.
-// Sample / illustrative data built from public threat intelligence.
+// Five canonical risk records, single source of truth for all panels.
+// Sample / illustrative data — not connected to live systems.
 const risks = riskSeed.map(r => {
   const inherentScore = r.likelihood * r.impact;
   const reductionFactor = r.controlIds.reduce((f,id) => f * (1 - ((CTRL_EFF[id]??50)/100)*0.5), 1);
@@ -244,6 +244,7 @@ const risks = riskSeed.map(r => {
 
 // ─── Risk ↔ linked-item maps (drives RiskDetailDrawer drill-down) ─────────────
 const RISK_VULN_MAP = {
+  'HULL-2026-0042': [],
   'HULL-2026-0043': ['V-003'],
   'LEAK-2026-0044': ['V-004','V-008','V-011'],
   'LEAK-2026-0045': ['V-004','V-008','V-009'],
@@ -251,6 +252,7 @@ const RISK_VULN_MAP = {
   'LEAK-2026-0047': [],
 };
 const RISK_VENDOR_MAP = {
+  'HULL-2026-0042': ['TP-001','TP-002','TP-005','TP-006','TP-009'],
   'HULL-2026-0043': ['TP-001','TP-002','TP-005','TP-006','TP-009'],
   'LEAK-2026-0044': ['TP-007','TP-008'],
   'LEAK-2026-0045': ['TP-007','TP-008'],
@@ -258,6 +260,7 @@ const RISK_VENDOR_MAP = {
   'LEAK-2026-0047': ['TP-001','TP-005'],
 };
 const RISK_POLICY_MAP = {
+  'HULL-2026-0042': ['POL-003','POL-005'],
   'HULL-2026-0043': ['POL-002','POL-005'],
   'LEAK-2026-0044': ['POL-007','POL-008'],
   'LEAK-2026-0045': ['POL-007','POL-009'],
@@ -659,102 +662,26 @@ function Overview({ navigate }) {
     execBullets.push({ color: getRiskColor(topRiskByResidual.residualScore), text: `${topRiskByResidual.id}: "${topRiskByResidual.title.slice(0,50)}${topRiskByResidual.title.length>50?'…':''}", residual score ${topRiskByResidual.residualScore} · ${topRiskByResidual.treatmentPlan.slice(0,80)}${topRiskByResidual.treatmentPlan.length>80?'…':''}` });
   }
 
-  // ── Prioritisation Engine leverage actions ──────────────────────────────────
-  const leverageActions = [
-    {
-      action: 'Test UCF.AI.01 (AI Model Governance)',
-      unblocks: ['POL-007 policy closure', 'EU AI Act +4 controls', 'RSK-006 treatment'],
-      owner: 'A. Patel',
-      impact: 'High',
-    },
-    {
-      action: 'Remediate UCF.01.02 (Privileged Access Management)',
-      unblocks: ['RSK-001 residual reduction', 'V-005 IAM escalation', 'ISO 27001 +3 controls'],
-      owner: 'J. Martinez',
-      impact: 'High',
-    },
-    {
-      action: 'Execute OpenAI DPA & security addendum',
-      unblocks: ['RSK-004 closure', 'TP-007 compliance', 'EU AI Act Art.28'],
-      owner: 'S. Chen',
-      impact: 'Medium',
-    },
-  ];
-
   return (
     <div className="space-y-5">
 
-      {/* ── 0. Decisions + Alert Tray, two equal tiles ─────────────── */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 items-start">
-        <DecisionsRequired navigate={navigate} />
-        <AlertTray navigate={navigate} />
-      </div>
-
-      {/* ── 0a. Executive Briefing (RRR2) ───────────────────────────────── */}
-      <div className="bg-gradient-to-r from-slate-900 to-slate-800 rounded-xl p-5 shadow-md">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2">
-            <h3 className="font-semibold text-white text-sm">Executive Briefing</h3>
-            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-gradient-to-r from-purple-500 to-blue-500 text-white">AI-powered</span>
-          </div>
-          <button title="Regenerate" className="p-1.5 rounded-lg bg-slate-700 hover:bg-slate-600 transition-colors text-slate-300 hover:text-white">
-            <RefreshCw size={12} />
-          </button>
-        </div>
-        <div className="space-y-2.5">
-          {execBullets.map((b, i) => (
-            <div key={i} className="flex items-start gap-3">
-              <div className="w-2.5 h-2.5 rounded-full flex-shrink-0 mt-1" style={{ background: b.color }} />
-              <p className="text-sm text-slate-200 leading-snug">{b.text}</p>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* ── 0b. Prioritisation Engine (RRR2) ────────────────────────────── */}
-      <div className="bg-white rounded-xl border border-gray-100 p-5 shadow-sm">
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <h3 className="font-semibold text-gray-900 text-sm">Prioritisation Engine</h3>
-            <p className="text-xs text-gray-400 mt-0.5">Fix these to unblock the most</p>
-          </div>
-        </div>
-        <div className="space-y-3">
-          {leverageActions.map((la, i) => (
-            <div key={i} className="flex items-start gap-3 p-3 rounded-xl border border-gray-100 bg-gray-50 hover:bg-white transition-colors">
-              <span className={`px-2 py-0.5 rounded text-[10px] font-bold flex-shrink-0 mt-0.5 ${la.impact === 'High' ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'}`}>{la.impact}</span>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-gray-800 leading-snug">{la.action}</p>
-                <div className="flex flex-wrap gap-1 mt-1.5">
-                  {la.unblocks.map(u => (
-                    <span key={u} className="px-1.5 py-0.5 rounded bg-slate-100 text-slate-500 text-[10px] font-medium">↳ {u}</span>
-                  ))}
-                </div>
-              </div>
-              <span className="text-xs text-gray-400 flex-shrink-0">{la.owner}</span>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* ── 1. Headline ─────────────────────────────────────────────────── */}
+      {/* ── 1. Risk Posture ───────────────────────────────────────────────── */}
       <div className={`bg-white rounded-xl border ${posture.border} p-5 shadow-sm`}>
         <div className="flex items-center gap-6">
           <HealthRing score={score} size={88} />
           <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-1">
+            <div className="flex items-center gap-2 mb-1 flex-wrap">
               <span className="text-xl font-bold text-gray-900">{score} / 100</span>
               <span className={`text-xs font-bold px-2.5 py-0.5 rounded-full ${posture.bg} ${posture.color}`}>{posture.label}</span>
-              <span className={`text-xs ml-1 ${p0Open > 0 ? 'text-amber-600 font-medium' : 'text-gray-400'}`}>{p0Open > 0 ? `↑3 open vulns, patch SLA slipping` : `+3 vs last week`}</span>
-              <span title="Weighted composite score: Control Effectiveness 40% · Vulnerability Posture 30% · Incident Response 20% · Operational Maturity 10%" className="text-xs text-blue-500 hover:text-blue-700 cursor-help ml-1 underline decoration-dotted select-none">How scored?</span>
+              <span title="Composite: Control Effectiveness 40%, Vulnerability Posture 30%, Incident Response 20%, Operational Maturity 10%" className="text-xs text-blue-500 hover:text-blue-700 cursor-help underline decoration-dotted select-none">Scoring methodology</span>
             </div>
             <p className="text-sm text-gray-600 leading-snug">{postureText}</p>
             <div className="flex gap-4 mt-3 flex-wrap">
               {[
-                { label: 'Open vulns',    val: openVulns.length,      accent: p0Open ? 'text-red-600 font-bold' : 'text-gray-700' },
-                { label: 'Active incidents', val: activeInc.length,   accent: criticalInc ? 'text-orange-600 font-bold' : 'text-gray-700' },
-                { label: 'Policy gaps',   val: policyGaps.length,     accent: policyGaps.filter(p=>p.status==='Missing').length ? 'text-purple-600 font-bold' : 'text-gray-700' },
-                { label: 'Control gaps',  val: allGaps.length,        accent: allGaps.length > 8 ? 'text-red-600 font-bold' : 'text-gray-700' },
+                { label: 'Open vulns',       val: openVulns.length,   accent: p0Open ? 'text-red-600 font-bold' : 'text-gray-700' },
+                { label: 'Active incidents',  val: activeInc.length,  accent: criticalInc ? 'text-orange-600 font-bold' : 'text-gray-700' },
+                { label: 'Policy gaps',       val: policyGaps.length, accent: policyGaps.filter(p=>p.status==='Missing').length ? 'text-purple-600 font-bold' : 'text-gray-700' },
+                { label: 'Control gaps',      val: allGaps.length,    accent: allGaps.length > 8 ? 'text-red-600 font-bold' : 'text-gray-700' },
               ].map(({ label, val, accent }) => (
                 <div key={label} className="text-center">
                   <p className={`text-lg ${accent}`}>{val}</p>
@@ -766,14 +693,12 @@ function Overview({ navigate }) {
         </div>
       </div>
 
-
-
-      {/* ── 3. SLA breach alert ─────────────────────────────────────────── */}
+      {/* SLA breach alert */}
       {breachedSLA.length > 0 && (
         <div className="bg-red-50 border border-red-200 rounded-xl p-4">
           <div className="flex items-center gap-2 mb-3">
             <AlertTriangle size={14} className="text-red-600 flex-shrink-0" />
-            <p className="text-sm font-semibold text-red-800">Action Required Today · {breachedSLA.length} SLA Breach{breachedSLA.length > 1 ? 'es' : ''}</p>
+            <p className="text-sm font-semibold text-red-800">{breachedSLA.length} SLA Breach{breachedSLA.length > 1 ? 'es' : ''} — response required today</p>
           </div>
           <div className="space-y-2">
             {breachedSLA.map(v => (
@@ -788,92 +713,12 @@ function Overview({ navigate }) {
         </div>
       )}
 
-      {/* ── 4. Domain health tiles ──────────────────────────────────────── */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {domains.map(({ id, label, icon: Icon, color, stat, detail, ctrlId }) => {
-          const ctrl = ctrlMap[ctrlId];
-          return (
-            <button key={id} onClick={() => navigate(id)}
-              className="bg-white rounded-xl border border-gray-100 p-4 shadow-sm hover:shadow-md transition-all text-left group">
-              <div className="flex items-center justify-between mb-3">
-                <div className="p-1.5 rounded-lg" style={{ background: color+'15' }}><Icon size={15} style={{ color }} /></div>
-                <ChevronRight size={13} className="text-gray-300 group-hover:text-gray-500 transition-colors" />
-              </div>
-              <p className="text-xl font-bold text-gray-900">{stat}</p>
-              <p className="text-sm font-medium text-gray-600 mt-0.5 mb-2">{label}</p>
-              <p className="text-xs text-gray-400 mb-2">{detail}</p>
-              {ctrl && <EffectivenessBadge effectiveness={ctrl.effectiveness} score={ctrl.score} />}
-            </button>
-          );
-        })}
-      </div>
-
-      {/* ── 5. Priorities + Control health ─────────────────────────────── */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-
-        {/* This week's priorities */}
-        <div className="bg-white rounded-xl border border-gray-100 p-5 shadow-sm">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="font-semibold text-gray-900">This Week's Priorities</h3>
-            <span className="text-xs text-gray-400">{priorities.length} items</span>
-          </div>
-          {priorities.length === 0
-            ? <p className="text-sm text-emerald-600">No critical priorities, maintain momentum.</p>
-            : (
-              <div className="space-y-3">
-                {priorities.map((p, i) => {
-                  const Icon = p.icon;
-                  return (
-                    <button key={i} onClick={() => navigate(p.nav)}
-                      className="w-full flex items-start gap-3 text-left hover:bg-gray-50 rounded-lg px-2 py-1.5 -mx-2 transition-colors group">
-                      <div className="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5" style={{ background: p.color+'20' }}>
-                        <Icon size={10} style={{ color: p.color }} />
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="text-sm font-medium text-gray-800 leading-snug">{p.text}</p>
-                        <p className="text-xs text-gray-400 mt-0.5">{p.sub}</p>
-                      </div>
-                      <ChevronRight size={12} className="text-gray-300 group-hover:text-gray-500 mt-1 flex-shrink-0" />
-                    </button>
-                  );
-                })}
-              </div>
-            )
-          }
-        </div>
-
-        {/* Control health summary */}
-        <div className="bg-white rounded-xl border border-gray-100 p-5 shadow-sm">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="font-semibold text-gray-900">Control Health</h3>
-            <span className="text-xs text-gray-400">{controls.length} UCF controls</span>
-          </div>
-          <div className="grid grid-cols-2 gap-2.5 mb-4">
-            {Object.entries(effConfig).map(([key, cfg]) => (
-              <div key={key} className={`p-3 rounded-lg border ${cfg.bg} ${cfg.border}`}>
-                <p className={`text-2xl font-bold ${cfg.text}`}>{effCounts[key] || 0}</p>
-                <p className={`text-xs font-medium ${cfg.text} mt-0.5`}>{cfg.label}</p>
-              </div>
-            ))}
-          </div>
-          <div className="w-full flex h-2 rounded-full overflow-hidden gap-px">
-            {Object.entries(effConfig).map(([key, cfg]) => (
-              <div key={key} style={{ width: `${((effCounts[key]||0)/controls.length)*100}%`, background: cfg.bar }} />
-            ))}
-          </div>
-          <p className="text-xs text-gray-400 mt-2">{allGaps.length} gaps across {[...new Set(allGaps.map(c=>c.category))].length} categories</p>
-          <button onClick={() => navigate('controls')} className="mt-3 text-xs text-blue-500 hover:text-blue-700 font-medium flex items-center gap-1">
-            View Control Alignment <ChevronRight size={11} />
-          </button>
-        </div>
-      </div>
-
-      {/* ── 6. Top risk snapshot ─────────────────────────────────────────── */}
+      {/* ── 2. Open risks ─────────────────────────────────────────────────── */}
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm">
         <div className="p-5 border-b border-gray-100 flex items-center justify-between">
           <div>
-            <h3 className="font-semibold text-gray-900">Top Risks</h3>
-            <p className="text-xs text-gray-400 mt-0.5">Highest inherent score · {risks.filter(r=>r.status!=='closed').length} total open</p>
+            <h3 className="font-semibold text-gray-900">Open Risks</h3>
+            <p className="text-xs text-gray-400 mt-0.5">{risks.filter(r=>r.status!=='closed').length} risks · by inherent score · click any row to drill down</p>
           </div>
           <button onClick={() => navigate('risks')} className="text-xs text-blue-500 hover:text-blue-700 font-medium flex items-center gap-1">
             Full register <ChevronRight size={11} />
@@ -901,6 +746,108 @@ function Overview({ navigate }) {
                 <span className="text-xs text-gray-400">residual <strong className="text-gray-700">{r.residualScore}</strong></span>
                 <StatusBadge status={r.status} />
               </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* ── 3. Decisions + Alert Tray ─────────────────────────────────────── */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 items-start">
+        <DecisionsRequired navigate={navigate} />
+        <AlertTray navigate={navigate} />
+      </div>
+
+      {/* ── 4. Domain health tiles ──────────────────────────────────────── */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        {domains.map(({ id, label, icon: Icon, color, stat, detail, ctrlId }) => {
+          const ctrl = ctrlMap[ctrlId];
+          return (
+            <button key={id} onClick={() => navigate(id)}
+              className="bg-white rounded-xl border border-gray-100 p-4 shadow-sm hover:shadow-md transition-all text-left group">
+              <div className="flex items-center justify-between mb-3">
+                <div className="p-1.5 rounded-lg" style={{ background: color+'15' }}><Icon size={15} style={{ color }} /></div>
+                <ChevronRight size={13} className="text-gray-300 group-hover:text-gray-500 transition-colors" />
+              </div>
+              <p className="text-xl font-bold text-gray-900">{stat}</p>
+              <p className="text-sm font-medium text-gray-600 mt-0.5 mb-2">{label}</p>
+              <p className="text-xs text-gray-400 mb-2">{detail}</p>
+              {ctrl && <EffectivenessBadge effectiveness={ctrl.effectiveness} score={ctrl.score} />}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* ── 5. Open actions + Control health ─────────────────────────────── */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+
+        {/* Open actions */}
+        <div className="bg-white rounded-xl border border-gray-100 p-5 shadow-sm">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="font-semibold text-gray-900">Open Actions</h3>
+            <span className="text-xs text-gray-400">{priorities.length} items</span>
+          </div>
+          {priorities.length === 0
+            ? <p className="text-sm text-emerald-600">No open actions. Review treatment plans for next cycle.</p>
+            : (
+              <div className="space-y-3">
+                {priorities.map((p, i) => {
+                  const Icon = p.icon;
+                  return (
+                    <button key={i} onClick={() => navigate(p.nav)}
+                      className="w-full flex items-start gap-3 text-left hover:bg-gray-50 rounded-lg px-2 py-1.5 -mx-2 transition-colors group">
+                      <div className="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5" style={{ background: p.color+'20' }}>
+                        <Icon size={10} style={{ color: p.color }} />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium text-gray-800 leading-snug">{p.text}</p>
+                        <p className="text-xs text-gray-400 mt-0.5">{p.sub}</p>
+                      </div>
+                      <ChevronRight size={12} className="text-gray-300 group-hover:text-gray-500 mt-1 flex-shrink-0" />
+                    </button>
+                  );
+                })}
+              </div>
+            )
+          }
+        </div>
+
+        {/* Control health summary */}
+        <div className="bg-white rounded-xl border border-gray-100 p-5 shadow-sm">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="font-semibold text-gray-900">Control Health</h3>
+            <span className="text-xs text-gray-400">{controls.length} controls</span>
+          </div>
+          <div className="grid grid-cols-2 gap-2.5 mb-4">
+            {Object.entries(effConfig).map(([key, cfg]) => (
+              <div key={key} className={`p-3 rounded-lg border ${cfg.bg} ${cfg.border}`}>
+                <p className={`text-2xl font-bold ${cfg.text}`}>{effCounts[key] || 0}</p>
+                <p className={`text-xs font-medium ${cfg.text} mt-0.5`}>{cfg.label}</p>
+              </div>
+            ))}
+          </div>
+          <div className="w-full flex h-2 rounded-full overflow-hidden gap-px">
+            {Object.entries(effConfig).map(([key, cfg]) => (
+              <div key={key} style={{ width: `${((effCounts[key]||0)/controls.length)*100}%`, background: cfg.bar }} />
+            ))}
+          </div>
+          <p className="text-xs text-gray-400 mt-2">{allGaps.length} gaps across {[...new Set(allGaps.map(c=>c.category))].length} categories</p>
+          <button onClick={() => navigate('controls')} className="mt-3 text-xs text-blue-500 hover:text-blue-700 font-medium flex items-center gap-1">
+            View Control Alignment <ChevronRight size={11} />
+          </button>
+        </div>
+      </div>
+
+      {/* ── 6. Programme summary ─────────────────────────────────────────── */}
+      <div className="bg-slate-900 rounded-xl p-5 shadow-md">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="font-semibold text-white text-sm">Programme Summary</h3>
+          <span className="text-xs text-slate-400">Derived from register · updates with each sync</span>
+        </div>
+        <div className="space-y-2.5">
+          {execBullets.map((b, i) => (
+            <div key={i} className="flex items-start gap-3">
+              <div className="w-2.5 h-2.5 rounded-full flex-shrink-0 mt-1" style={{ background: b.color }} />
+              <p className="text-sm text-slate-200 leading-snug">{b.text}</p>
             </div>
           ))}
         </div>
@@ -2002,7 +1949,7 @@ function ThirdParty({ focusId }) {
   const aiVendors = vendors.filter(v => v.ai).length;
   const aiNoDpa = vendors.filter(v => v.ai && v.status !== 'Active').length;
   const tpAsk = aiNoDpa > 0
-    ? `${aiNoDpa} AI vendor${aiNoDpa>1?'s':''} operating without a Data Processing Agreement, GDPR Art. 28 exposure (fine up to 2% of global revenue). Legal must initiate DPAs or offboard these vendors this week.`
+    ? `${aiNoDpa} AI vendor${aiNoDpa>1?'s':''} operating without a Data Processing Agreement. GDPR Art. 28 requires a signed DPA before any personal data is processed. Legal needs to initiate or confirm coverage.`
     : noContract > 0
       ? `${noContract} vendor${noContract>1?'s':''} without active contracts. Procurement sign-off required before these vendors process any company data.`
       : 'Vendor contracts in order. Schedule annual risk re-assessments for high-risk vendors.';
@@ -2161,7 +2108,7 @@ function Compliance() {
     <div className="space-y-4">
       <SectionContext
         what="Coverage across all active regulatory frameworks: SOC 2, ISO 27001, ISO 42001, EU AI Act, NIST CSF, and NIST AI RMF. Each framework maps to UCF controls with live effectiveness scores."
-        why="Compliance gaps are not just audit findings, they are unmitigated legal and regulatory exposure. EU AI Act enforcement is live in 2026 with fines up to 3% of global annual turnover."
+        why="Compliance gaps translate into direct regulatory and contractual obligations. EU AI Act enforcement is live in 2026. Tracking coverage by framework makes gaps visible and actionable before they become audit findings."
         ask={compAsk}
         askUrgency={aiCoverage < 30 ? 'critical' : gapCount > 0 ? 'high' : 'normal'}
       />
@@ -2419,26 +2366,14 @@ const monthlyHistory = {
 };
 
 const LEVELS = [
-  { name:'Bronze',   min:0,  max:49,  color:'#B45309', bg:'bg-amber-100',  text:'text-amber-900',  bar:'bg-amber-500',  next:50,  icon:'🥉' },
-  { name:'Silver',   min:50, max:69,  color:'#6B7280', bg:'bg-gray-100',   text:'text-gray-700',   bar:'bg-gray-400',   next:70,  icon:'🥈' },
-  { name:'Gold',     min:70, max:84,  color:'#CA8A04', bg:'bg-yellow-100', text:'text-yellow-900', bar:'bg-yellow-400', next:85,  icon:'🥇' },
-  { name:'Platinum', min:85, max:100, color:'#6366F1', bg:'bg-indigo-100', text:'text-indigo-800', bar:'bg-indigo-500', next:100, icon:'💎' },
+  { name:'Needs Attention', min:0,  max:49,  color:'#B45309', bg:'bg-amber-100',  text:'text-amber-900',  bar:'bg-amber-500',  next:50  },
+  { name:'Building',        min:50, max:69,  color:'#6B7280', bg:'bg-gray-100',   text:'text-gray-700',   bar:'bg-gray-400',   next:70  },
+  { name:'On Track',        min:70, max:84,  color:'#CA8A04', bg:'bg-yellow-100', text:'text-yellow-900', bar:'bg-yellow-400', next:85  },
+  { name:'Strong',          min:85, max:100, color:'#16A34A', bg:'bg-green-100',  text:'text-green-800',  bar:'bg-green-500',  next:100 },
 ];
 const getLevel = (h) => LEVELS.find(l => h >= l.min && h <= l.max) ?? LEVELS[0];
 
-const computeBadges = (teamId, stats, hist) => {
-  const badges = [];
-  const prev = hist[hist.length - 2];
-  const curr = hist[hist.length - 1];
-  if (curr && prev && curr.health - prev.health >= 5) badges.push({ icon:'🚀', label:'Most Improved', desc:`+${curr.health - prev.health}% MoM` });
-  if (stats.gaps === 0) badges.push({ icon:'⭐', label:'Zero Gaps', desc:'All controls effective/partial' });
-  if (stats.openInc === 0) badges.push({ icon:'🛡️', label:'Clean Sheet', desc:'No open incidents' });
-  const allImproving = hist.length >= 3 && hist[0].health < hist[1].health && hist[1].health < hist[2].health;
-  if (allImproving) badges.push({ icon:'🔥', label:'On A Roll', desc:'3 months of improvement' });
-  const multiFramework = stats.owned.filter(c => c.frameworks.length >= 3).length;
-  if (multiFramework >= 2) badges.push({ icon:'🌐', label:'Framework Leader', desc:`${multiFramework} controls cover 3+ frameworks` });
-  return badges;
-};
+const computeBadges = () => [];
 
 // ─── Leadership Scorecard ─────────────────────────────────────────────────────
 
@@ -2957,7 +2892,7 @@ function Scorecard({ onViewReport }) {
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm">
         <div className="p-5 border-b border-gray-100">
           <h3 className="font-semibold text-gray-900">Team Leaderboard · {new Date(new Date().setMonth(new Date().getMonth()-1)).toLocaleString('default', { month: 'long', year: 'numeric' })}</h3>
-          <p className="text-xs text-gray-400 mt-0.5">Ranked by health score. Reach Platinum (85%+) to lead the program.</p>
+          <p className="text-xs text-gray-400 mt-0.5">Ranked by composite health score: control coverage, open incidents, SLA compliance.</p>
         </div>
         <div className="divide-y divide-gray-50">
           {sorted.map((team, rank) => {
@@ -4543,7 +4478,7 @@ function RiskRegister({ focusId }) {
       <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 flex items-start gap-3">
         <Database size={15} className="text-slate-500 flex-shrink-0 mt-0.5" />
         <div className="flex-1 min-w-0">
-          <p className="text-xs font-semibold text-slate-700 mb-1">One system, all panels derive from these six records</p>
+          <p className="text-xs font-semibold text-slate-700 mb-1">All panels derive from these five records</p>
           <div className="flex items-center gap-1.5 flex-wrap text-[10px] text-slate-500">
             {[['vulnerability','bg-red-50 text-red-600','Vulnerabilities panel'],['supply_chain','bg-orange-50 text-orange-600','Third Party / Supply Chain'],['ai_governance','bg-purple-50 text-purple-600','AI Governance panel'],['policy_exception','bg-blue-50 text-blue-600','Policy Exceptions']].map(([src,cls,label])=>(
               <span key={src} className="flex items-center gap-1">
@@ -4559,7 +4494,7 @@ function RiskRegister({ focusId }) {
 
       <SectionContext
         what="All identified risks in formal treatment, each with a VSRM-style inherent and residual score, owner, treatment plan, and review date. Heat matrix shows likelihood × impact across the full portfolio."
-        why="Untreated high-impact risks compound over time. The risk register is the source of truth for audit evidence, insurance underwriting, and budget justification for security investment."
+        why="The register is the single source of truth for this programme. Every other panel, metric, and report derives from these records. Keeping it current is the core operational habit."
         ask={riskAsk}
         askUrgency={exceedsAppetite > 0 ? 'high' : 'normal'}
       />
@@ -5629,7 +5564,7 @@ export default function GRCDashboard() {
           <div className="flex items-center gap-2 lg:gap-3 flex-shrink-0">
             {dataLoading
               ? <span className="text-xs text-gray-400 animate-pulse hidden sm:block">Connecting…</span>
-              : <span className={`px-2 py-1 rounded-full text-xs font-semibold hidden sm:inline-flex ${liveData ? 'bg-emerald-50 text-emerald-700' : 'bg-blue-50 text-blue-600'}`}>{liveData ? '● Live' : '◉ Demo'}</span>
+              : <span className={`px-2 py-1 rounded-full text-xs font-semibold inline-flex ${liveData ? 'bg-emerald-50 text-emerald-700' : 'bg-gray-100 text-gray-500'}`}>{liveData ? '● Live' : 'Sample data'}</span>
             }
             <button onClick={() => setCopilotOpen(o => !o)}
               className={`p-2 rounded-lg transition-colors ${copilotOpen ? 'bg-purple-100 text-purple-700' : 'hover:bg-gray-100 text-gray-400'}`}

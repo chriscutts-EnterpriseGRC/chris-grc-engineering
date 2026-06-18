@@ -12,6 +12,48 @@
 // The controls[] array drives the Compliance hotspot view.
 
 export const riskSeed = [
+  // ── HULL-2026-0042 ─────────────────────────────────────────────────────────
+  {
+    id: 'HULL-2026-0042',
+    title: 'Ungoverned Third-Party Access (No Formal Vendor Risk Program)',
+    signalSource: 'supply_chain',
+    category: 'Third Party',
+    asset: 'Production Systems, Customer Data, Internal Infrastructure',
+    owner: 'Security GRC',
+    likelihood: 4,
+    impact: 4,
+    controlIds: ['UCF.01.02', 'UCF.06.01', 'UCF.07.01'],
+    treatment: 'Mitigate',
+    treatmentStrategy: 'mitigate',
+    treatmentPlan: 'Stand up vendor inventory and tiered assessment process. Tier 1 (production/customer data access) assessed before contract. Tier 2 lightweight assessment, annual review. Tier 3 certification review only. Integrate into procurement workflow.',
+    status: 'Open',
+    reviewDate: '2026-07-15',
+    slaDays: 30,
+    ai: false,
+
+    threatAgent: 'Third-party vendor with excessive or unreviewed access to production systems, customer data, or internal infrastructure',
+    threatVector: 'Vendor onboarded without security assessment, data handling terms unreviewed, access not scoped to least privilege, no offboarding process when relationship ends',
+    vulnerability: 'No formal vendor inventory, no tiered assessment process, no contractual data protection requirements enforced at onboarding',
+    assetAtRisk: 'Customer data, internal systems, production infrastructure accessible to third parties',
+    existingExposure: 'No vendor risk program exists today. Unknown number of vendors with unassessed access levels.',
+    whyItMatters: 'You cannot manage vendor risk you cannot see. Docker has no inventory of who has access to what. That is the starting point, and it is fixable with a repeatable lightweight process.',
+
+    controls: [
+      { framework: 'ISO 27001 A.5.19', requirement: 'Information security in supplier relationships', gap: 'No formal supplier policy exists' },
+      { framework: 'ISO 27001 A.5.22', requirement: 'Monitoring and review of supplier services',     gap: 'No ongoing review process or cadence' },
+      { framework: 'SOC 2 CC9.2',      requirement: 'Vendor and business partner risk management',    gap: 'No assessment workflow at onboarding' },
+      { framework: 'GDPR Article 28',  requirement: 'Processor agreements',                           gap: 'DPA coverage not confirmed across active vendors' },
+    ],
+
+    controlEffectiveness: [
+      { control: 'UCF.01.02 Privileged Access Management', effectiveness: 38, note: 'Applies to vendor access scoping — not yet enforced for third parties' },
+      { control: 'UCF.06.01 Supply Chain Security',        effectiveness: 63, note: 'Covers package/image supply chain but not vendor program' },
+      { control: 'UCF.07.01 Policy Review Process',        effectiveness: 74, note: 'Policy framework exists; vendor management policy overdue' },
+    ],
+
+    isException: false,
+  },
+
   // ── HULL-2026-0043 ─────────────────────────────────────────────────────────
   {
     id: 'HULL-2026-0043',
