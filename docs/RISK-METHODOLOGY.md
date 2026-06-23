@@ -22,7 +22,7 @@
 | 2 | Moderate | Noticeable disruption. Manageable through routine oversight. |
 | 1 | Low | Unlikely to materially affect operations. |
 
-### Likelihood (1–5) - High Water Mark Rule
+### Likelihood (1–5) - Potential Occurrence
 
 Likelihood is scored across **three independent dimensions**. The final score is the **highest of the three** - not an average.
 
