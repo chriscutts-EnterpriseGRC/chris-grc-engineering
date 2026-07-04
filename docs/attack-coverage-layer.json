@@ -1,0 +1,774 @@
+{
+  "name": "Docker Hull Policy Coverage",
+  "versions": {
+    "attack": "14",
+    "navigator": "4.9",
+    "layer": "4.5"
+  },
+  "domain": "enterprise-attack",
+  "description": "Policy document coverage overlay for the Docker Hull GRC Programme. Each technique is coloured by its primary governing policy document. Ungoverned techniques are left uncoloured — these represent coverage gaps. Load this file into the ATT&CK Navigator to render the interactive heatmap.",
+  "filters": {
+    "platforms": ["Linux", "macOS", "Windows", "Network", "IaaS", "SaaS", "Containers"]
+  },
+  "sorting": 0,
+  "layout": {
+    "layout": "side",
+    "aggregateFunction": "average",
+    "showID": true,
+    "showName": true,
+    "showAggregateScores": false,
+    "countUnscored": false,
+    "expandedSubtechniques": "none"
+  },
+  "hideDisabled": false,
+  "techniques": [
+    {
+      "techniqueID": "T1595",
+      "comment": "GAP — No governing policy. Recommended: extend SECURITY-MONITORING-POLICY.md to cover external attack surface monitoring.",
+      "enabled": true,
+      "color": "#e8e8e8",
+      "metadata": [],
+      "links": [],
+      "showSubtechniques": false
+    },
+    {
+      "techniqueID": "T1592",
+      "comment": "GAP — No governing policy.",
+      "enabled": true,
+      "color": "#e8e8e8",
+      "metadata": [],
+      "links": [],
+      "showSubtechniques": false
+    },
+    {
+      "techniqueID": "T1591",
+      "comment": "GAP — No governing policy.",
+      "enabled": true,
+      "color": "#e8e8e8",
+      "metadata": [],
+      "links": [],
+      "showSubtechniques": false
+    },
+    {
+      "techniqueID": "T1589",
+      "comment": "GAP — No governing policy.",
+      "enabled": true,
+      "color": "#e8e8e8",
+      "metadata": [],
+      "links": [],
+      "showSubtechniques": false
+    },
+    {
+      "techniqueID": "T1593",
+      "comment": "GAP — No governing policy.",
+      "enabled": true,
+      "color": "#e8e8e8",
+      "metadata": [],
+      "links": [],
+      "showSubtechniques": false
+    },
+    {
+      "techniqueID": "T1596",
+      "comment": "GAP — No governing policy.",
+      "enabled": true,
+      "color": "#e8e8e8",
+      "metadata": [],
+      "links": [],
+      "showSubtechniques": false
+    },
+    {
+      "techniqueID": "T1597",
+      "comment": "GAP — No governing policy.",
+      "enabled": true,
+      "color": "#e8e8e8",
+      "metadata": [],
+      "links": [],
+      "showSubtechniques": false
+    },
+    {
+      "techniqueID": "T1598",
+      "comment": "GAP — No governing policy. Phishing for information (credential harvesting) differs from phishing for execution — no policy addresses the pre-attack collection phase.",
+      "enabled": true,
+      "color": "#e8e8e8",
+      "metadata": [],
+      "links": [],
+      "showSubtechniques": false
+    },
+    {
+      "techniqueID": "T1590",
+      "comment": "GAP — No governing policy.",
+      "enabled": true,
+      "color": "#e8e8e8",
+      "metadata": [],
+      "links": [],
+      "showSubtechniques": false
+    },
+    {
+      "techniqueID": "T1583",
+      "comment": "GAP — No governing policy. THIRD-PARTY-RISK-MANAGEMENT-POLICY.md covers vendor assessment but not adversary infrastructure acquisition.",
+      "enabled": true,
+      "color": "#e8e8e8",
+      "metadata": [],
+      "links": [],
+      "showSubtechniques": false
+    },
+    {
+      "techniqueID": "T1584",
+      "comment": "GAP — No governing policy.",
+      "enabled": true,
+      "color": "#e8e8e8",
+      "metadata": [],
+      "links": [],
+      "showSubtechniques": false
+    },
+    {
+      "techniqueID": "T1585",
+      "comment": "GAP — No governing policy.",
+      "enabled": true,
+      "color": "#e8e8e8",
+      "metadata": [],
+      "links": [],
+      "showSubtechniques": false
+    },
+    {
+      "techniqueID": "T1586",
+      "comment": "GAP — No governing policy.",
+      "enabled": true,
+      "color": "#e8e8e8",
+      "metadata": [],
+      "links": [],
+      "showSubtechniques": false
+    },
+    {
+      "techniqueID": "T1587",
+      "comment": "GAP — No governing policy.",
+      "enabled": true,
+      "color": "#e8e8e8",
+      "metadata": [],
+      "links": [],
+      "showSubtechniques": false
+    },
+    {
+      "techniqueID": "T1588",
+      "comment": "GAP — No governing policy.",
+      "enabled": true,
+      "color": "#e8e8e8",
+      "metadata": [],
+      "links": [],
+      "showSubtechniques": false
+    },
+    {
+      "techniqueID": "T1566",
+      "comment": "HR-SECURITY-POLICY.md — Security awareness training, phishing simulation programme, reporting procedures.",
+      "enabled": true,
+      "color": "#ffaa44",
+      "metadata": [],
+      "links": [],
+      "showSubtechniques": false
+    },
+    {
+      "techniqueID": "T1078",
+      "comment": "ACCESS-CONTROL-IAM-POLICY.md — MFA required for all production access, least privilege, account lifecycle management, offboarding revocation.",
+      "enabled": true,
+      "color": "#ff8c1a",
+      "metadata": [],
+      "links": [],
+      "showSubtechniques": false
+    },
+    {
+      "techniqueID": "T1133",
+      "comment": "NETWORK-SECURITY-POLICY.md — VPN/ZTNA requirements, remote access controls, no direct internet inbound to application subnet.",
+      "enabled": true,
+      "color": "#aa66ff",
+      "metadata": [],
+      "links": [],
+      "showSubtechniques": false
+    },
+    {
+      "techniqueID": "T1190",
+      "comment": "CLOUD-SECURITY-POLICY.md — WAF deployment required, critical patch SLA 7 days, IaC validation via OPA/checkov before deployment.",
+      "enabled": true,
+      "color": "#99ee99",
+      "metadata": [],
+      "links": [],
+      "showSubtechniques": false
+    },
+    {
+      "techniqueID": "T1189",
+      "comment": "ENDPOINT-SECURITY-POLICY.md — EDR with real-time protection, browser controls, OS patching within 7 days of critical release.",
+      "enabled": true,
+      "color": "#66cc66",
+      "metadata": [],
+      "links": [],
+      "showSubtechniques": false
+    },
+    {
+      "techniqueID": "T1091",
+      "comment": "ENDPOINT-SECURITY-POLICY.md + ACCEPTABLE-USE-POLICY.md — Removable media restrictions enforced via MDM.",
+      "enabled": true,
+      "color": "#66cc66",
+      "metadata": [],
+      "links": [],
+      "showSubtechniques": false
+    },
+    {
+      "techniqueID": "T1195",
+      "comment": "THIRD-PARTY-RISK-MANAGEMENT-POLICY.md — Vendor assessment, software integrity verification, supply chain risk management. Also see: HULL-2026-0042 risk record.",
+      "enabled": true,
+      "color": "#dd9944",
+      "metadata": [],
+      "links": [],
+      "showSubtechniques": false
+    },
+    {
+      "techniqueID": "T1199",
+      "comment": "THIRD-PARTY-RISK-MANAGEMENT-POLICY.md — Third-party access governance, vendor inventory, tiered access classification.",
+      "enabled": true,
+      "color": "#dd9944",
+      "metadata": [],
+      "links": [],
+      "showSubtechniques": false
+    },
+    {
+      "techniqueID": "T1059",
+      "comment": "ENDPOINT-SECURITY-POLICY.md — Script execution controls, application allowlisting, EDR script monitoring.",
+      "enabled": true,
+      "color": "#66cc66",
+      "metadata": [],
+      "links": [],
+      "showSubtechniques": false
+    },
+    {
+      "techniqueID": "T1204",
+      "comment": "ACCEPTABLE-USE-POLICY.md + HR-SECURITY-POLICY.md — Permitted software list, security awareness training on malicious file execution.",
+      "enabled": true,
+      "color": "#ff9966",
+      "metadata": [],
+      "links": [],
+      "showSubtechniques": false
+    },
+    {
+      "techniqueID": "T1072",
+      "comment": "CHANGE-MANAGEMENT-POLICY.md — Deployment approval required, IaC-only production changes, no console edits.",
+      "enabled": true,
+      "color": "#66ddcc",
+      "metadata": [],
+      "links": [],
+      "showSubtechniques": false
+    },
+    {
+      "techniqueID": "T1053",
+      "comment": "ENDPOINT-SECURITY-POLICY.md — MDM controls on endpoint task scheduling, EDR monitoring of scheduled task creation.",
+      "enabled": true,
+      "color": "#66cc66",
+      "metadata": [],
+      "links": [],
+      "showSubtechniques": false
+    },
+    {
+      "techniqueID": "T1047",
+      "comment": "ENDPOINT-SECURITY-POLICY.md — WMI abuse prevention via endpoint hardening and EDR alerting.",
+      "enabled": true,
+      "color": "#66cc66",
+      "metadata": [],
+      "links": [],
+      "showSubtechniques": false
+    },
+    {
+      "techniqueID": "T1106",
+      "comment": "ENDPOINT-SECURITY-POLICY.md — OS-level execution controls, application allowlisting.",
+      "enabled": true,
+      "color": "#66cc66",
+      "metadata": [],
+      "links": [],
+      "showSubtechniques": false
+    },
+    {
+      "techniqueID": "T1136",
+      "comment": "ACCESS-CONTROL-IAM-POLICY.md — Account provisioning requires approval, automated alerting on unexpected account creation.",
+      "enabled": true,
+      "color": "#ff8c1a",
+      "metadata": [],
+      "links": [],
+      "showSubtechniques": false
+    },
+    {
+      "techniqueID": "T1098",
+      "comment": "ACCESS-CONTROL-IAM-POLICY.md — Access review cadence, change auditing via CloudTrail, alert on role/permission modification.",
+      "enabled": true,
+      "color": "#ff8c1a",
+      "metadata": [],
+      "links": [],
+      "showSubtechniques": false
+    },
+    {
+      "techniqueID": "T1543",
+      "comment": "CHANGE-MANAGEMENT-POLICY.md — System process creation/modification requires change approval, IaC-controlled.",
+      "enabled": true,
+      "color": "#66ddcc",
+      "metadata": [],
+      "links": [],
+      "showSubtechniques": false
+    },
+    {
+      "techniqueID": "T1547",
+      "comment": "ENDPOINT-SECURITY-POLICY.md — Startup controls enforced via MDM, EDR monitoring of autostart locations.",
+      "enabled": true,
+      "color": "#66cc66",
+      "metadata": [],
+      "links": [],
+      "showSubtechniques": false
+    },
+    {
+      "techniqueID": "T1548",
+      "comment": "ACCESS-CONTROL-IAM-POLICY.md — Sudo/admin elevation controls, just-in-time access, no standing privilege.",
+      "enabled": true,
+      "color": "#ff8c1a",
+      "metadata": [],
+      "links": [],
+      "showSubtechniques": false
+    },
+    {
+      "techniqueID": "T1134",
+      "comment": "ACCESS-CONTROL-IAM-POLICY.md — IAM role boundaries, token scope and lifecycle, no over-permissive roles.",
+      "enabled": true,
+      "color": "#ff8c1a",
+      "metadata": [],
+      "links": [],
+      "showSubtechniques": false
+    },
+    {
+      "techniqueID": "T1484",
+      "comment": "ACCESS-CONTROL-IAM-POLICY.md — IAM policy modification requires Security Engineering approval; changes applied via IaC only.",
+      "enabled": true,
+      "color": "#ff8c1a",
+      "metadata": [],
+      "links": [],
+      "showSubtechniques": false
+    },
+    {
+      "techniqueID": "T1562",
+      "comment": "SECURITY-MONITORING-POLICY.md — P0 alert on GuardDuty disable, EDR agent disable, or CloudTrail deactivation. Monitoring continuity is a documented requirement.",
+      "enabled": true,
+      "color": "#4da6ff",
+      "metadata": [],
+      "links": [],
+      "showSubtechniques": false
+    },
+    {
+      "techniqueID": "T1070",
+      "comment": "SECURITY-MONITORING-POLICY.md — CloudTrail log file validation enabled, S3 log bucket write-protected, immutable audit trail required.",
+      "enabled": true,
+      "color": "#4da6ff",
+      "metadata": [],
+      "links": [],
+      "showSubtechniques": false
+    },
+    {
+      "techniqueID": "T1027",
+      "comment": "SECURITY-MONITORING-POLICY.md — Log analysis and threat hunting procedures; EDR detects obfuscated script execution.",
+      "enabled": true,
+      "color": "#4da6ff",
+      "metadata": [],
+      "links": [],
+      "showSubtechniques": false
+    },
+    {
+      "techniqueID": "T1036",
+      "comment": "SECURITY-MONITORING-POLICY.md — Process and binary name monitoring, file hash verification.",
+      "enabled": true,
+      "color": "#4da6ff",
+      "metadata": [],
+      "links": [],
+      "showSubtechniques": false
+    },
+    {
+      "techniqueID": "T1564",
+      "comment": "SECURITY-MONITORING-POLICY.md — Filesystem and configuration monitoring via AWS Config and EDR.",
+      "enabled": true,
+      "color": "#4da6ff",
+      "metadata": [],
+      "links": [],
+      "showSubtechniques": false
+    },
+    {
+      "techniqueID": "T1110",
+      "comment": "CREDENTIAL-PASSWORD-MANAGEMENT-POLICY.md — Account lockout policy, MFA required for all production access, password complexity requirements.",
+      "enabled": true,
+      "color": "#ffdd00",
+      "metadata": [],
+      "links": [],
+      "showSubtechniques": false
+    },
+    {
+      "techniqueID": "T1003",
+      "comment": "CREDENTIAL-PASSWORD-MANAGEMENT-POLICY.md + ENDPOINT-SECURITY-POLICY.md — No credential caching, EDR detects LSASS access, secrets stored in secrets manager only.",
+      "enabled": true,
+      "color": "#ffdd00",
+      "metadata": [],
+      "links": [],
+      "showSubtechniques": false
+    },
+    {
+      "techniqueID": "T1552",
+      "comment": "CREDENTIAL-PASSWORD-MANAGEMENT-POLICY.md — Secrets management policy, prohibition on plaintext credential storage, rotation requirements.",
+      "enabled": true,
+      "color": "#ffdd00",
+      "metadata": [],
+      "links": [],
+      "showSubtechniques": false
+    },
+    {
+      "techniqueID": "T1528",
+      "comment": "ACCESS-CONTROL-IAM-POLICY.md — OAuth token scope minimisation, token expiry enforcement, alert on token exfiltration patterns.",
+      "enabled": true,
+      "color": "#ff8c1a",
+      "metadata": [],
+      "links": [],
+      "showSubtechniques": false
+    },
+    {
+      "techniqueID": "T1056",
+      "comment": "ENDPOINT-SECURITY-POLICY.md — EDR keylogger detection, endpoint process monitoring.",
+      "enabled": true,
+      "color": "#66cc66",
+      "metadata": [],
+      "links": [],
+      "showSubtechniques": false
+    },
+    {
+      "techniqueID": "T1040",
+      "comment": "NETWORK-SECURITY-POLICY.md — mTLS enforced between internal services, encrypted transit required for all data in motion.",
+      "enabled": true,
+      "color": "#aa66ff",
+      "metadata": [],
+      "links": [],
+      "showSubtechniques": false
+    },
+    {
+      "techniqueID": "T1087",
+      "comment": "ACCESS-CONTROL-IAM-POLICY.md — Least privilege limits what an attacker discovers; CloudTrail alerts on enumeration patterns.",
+      "enabled": true,
+      "color": "#ff8c1a",
+      "metadata": [],
+      "links": [],
+      "showSubtechniques": false
+    },
+    {
+      "techniqueID": "T1046",
+      "comment": "NETWORK-SECURITY-POLICY.md — Default-deny security groups limit scan results; VPC flow log alerting on port scan patterns.",
+      "enabled": true,
+      "color": "#aa66ff",
+      "metadata": [],
+      "links": [],
+      "showSubtechniques": false
+    },
+    {
+      "techniqueID": "T1083",
+      "comment": "ACCESS-CONTROL-IAM-POLICY.md — Filesystem access controls, least privilege on S3 and data stores.",
+      "enabled": true,
+      "color": "#ff8c1a",
+      "metadata": [],
+      "links": [],
+      "showSubtechniques": false
+    },
+    {
+      "techniqueID": "T1069",
+      "comment": "ACCESS-CONTROL-IAM-POLICY.md — IAM policy scoping, alert on permission enumeration via CloudTrail.",
+      "enabled": true,
+      "color": "#ff8c1a",
+      "metadata": [],
+      "links": [],
+      "showSubtechniques": false
+    },
+    {
+      "techniqueID": "T1057",
+      "comment": "SECURITY-MONITORING-POLICY.md — Process monitoring via EDR and GuardDuty, anomaly detection on unexpected process activity.",
+      "enabled": true,
+      "color": "#4da6ff",
+      "metadata": [],
+      "links": [],
+      "showSubtechniques": false
+    },
+    {
+      "techniqueID": "T1082",
+      "comment": "SECURITY-MONITORING-POLICY.md — Host-based monitoring via EDR, GuardDuty instance behaviour analysis.",
+      "enabled": true,
+      "color": "#4da6ff",
+      "metadata": [],
+      "links": [],
+      "showSubtechniques": false
+    },
+    {
+      "techniqueID": "T1021",
+      "comment": "NETWORK-SECURITY-POLICY.md — Network segmentation prevents direct lateral movement; mTLS and ZTNA required for remote service access.",
+      "enabled": true,
+      "color": "#aa66ff",
+      "metadata": [],
+      "links": [],
+      "showSubtechniques": false
+    },
+    {
+      "techniqueID": "T1534",
+      "comment": "HR-SECURITY-POLICY.md — Security awareness training covers internal phishing recognition and reporting.",
+      "enabled": true,
+      "color": "#ffaa44",
+      "metadata": [],
+      "links": [],
+      "showSubtechniques": false
+    },
+    {
+      "techniqueID": "T1550",
+      "comment": "ACCESS-CONTROL-IAM-POLICY.md + CREDENTIAL-PASSWORD-MANAGEMENT-POLICY.md — Session token validation, MFA re-auth for sensitive operations.",
+      "enabled": true,
+      "color": "#ff8c1a",
+      "metadata": [],
+      "links": [],
+      "showSubtechniques": false
+    },
+    {
+      "techniqueID": "T1563",
+      "comment": "NETWORK-SECURITY-POLICY.md — Session controls, ZTNA enforcement, network segmentation limits session hijack blast radius.",
+      "enabled": true,
+      "color": "#aa66ff",
+      "metadata": [],
+      "links": [],
+      "showSubtechniques": false
+    },
+    {
+      "techniqueID": "T1080",
+      "comment": "ACCESS-CONTROL-IAM-POLICY.md — Write access scoping on shared resources, alert on unexpected shared content modification.",
+      "enabled": true,
+      "color": "#ff8c1a",
+      "metadata": [],
+      "links": [],
+      "showSubtechniques": false
+    },
+    {
+      "techniqueID": "T1005",
+      "comment": "DATA-CLASSIFICATION-POLICY.md — Data handling requirements per classification tier, access controls on local data stores.",
+      "enabled": true,
+      "color": "#ff66aa",
+      "metadata": [],
+      "links": [],
+      "showSubtechniques": false
+    },
+    {
+      "techniqueID": "T1039",
+      "comment": "DATA-CLASSIFICATION-POLICY.md — Access controls on shared drives and network storage, classification labels.",
+      "enabled": true,
+      "color": "#ff66aa",
+      "metadata": [],
+      "links": [],
+      "showSubtechniques": false
+    },
+    {
+      "techniqueID": "T1530",
+      "comment": "CLOUD-SECURITY-POLICY.md — S3 bucket policy enforcement, no public buckets, encryption at rest, access logging enabled.",
+      "enabled": true,
+      "color": "#99ee99",
+      "metadata": [],
+      "links": [],
+      "showSubtechniques": false
+    },
+    {
+      "techniqueID": "T1213",
+      "comment": "DATA-CLASSIFICATION-POLICY.md — Repository access controls, classification-based access scoping.",
+      "enabled": true,
+      "color": "#ff66aa",
+      "metadata": [],
+      "links": [],
+      "showSubtechniques": false
+    },
+    {
+      "techniqueID": "T1074",
+      "comment": "DATA-CLASSIFICATION-POLICY.md — Data movement monitoring, volume alerting on unusual data staging behaviour.",
+      "enabled": true,
+      "color": "#ff66aa",
+      "metadata": [],
+      "links": [],
+      "showSubtechniques": false
+    },
+    {
+      "techniqueID": "T1114",
+      "comment": "SECURITY-MONITORING-POLICY.md — Email security monitoring, alert on mail rule creation or forwarding rule changes.",
+      "enabled": true,
+      "color": "#4da6ff",
+      "metadata": [],
+      "links": [],
+      "showSubtechniques": false
+    },
+    {
+      "techniqueID": "T1071",
+      "comment": "NETWORK-SECURITY-POLICY.md — Egress filtering on approved protocols and destinations, VPC flow log analysis.",
+      "enabled": true,
+      "color": "#aa66ff",
+      "metadata": [],
+      "links": [],
+      "showSubtechniques": false
+    },
+    {
+      "techniqueID": "T1095",
+      "comment": "NETWORK-SECURITY-POLICY.md — Non-standard protocol blocking via security groups and network ACLs.",
+      "enabled": true,
+      "color": "#aa66ff",
+      "metadata": [],
+      "links": [],
+      "showSubtechniques": false
+    },
+    {
+      "techniqueID": "T1572",
+      "comment": "NETWORK-SECURITY-POLICY.md — Egress controls, VPC flow log alerting on tunneling indicators, approved egress endpoints only.",
+      "enabled": true,
+      "color": "#aa66ff",
+      "metadata": [],
+      "links": [],
+      "showSubtechniques": false
+    },
+    {
+      "techniqueID": "T1105",
+      "comment": "ENDPOINT-SECURITY-POLICY.md — Application allowlisting, download controls via MDM, EDR alert on unexpected binary download.",
+      "enabled": true,
+      "color": "#66cc66",
+      "metadata": [],
+      "links": [],
+      "showSubtechniques": false
+    },
+    {
+      "techniqueID": "T1573",
+      "comment": "NETWORK-SECURITY-POLICY.md — Certificate monitoring, unexpected encrypted channel alerting via GuardDuty.",
+      "enabled": true,
+      "color": "#aa66ff",
+      "metadata": [],
+      "links": [],
+      "showSubtechniques": false
+    },
+    {
+      "techniqueID": "T1041",
+      "comment": "DATA-CLASSIFICATION-POLICY.md + NETWORK-SECURITY-POLICY.md — Outbound data volume alerting, egress controls, DLP monitoring.",
+      "enabled": true,
+      "color": "#ff66aa",
+      "metadata": [],
+      "links": [],
+      "showSubtechniques": false
+    },
+    {
+      "techniqueID": "T1048",
+      "comment": "NETWORK-SECURITY-POLICY.md — Alternative protocol blocking, VPC flow log alert on unexpected protocol egress.",
+      "enabled": true,
+      "color": "#aa66ff",
+      "metadata": [],
+      "links": [],
+      "showSubtechniques": false
+    },
+    {
+      "techniqueID": "T1020",
+      "comment": "DATA-CLASSIFICATION-POLICY.md — Data movement volume alerting, automated exfiltration indicators monitored via GuardDuty.",
+      "enabled": true,
+      "color": "#ff66aa",
+      "metadata": [],
+      "links": [],
+      "showSubtechniques": false
+    },
+    {
+      "techniqueID": "T1011",
+      "comment": "NETWORK-SECURITY-POLICY.md — Wireless and alternative network medium controls, no split tunnelling on managed devices.",
+      "enabled": true,
+      "color": "#aa66ff",
+      "metadata": [],
+      "links": [],
+      "showSubtechniques": false
+    },
+    {
+      "techniqueID": "T1537",
+      "comment": "CLOUD-SECURITY-POLICY.md — Cross-account data transfer controls, S3 replication policy governance, alert on unexpected cross-account activity.",
+      "enabled": true,
+      "color": "#99ee99",
+      "metadata": [],
+      "links": [],
+      "showSubtechniques": false
+    },
+    {
+      "techniqueID": "T1486",
+      "comment": "BUSINESS-CONTINUITY-DISASTER-RECOVERY-POLICY.md — Backup strategy, RTO/RPO targets, tested recovery procedures, immutable backup copies.",
+      "enabled": true,
+      "color": "#99bbff",
+      "metadata": [],
+      "links": [],
+      "showSubtechniques": false
+    },
+    {
+      "techniqueID": "T1490",
+      "comment": "BUSINESS-CONTINUITY-DISASTER-RECOVERY-POLICY.md — Immutable backups required, backup integrity verification, recovery testing cadence.",
+      "enabled": true,
+      "color": "#99bbff",
+      "metadata": [],
+      "links": [],
+      "showSubtechniques": false
+    },
+    {
+      "techniqueID": "T1485",
+      "comment": "BUSINESS-CONTINUITY-DISASTER-RECOVERY-POLICY.md — Backup coverage requirements, data destruction detection via monitoring.",
+      "enabled": true,
+      "color": "#99bbff",
+      "metadata": [],
+      "links": [],
+      "showSubtechniques": false
+    },
+    {
+      "techniqueID": "T1489",
+      "comment": "INCIDENT-RESPONSE-POLICY.md — P1 response procedure, service restoration SLAs, escalation path defined.",
+      "enabled": true,
+      "color": "#ff6666",
+      "metadata": [],
+      "links": [],
+      "showSubtechniques": false
+    },
+    {
+      "techniqueID": "T1498",
+      "comment": "NETWORK-SECURITY-POLICY.md — AWS Shield Standard, DDoS mitigation via WAF and CloudFront, rate limiting.",
+      "enabled": true,
+      "color": "#aa66ff",
+      "metadata": [],
+      "links": [],
+      "showSubtechniques": false
+    },
+    {
+      "techniqueID": "T1561",
+      "comment": "BUSINESS-CONTINUITY-DISASTER-RECOVERY-POLICY.md — Backup coverage, RTO/RPO defined, recovery testing required.",
+      "enabled": true,
+      "color": "#99bbff",
+      "metadata": [],
+      "links": [],
+      "showSubtechniques": false
+    }
+  ],
+  "legendItems": [
+    {"label": "Logging & Monitoring Policy", "color": "#4da6ff"},
+    {"label": "Access Control & IAM Policy", "color": "#ff8c1a"},
+    {"label": "Endpoint Security Policy", "color": "#66cc66"},
+    {"label": "Data Classification Policy", "color": "#ff66aa"},
+    {"label": "Credential & Password Policy", "color": "#ffdd00"},
+    {"label": "Network Security Policy", "color": "#aa66ff"},
+    {"label": "Acceptable Use Policy", "color": "#ff9966"},
+    {"label": "Change Management Policy", "color": "#66ddcc"},
+    {"label": "Incident Response Policy", "color": "#ff6666"},
+    {"label": "BC/DR Policy", "color": "#99bbff"},
+    {"label": "Cloud Security Policy", "color": "#99ee99"},
+    {"label": "HR Security / Security Awareness", "color": "#ffaa44"},
+    {"label": "Third-Party Risk Management Policy", "color": "#dd9944"},
+    {"label": "No governing policy — gap", "color": "#e8e8e8"}
+  ],
+  "metadata": [
+    {"name": "Programme", "value": "Docker Hull GRC"},
+    {"name": "ATT&CK version", "value": "Enterprise v14"},
+    {"name": "Last reviewed", "value": "2026-07-04"},
+    {"name": "Coverage doc", "value": "docs/ATTACK-COVERAGE.md"},
+    {"name": "Policy hierarchy", "value": "docs/POLICY-HIERARCHY.md"}
+  ],
+  "links": [],
+  "showTacticRowBackground": true,
+  "tacticRowBackground": "#dddddd",
+  "selectTechniquesAcrossTactics": false,
+  "selectSubtechniquesWithParent": false
+}
