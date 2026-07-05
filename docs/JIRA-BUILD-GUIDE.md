@@ -601,6 +601,151 @@ After 30 days and at least 10 real risks entered, run a refinement session:
 
 ---
 
+## Migrating from an Existing Notion Risk Register
+
+If your team already tracks risks in Notion, use that data to seed Jira rather than starting from scratch. The Notion export is the gating dependency — get it before finalising your Jira field configuration. What Notion is actually tracking may differ from what we designed, and the design should follow the data, not the other way around.
+
+### Step A — Export the Notion register
+
+1. Open the Notion risk register database
+2. Click the **...** menu in the top right of the database view
+3. Select **Export → CSV**
+4. Choose **Everything** (not current view) — you want all records including closed and archived risks
+5. Download and open in a spreadsheet tool
+
+> Ask your team for the full database export, not a filtered view. A filtered view only gives you open risks — you lose historical context and closed records that may inform scoring decisions.
+
+### Step B — Audit the Notion fields before touching Jira
+
+Open the CSV and answer these questions before finalising your Jira custom fields:
+
+| Question | Why it matters |
+|---|---|
+| What columns exist? | Maps to your Jira field list — may add or remove fields |
+| Which columns are consistently filled in? | Empty Notion columns won't get filled in Jira — mark those as optional |
+| Are risks scored (likelihood/impact) or just described? | Determines whether you can import scores or need to re-score |
+| Is there an owner field? | Confirms whether you have accountability data or need to assign from scratch |
+| Is there a status field with values? | Map these to your Jira workflow states before import |
+| Are there columns with no Jira equivalent? | Add them if they're consistently used; drop them if they're mostly empty |
+
+**Do not create your Jira custom fields (Step 3) until this audit is complete.** The Notion export is ground truth.
+
+### Step C — Map Notion columns to Jira fields
+
+Create a mapping table. Example:
+
+| Notion column | Jira field | Action needed |
+|---|---|---|
+| Risk Name | Summary | Direct map |
+| Category | Risk Category | Standardise values to match dropdown |
+| Owner | Risk Owner | Must be a Jira user — confirm accounts exist |
+| Likelihood | Likelihood | Check scale — Notion may use High/Med/Low rather than 1–5 |
+| Impact | Impact | Same as above |
+| Risk Score | Inherent Score | Recalculate if Notion scoring differs from L×I |
+| Status | Workflow status | Map to: Submitted, In Review, Mitigating, Accepting / Monitoring, Done |
+| Treatment Notes | Description | Move to linked Risk Treatment ticket after import |
+| Date Identified | Created (set on import) | Use Jira's created date or map to a custom field |
+| Review Date | Review Date | Direct map |
+
+For any Notion column with no clear Jira equivalent, decide: is it consistently used? If yes, add a custom field. If mostly empty, drop it.
+
+### Step D — Clean the CSV before importing
+
+Notion exports are messy. Clean the data in your spreadsheet before importing:
+
+1. **Standardise Risk Rating values** to exactly match your Jira dropdown options:
+   - Map any "High Risk", "H", "HIGH" → `High`
+   - Map any "Medium", "Med", "M" → `Moderate`
+   - Map any "Critical Risk" → `Critical`
+
+2. **Standardise Status values** to your workflow states:
+   - Map "Open", "Active", "New" → `Submitted` or `In Review`
+   - Map "In Progress", "Remediating" → `Mitigating`
+   - Map "Accepted", "Risk Accepted" → `Accepting / Monitoring`
+   - Map "Closed", "Resolved", "Complete" → `Done`
+
+3. **Assign Risk IDs** to any record missing one:
+   - Format: `HULL-{YYYY}-{####}` (e.g. `HULL-2026-0048`)
+   - Start numbering after your highest existing ID
+
+4. **Remove** duplicate records and risks you do not want carried forward
+
+5. **Flag records for re-scoring** if Notion used a different scale (e.g. High/Medium/Low) rather than 1–5 numerics — these will need manual scoring in Jira after import
+
+6. **Split treatment notes** into a separate sheet — they become Risk Treatment tickets after import, not field values on the Risk issue
+
+### Step E — Test import with 5 records
+
+**Navigation:** Jira Settings → System → External System Import → CSV
+
+1. Go to **Jira Settings → System → Import and Export → Import issues from CSV**
+2. Upload your cleaned CSV
+3. On the field mapping screen, map each CSV column to the corresponding Jira field
+4. Set for all rows:
+   - Project = RISK
+   - Issue type = Risk
+5. **Run a test import with 5 records only** — do not import the full register yet
+6. Open each imported issue and verify:
+   - Fields populated correctly
+   - Risk Rating matches the record
+   - Owner is assigned to the right Jira user
+   - Status landed in the correct workflow state
+
+Fix any mapping errors before running the full import.
+
+### Step F — Full import
+
+Once the 5-record test passes:
+1. Re-run the import with the full cleaned CSV
+2. Verify record count matches: Notion export rows = Jira issues created
+3. Check for any import errors in the Jira import log
+
+### Step G — Create Risk Treatment tickets
+
+The Notion register likely stores treatment notes as a text field on the risk record. After import, convert active treatment notes into linked Risk Treatment tickets:
+
+1. Filter for all risks in Mitigating status: `project = RISK AND status = Mitigating`
+2. For each risk, read the treatment notes from the Description field
+3. Create one Risk Treatment ticket per discrete treatment action
+4. Link each treatment to its parent risk: Risk **"is mitigated by"** Risk Treatment
+5. Assign Treatment Owner and Treatment Due Date to each ticket
+6. Clear the treatment notes from the Risk Description once the tickets are created
+
+### Step H — Build filters and dashboard
+
+Only after the import is complete and treatment tickets are created, proceed to Steps 7 and 8 of the main build guide (JQL filters and dashboard). Building the dashboard with live data confirms the filters return what you expect.
+
+### Full migration sequence
+
+```
+Get Notion CSV export
+  → Audit fields against JIRA-RISK-PROJECT-SETUP.md
+  → Update Jira field list if needed
+  → Build Jira project (Steps 1–6 of this guide)
+  → Clean Notion CSV
+  → Test import (5 records)
+  → Full import
+  → Create Risk Treatment tickets from treatment notes
+  → Build filters and dashboard (Steps 7–8)
+  → Add automation rules (Step 9)
+  → Run refinement at day 30 (Step 11)
+```
+
+### What to expect from the Notion data
+
+Most Notion risk registers have these characteristics — plan for them:
+
+| Common Notion pattern | What to do |
+|---|---|
+| Risks described in prose, not scored numerically | Score each risk manually after import using the Risk Management Framework |
+| Owners named as text rather than linked users | Confirm each name has a Jira account before import; fix manually if not |
+| Status values inconsistent across records | Standardise in Step D — do not import inconsistent statuses |
+| Treatment mixed into risk description | Step G — split into linked treatment tickets |
+| Old closed risks with no useful data | Filter them out of the import; keep them in Notion as archive |
+| Duplicate or near-duplicate risks | Merge before import — duplicates in Jira inflate metrics |
+
+---
+
 ## MVP Build Order
 
 If you need to be up and running today rather than fully configured, build in this order and stop when you have enough:
