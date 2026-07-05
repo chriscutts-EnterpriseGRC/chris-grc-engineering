@@ -36,15 +36,37 @@
 
 ---
 
-## 2. Issue Type
+## 2. Issue Types
 
-Create one custom issue type: **Risk**
+Create three custom issue types to start. Add the fourth at the 30-day refinement point once the core process is embedded.
+
+| Issue type | Icon | Description | Phase |
+|---|---|---|---|
+| Risk | Shield | A documented exposure with a likelihood, impact, owner, and treatment path | Launch |
+| Risk Treatment | Wrench | A specific action taken to mitigate, avoid, or transfer a risk. Linked to a parent Risk issue. | Launch |
+| Risk Acceptance | Checkmark | A formal record of a risk accepted without active treatment. Captures approver, rationale, and expiry. | Launch |
+| Control Gap | Warning | A missing or ineffective control identified through audit, assessment, or testing. May or may not be linked to an active risk. | 30-day refinement |
 
 Do not use the default Story, Bug, or Task types for risks. Risks have a distinct lifecycle, a scoring model, and SLA obligations that differ from engineering work. Mixing them into a shared project creates noise and breaks metrics.
 
-| Issue type | Icon suggestion | Description |
-|---|---|---|
-| Risk | Shield / warning icon | A documented exposure with a likelihood, impact, owner, and treatment path |
+**Risk Treatment issue type — link type:**
+
+Every Risk Treatment must be linked to a parent Risk using the link type:
+
+> Risk **"is mitigated by"** Risk Treatment
+
+Define this link type in Jira Settings → Link types. Keep the direction consistent — the Risk is always the parent. This relationship is what makes treatment velocity reporting work: you can query how many open treatments exist per risk, per owner, and per due date without leaving Jira.
+
+Example:
+
+```
+Risk: Excessive standing admin access may allow unauthorized production changes.
+
+  → is mitigated by: Remove unused admin accounts (Risk Treatment)
+  → is mitigated by: Implement JIT access (Risk Treatment)
+  → is mitigated by: Add privileged access monitoring (Risk Treatment)
+  → is mitigated by: Validate access review process (Risk Treatment)
+```
 
 ---
 
@@ -71,6 +93,16 @@ These fields must be completed before a risk moves from Submitted to In Review.
 | Treatment Plan Due | Date picker | SLA deadline to have a treatment plan approved and in progress. |
 | Signal Source | Select list (single) | How the risk was identified. See values in §4. |
 
+### ISO 27005 Threat Fields (core — add at creation when source is known)
+
+ISO 27005 separates threat sources from threat events in the risk identification methodology. Adding both fields allows reporting on what kind of threats are driving the register — a legitimate leadership question and an input to the annual threat assessment.
+
+| Field name | Jira field type | Description |
+|---|---|---|
+| Threat Source | Select list (single) | The origin of the threat. See values in §4. Aligns to ISO 27005 §8.2 threat identification. |
+| Threat Event | Select list (single) | What the threat source does. See values in §4. Aligns to ISO 27005 §8.2 threat event identification. |
+| Asset Criticality | Select list (single) | Static classification of the affected asset: Critical, High, Medium, Low. Separate from Impact — Asset Criticality is a property of the asset; Impact is the consequence of this specific risk event. |
+
 ### Enrichment Fields (optional — fill in when available)
 
 These fields add context but must not block risk creation.
@@ -80,6 +112,7 @@ These fields add context but must not block risk creation.
 | Mitigation Owner | User picker (single) | The person executing the treatment plan. May differ from Risk Owner. |
 | Linked Controls | Text field | UCF control IDs or ISO 27001 Annex A references governing this risk (e.g. `UCF.06.01, UCF.07.01`). |
 | Acceptance Authority | Select list (single) | Required approver level if treatment is Accept. See values in §4. |
+| Acceptance Expiration Date | Date picker | The date on which the acceptance decision must be reviewed and re-approved. Required for all accepted risks. Accepted risks without an expiry date are functionally forgotten risks. |
 | Review Date | Date picker | Next scheduled owner review. Defaults to monitoring cadence based on Risk Rating. |
 | Why It Matters | Paragraph (text area) | 2–4 sentence plain-English summary. Used in leadership reports. No jargon, no fine amounts. |
 | Linked Risk Record | URL field | Link to the corresponding record in the GRC dashboard risk register. |
@@ -173,6 +206,48 @@ Score across all three dimensions. Record the highest of the three as the final 
 | Moderate | Senior Manager+ |
 | Low | Manager+ |
 
+### Threat Source
+
+Aligns to ISO 27005 §8.2 — the origin of the threat.
+
+| Value |
+|---|
+| External attacker |
+| Insider — malicious |
+| Insider — accidental |
+| Third party / vendor |
+| System failure |
+| Process failure |
+| Natural / environmental |
+
+### Threat Event
+
+Aligns to ISO 27005 §8.2 — what the threat source does to the asset.
+
+| Value |
+|---|
+| Credential compromise |
+| Privilege escalation |
+| Data exposure |
+| Service disruption |
+| Misconfiguration |
+| Supply chain compromise |
+| Unauthorised access |
+| Malware / ransomware |
+| Social engineering |
+| Data destruction |
+
+### Asset Criticality
+
+Static property of the asset — set based on the asset's role in operations and data sensitivity, not the specific risk event.
+
+| Value | Meaning |
+|---|---|
+| Critical | Core production system or data store — outage or breach causes immediate business impact |
+| High | Important system — degradation is significant but workarounds exist |
+| Medium | Supporting system — disruption is noticeable but contained |
+| Low | Non-essential — impact is minimal and recovery is straightforward |
+
 ### Signal Source
 
 | Value |
@@ -191,10 +266,13 @@ Score across all three dimensions. Record the highest of the three as the final 
 
 ```
 Submitted → In Review → Risk Assessment
-                      → Mitigating       → Done
-                      → Avoiding         → Done
-                      → Transferring     → Done
+                      → Mitigating       → Pending Validation → Done
+                      → Avoiding         → Pending Validation → Done
+                      → Transferring     → Pending Validation → Done
                       → Accepting / Monitoring
+
+Closed → Reopened → In Review
+Accepting / Monitoring → Reopened → In Review
 ```
 
 | State | Description | Who acts |
@@ -206,14 +284,20 @@ Submitted → In Review → Risk Assessment
 | Avoiding | Risk being eliminated by ceasing the activity or moving assets. | Risk Owner |
 | Transferring | Risk being transferred to a third party via insurance or contract. | Risk Owner |
 | Accepting / Monitoring | Risk formally accepted. Under monitoring at standard cadence. | Risk Owner |
-| Done | Treatment implemented and verified. Evidence collected. Residual score confirmed within appetite. | Security GRC |
+| Pending Validation | Treatment complete — Security GRC validating that residual risk is within appetite before closing. | Security GRC |
+| Done | Validated by Security GRC. Evidence collected. Residual score confirmed within appetite. | Security GRC |
+| Reopened | Risk has re-emerged or conditions have changed. Returns to In Review for reassessment. | Security GRC or Risk Owner |
+
+**Why Pending Validation matters:** Without this state, Risk Owners close their own risks. That removes Security GRC's sign-off from the closure decision — which is the governance control that prevents risks being marked Done without the residual score actually being within appetite. Pending Validation enforces the two-person rule on closure.
 
 **Transition rules:**
 
 - Submitted → In Review: requires Likelihood, Impact, Affected Asset, Risk Owner
 - In Review → Mitigating / Avoiding / Transferring / Accepting: requires Treatment selection and Response Decision Due date set
-- Any state → Accepting / Monitoring: requires Acceptance Authority recorded in a comment with approver name and date
-- Any state → Done: requires Residual Score updated and a comment confirming evidence collected
+- Any treatment state → Pending Validation: Risk Owner confirms treatment is complete; triggers Security GRC review
+- Pending Validation → Done: Security GRC confirms residual score, updates Risk Appetite Status, and records evidence in a comment
+- Any state → Accepting / Monitoring: requires Acceptance Authority, Acceptance Expiration Date, and a comment recording approver name and date
+- Done or Accepting / Monitoring → Reopened: requires a comment explaining what changed; auto-notifies Security GRC
 
 ---
 
@@ -247,6 +331,22 @@ Section: Description (optional at creation)
 
 All fields visible. Residual Score, Treatment Plan Due, Mitigation Owner, Linked Controls, Acceptance Authority, and Review Date are added here — they are not required at creation but must be completed as the risk progresses through the workflow.
 
+### Risk Treatment Screen (separate issue type)
+
+Risk Treatment issues have their own lighter screen — they do not need the full risk scoring fields.
+
+```
+Section: Treatment Identity
+  - Summary (the specific action being taken)
+  - Linked Risk (parent Risk issue)
+  - Treatment Owner
+  - Treatment Due Date
+
+Section: Progress
+  - Status (Open / In Progress / Complete / Blocked)
+  - Completion Notes (required on transition to Complete)
+```
+
 ### Transition Screens
 
 Add a lightweight transition screen on the following state changes:
@@ -254,8 +354,10 @@ Add a lightweight transition screen on the following state changes:
 | Transition | Required fields on screen |
 |---|---|
 | → Mitigating | Treatment Plan Due, Mitigation Owner |
-| → Accepting / Monitoring | Acceptance Authority, comment confirming approver name and date |
-| → Done | Residual Score (updated), Review Date (for ongoing monitoring), comment confirming evidence |
+| → Accepting / Monitoring | Acceptance Authority, Acceptance Expiration Date, comment confirming approver name and date |
+| → Pending Validation | Comment from Risk Owner confirming treatment is complete and what was done |
+| → Done | Residual Score (updated), Risk Appetite Status (recalculated), comment confirming evidence location |
+| → Reopened | Comment explaining what changed and why the risk is being reassessed |
 
 ---
 
@@ -331,6 +433,33 @@ ORDER BY "Risk Rating" DESC
 project = RISK
 AND created >= startOfQuarter()
 ORDER BY created DESC
+
+-- 9. Accepted risks with expired acceptance date
+project = RISK
+AND issuetype = "Risk Acceptance"
+AND status = "Accepting / Monitoring"
+AND "Acceptance Expiration Date" < now()
+ORDER BY "Risk Rating" DESC
+
+-- 10. Open risks with no treatment owner assigned
+project = RISK
+AND issuetype = Risk
+AND "Mitigation Owner" is EMPTY
+AND status not in (Done, "Accepting / Monitoring")
+ORDER BY "Risk Rating" DESC
+
+-- 11. Treatment velocity — open Risk Treatments by owner
+project = RISK
+AND issuetype = "Risk Treatment"
+AND statusCategory != Done
+ORDER BY "Treatment Due Date" ASC
+
+-- 12. Risks by threat source (threat intelligence view)
+project = RISK
+AND issuetype = Risk
+AND "Threat Source" = "External attacker"
+AND statusCategory != Done
+ORDER BY "Risk Rating" DESC
 ```
 
 ---
@@ -365,6 +494,8 @@ Configure these in Jira Automation to reduce manual overhead and enforce the Ris
 | Status transitions to Done | Residual Score is empty | Block transition: "Residual Score must be updated before closing this risk." |
 | Residual Score updated | — | Recalculate Risk Appetite Status based on score bands and update field |
 | Review Date reached | Status = Accepting / Monitoring | Add comment: "This risk is due for owner review. Update status, residual score, and confirm acceptance is still appropriate." Notify Risk Owner. |
+| Acceptance Expiration Date reached | Status = Accepting / Monitoring | Add comment: "Acceptance has expired. Risk Owner must re-approve acceptance or select an active treatment path within the standard SLA for this Risk Rating."; transition to In Review; notify Risk Owner + Security GRC lead |
+| Response Decision Due date reached | Status in (Submitted, In Review, Risk Assessment) | Transition to Accepting / Monitoring; add comment: "Response Decision SLA breached. Risk is deemed accepted by default per the Risk Management Framework. Notifying Risk Owner's manager."; notify Risk Owner + manager; set Acceptance Expiration Date = today + 90 days |
 
 ---
 
