@@ -117,6 +117,17 @@ These fields add context but must not block risk creation.
 | Why It Matters | Paragraph (text area) | 2–4 sentence plain-English summary. Used in leadership reports. No jargon, no fine amounts. |
 | Linked Risk Record | URL field | Link to the corresponding record in the GRC dashboard risk register. |
 
+### Risk Treatment Fields
+
+Add these fields to the **Risk Treatment** issue type only.
+
+| Field name | Jira field type | Description |
+|---|---|---|
+| Extension Count | Number field | Increments by 1 each time the Treatment Plan Due date is pushed beyond the original target. Drives the automatic Risk Acceptance escalation at count = 2. Default: 0. |
+| Extension Rationale | Paragraph (text area) | Required when Extension Count is updated. Documents why the target date is being moved — dependency, resource constraint, architecture decision. |
+| Partial Completion | Select list (single) | Current remediation state: `Not started` · `In progress (<50%)` · `Substantially complete (>50%)` · `Complete — pending verification`. |
+| Original Due Date | Date picker | Set at ticket creation, never edited. Preserved as the audit reference point regardless of how many extensions are granted. |
+
 ---
 
 ## 4. Field Configuration — Values and Rules
@@ -496,6 +507,8 @@ Configure these in Jira Automation to reduce manual overhead and enforce the Ris
 | Review Date reached | Status = Accepting / Monitoring | Add comment: "This risk is due for owner review. Update status, residual score, and confirm acceptance is still appropriate." Notify Risk Owner. |
 | Acceptance Expiration Date reached | Status = Accepting / Monitoring | Add comment: "Acceptance has expired. Risk Owner must re-approve acceptance or select an active treatment path within the standard SLA for this Risk Rating."; transition to In Review; notify Risk Owner + Security GRC lead |
 | Response Decision Due date reached | Status in (Submitted, In Review, Risk Assessment) | Transition to Accepting / Monitoring; add comment: "Response Decision SLA breached. Risk is deemed accepted by default per the Risk Management Framework. Notifying Risk Owner's manager."; notify Risk Owner + manager; set Acceptance Expiration Date = today + 90 days |
+| **Extension Count updated** | **Extension Count = 2 AND issue type = Risk Treatment** | **Create linked Risk Acceptance issue on parent Risk with pre-filled fields: Acceptance Authority = inherited from parent Risk Rating; Acceptance Expiration Date = today + 90 days; comment = "Treatment has been extended twice without completion. Formal risk acceptance is required. Risk Acceptance ticket [KEY] has been created and assigned to Risk Owner for approval."** Notify Risk Owner + Security GRC lead. |
+| Treatment Plan Due date updated | Extension Count > 0 | Require Extension Rationale field to be populated before saving. Block save if empty: "Extension Rationale is required when extending a treatment due date." |
 
 ---
 
@@ -511,6 +524,7 @@ These are common additions that create noise without improving reporting or gove
 | Risk description as required at creation | It blocks fast risk logging. Log first, describe when you have the context. |
 | Epics linking risks to projects | Keep risk tracking separate from engineering delivery. The relationship belongs in a comment or linked issue, not a hierarchy. |
 | Separate issue types for threats and vulnerabilities | Threats and vulnerabilities are inputs to a risk record, not risk records themselves. Track them in your vulnerability or threat intelligence tool and link to the RISK issue. |
+| Manual Extension Count tracking | Extension Count must be enforced by the automation rule, not updated by hand. If risk owners can set it themselves it loses meaning. The automation increments it only when the due date is changed on a Risk Treatment ticket. |
 
 ---
 
