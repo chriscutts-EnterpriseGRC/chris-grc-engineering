@@ -570,6 +570,66 @@ For each rule:
 
 ---
 
+### Rule 8 — Block transition to Mitigating if Treatment Plan Due is empty
+
+**Trigger:** Transition — In Review → Mitigating
+**Condition:** Treatment Plan Due is empty
+**Action:** Block transition with message: "Treatment Plan Due date is required before moving to Mitigating. Set a target date and try again."
+
+> This enforces the rule that every active treatment must have a committed deadline. Without it, risks sit in Mitigating indefinitely with no accountability.
+
+---
+
+### Rule 9 — Owner review reminder on Review Date
+
+**Trigger:** Scheduled — daily at 09:00
+**Condition:** JQL: `project = RISK AND "Review Date" = now() AND status in ("Accepting / Monitoring", Monitoring)`
+**Action:**
+1. Add comment: "This risk is due for scheduled owner review. Please update the Residual Score, confirm the treatment status, and set the next Review Date."
+2. Send email to Risk Owner
+
+---
+
+### Rule 10 — Extension Count escalation: auto-create Risk Acceptance at count 2
+
+This rule fires when a Risk Treatment ticket has had its due date pushed twice without completion, forcing a formal acceptance rather than allowing silent extensions to continue.
+
+**Trigger:** Field value changed — Extension Count
+**Condition:** Issue type = Risk Treatment AND Extension Count >= 2
+**Action (multi-step):**
+
+1. **Add comment to the Risk Treatment ticket:**
+   > "This treatment has been extended twice without completion. A formal Risk Acceptance is required. A Risk Acceptance ticket has been created on the parent Risk and assigned to the Risk Owner for approval."
+
+2. **Create linked issue** (use the "Create issue" action):
+   - Issue type: Risk Acceptance
+   - Project: RISK
+   - Summary: `[Auto] Acceptance required — {{issue.linkedIssues("is blocked by").first.summary}}`
+   - Link type: relates to → parent Risk issue
+   - Acceptance Authority: copy value from parent Risk issue's Risk Rating field (map Critical → C-Suite, Severe → VP+, High → Director+)
+   - Acceptance Expiration Date: `{{now.plusDays(90)}}`
+   - Why It Matters: `Auto-generated: Treatment for this risk has been extended {{issue.customfield_Extension_Count}} times. Formal acceptance required per Risk Management Framework §7.`
+
+3. **Send email** to Risk Owner and Security GRC lead:
+   > "A Risk Acceptance ticket has been automatically created for [Risk key] because the linked treatment has been extended twice without completion. Please review and approve or escalate within 14 days."
+
+> **Important:** Set Extension Count as a read-only field for risk owners — only automation should increment it. If risk owners can edit it manually, the governance signal is lost. Enforce this via Jira field permission: set Extension Count to editable by Jira Automation only, view-only for all other roles.
+
+---
+
+### Rule 11 — Require Extension Rationale when due date is extended
+
+**Trigger:** Field value changed — Treatment Plan Due
+**Condition:** Issue type = Risk Treatment AND Extension Count > 0 (i.e. the date has already been set once)
+**Action:**
+1. Check if Extension Rationale field is empty
+2. If empty: add error comment: "Extension Rationale is required when extending a treatment due date. Please document the reason for the extension and save again."
+3. Increment Extension Count by 1: edit issue → Extension Count = `{{issue.customfield_Extension_Count + 1}}`
+
+> Jira Automation cannot natively block a field save the way it can block a status transition. The practical enforcement is: (a) make Extension Rationale a required field on the Risk Treatment Edit Screen (enforced at the screen level), and (b) use this rule to auto-increment the count and flag the ticket if the rationale is missing post-save.
+
+---
+
 ## Step 11 — Pilot and Refine
 
 ### Week 1–2 — Enter 5–10 real risks
