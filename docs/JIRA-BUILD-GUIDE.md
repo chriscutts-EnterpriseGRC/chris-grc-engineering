@@ -806,6 +806,290 @@ Most Notion risk registers have these characteristics — plan for them:
 
 ---
 
+## Step 12 — Add Metrics Automation Rules
+
+These rules generate the data behind leadership metrics. Add them after the core project is stable and at least 10 real risks are in the register. Each rule is labelled with the metric it feeds.
+
+**Before configuring these rules, add two fields to the Risk issue type:**
+
+| Field name | Jira field type | Purpose |
+|---|---|---|
+| Scored Date | Date picker | Stamped automatically when Residual Score is first populated. Used to calculate time-to-score. |
+| Score History | Paragraph (text area) | Appended automatically each time Residual Score changes. Creates an audit trail and trend data. |
+
+---
+
+### Rule 12 — Stamp Scored Date on first residual score entry
+
+**Metric fed:** Time-to-score (risk identification speed)
+
+**Trigger:** Field value changed — Residual Score
+**Condition:** Issue type = Risk AND Scored Date is empty
+**Action:** Edit issue → set Scored Date = `{{now}}`
+
+> This fires only once — the Scored Date is never overwritten. The gap between Created and Scored Date is your time-to-score metric. JQL to report it: `project = RISK ORDER BY created DESC` — export and calculate the average in a spreadsheet until a Jira chart supports it natively.
+
+---
+
+### Rule 13 — Append score change to Score History
+
+**Metric fed:** Portfolio residual score trend (90-day)
+
+**Trigger:** Field value changed — Residual Score
+**Condition:** Issue type = Risk
+**Action:** Edit issue → append to Score History field:
+```
+{{now.format("yyyy-MM-dd")}} | Score changed to {{issue.Residual Score}} | Changed by {{issue.changelog.author.displayName}}
+```
+
+> Over time this field builds a dated log of every score movement. Export and chart it monthly to show leadership whether the portfolio is improving. A rising average residual score is the early warning signal that treatment velocity is falling behind risk intake.
+
+---
+
+### Rule 14 — Weekly SLA compliance digest
+
+**Metric fed:** SLA Compliance Rate (% treatments on time)
+
+**Trigger:** Scheduled — every Monday at 08:00
+**Condition:** None (runs on a fixed JQL)
+**Action:** Send email to Security GRC lead and CISO with:
+
+**Subject:** `Weekly Risk SLA Digest — {{now.format("yyyy-MM-dd")}}`
+
+**Body:**
+```
+Overdue Risk Treatments (Treatment Plan Due < today, status = Mitigating):
+JQL: project = RISK AND issuetype = "Risk Treatment" AND "Treatment Plan Due" < now() AND status = Mitigating
+
+Count by Risk Rating:
+  Critical overdue: [manual lookup or scripted]
+  Severe overdue:
+  High overdue:
+
+Risks approaching SLA breach (due in next 7 days):
+JQL: project = RISK AND issuetype = "Risk Treatment" AND "Treatment Plan Due" <= now().plusDays(7) AND status = Mitigating
+```
+
+> Jira Automation does not natively count JQL results in email body text. Practical workaround: configure this rule to send the JQL strings and instruct the recipient to run them. For automated counts, use the Jira Dashboard gadget (Step 13 below) as the live view and treat this email as a weekly nudge.
+
+---
+
+### Rule 15 — Risk concentration alert
+
+**Metric fed:** Risk owner load visibility (prevents blind spots)
+
+**Trigger:** Issue created OR Risk Owner field changed
+**Condition:** JQL check — `project = RISK AND "Risk Owner" = {{issue.Risk Owner}} AND status not in (Done) AND "Risk Rating" in (Critical, Severe)` returns count > 3
+**Action:**
+1. Add comment to the newly created or updated issue: "Risk Owner {{issue.Risk Owner}} now has more than 3 open Critical or Severe risks. Security GRC lead notified."
+2. Send email to Security GRC lead: "Risk concentration alert: {{issue.Risk Owner}} has 4+ open Critical/Severe risks. Review for resource reallocation or treatment prioritisation."
+
+> This is the single most underused governance check in most risk registers. One person quietly accumulating 6 critical risks is invisible until something breaks. This rule makes it visible automatically.
+
+---
+
+### Rule 16 — New risk spike detection
+
+**Metric fed:** Risk intake velocity (signals emerging threat or post-incident surge)
+
+**Trigger:** Issue created
+**Condition:** Issue type = Risk. Jira does not natively count issues created in a rolling 24-hour window in automation conditions — implement as: Scheduled daily at 09:00 with JQL: `project = RISK AND issuetype = Risk AND created >= -1d`
+**Action:** If count > 3, send email to CISO: "Risk spike detected: {{count}} new risks were logged in the last 24 hours. This may indicate an emerging threat, active incident, or audit finding. Review the register."
+
+> Adjust the threshold based on your normal intake volume. In the first 30 days while the register is being populated, suppress this rule or set a higher threshold (>10) to avoid false positives.
+
+---
+
+### Rule 17 — Monthly acceptance expiry forecast
+
+**Metric fed:** Acceptance pipeline (leadership prep for upcoming reviews)
+
+**Trigger:** Scheduled — first working day of each month at 08:00
+**Condition:** JQL: `project = RISK AND issuetype = "Risk Acceptance" AND "Acceptance Expiration Date" <= now().plusDays(30) AND status = "Accepting / Monitoring"`
+**Action:** Send email to Risk Owners (of matching issues) and Security GRC lead:
+
+**Subject:** `Risk Acceptance Expiry Forecast — {{now.format("MMMM yyyy")}}`
+
+**Body:**
+```
+The following risk acceptances expire within the next 30 days.
+Risk Owner action required: re-approve acceptance or initiate treatment.
+
+[Jira link to filter: project = RISK AND issuetype = "Risk Acceptance" AND "Acceptance Expiration Date" <= now().plusDays(30)]
+```
+
+---
+
+### Rule 18 — Weekly register health score
+
+**Metric fed:** Data quality score (leadership metrics are only trustworthy if the register is complete)
+
+**Trigger:** Scheduled — every Friday at 17:00
+**Condition:** None
+**Action:** Send email to Security GRC lead with the following JQL links to run:
+
+```
+Risks missing Residual Score:
+project = RISK AND issuetype = Risk AND "Residual Score" is EMPTY AND status != Done
+
+Risks missing Risk Owner:
+project = RISK AND issuetype = Risk AND "Risk Owner" is EMPTY AND status != Done
+
+Risks with overdue Review Date:
+project = RISK AND issuetype = Risk AND "Review Date" < now() AND status != Done
+```
+
+**Health score formula (calculate manually from results):**
+```
+Complete records = Total open risks − (missing score + missing owner + overdue review)
+Health score % = Complete records ÷ Total open risks × 100
+```
+
+Target: ≥ 85%. Below 80% — metrics reported to leadership should include a data quality caveat.
+
+> At day 30, once the register is stable, build a Jira dashboard gadget (Step 13) that shows these counts live so the health score is visible without a weekly email.
+
+---
+
+## Step 13 — Team and Executive Dashboard Views
+
+Build these dashboards after the core project is live and at least 10 risks are entered. Each team gets a three-metric view — the minimum number of numbers a leader needs to make a resource or prioritisation decision.
+
+**Navigation:** Dashboards → Create dashboard (top nav)
+
+For each dashboard:
+1. Click **Dashboards → Create dashboard**
+2. Name it: `Risk — [Team Name] View`
+3. Set visibility: **Private** (share with named individuals once validated)
+4. Add gadgets using the instructions below
+5. Share with relevant team lead when ready
+
+---
+
+### Executive / CISO Dashboard
+
+Three numbers. One trend. One action required.
+
+**Gadget 1 — Portfolio Residual Score (Filter Results)**
+- Gadget type: Filter Results
+- JQL: `project = RISK AND issuetype = Risk AND status != Done ORDER BY "Residual Score" DESC`
+- Columns: Summary · Risk Rating · Residual Score · Risk Appetite Status · Risk Owner
+- Max results: 10
+- Label: "Top open risks by residual score"
+
+**Gadget 2 — SLA Breach Count (Issue Statistics)**
+- Gadget type: Issue Statistics
+- JQL: `project = RISK AND issuetype = "Risk Treatment" AND "Treatment Plan Due" < now() AND status = Mitigating`
+- Statistic type: Count by Risk Rating
+- Label: "Overdue treatments by rating"
+
+**Gadget 3 — Risk Appetite Status Breakdown (Pie Chart)**
+- Gadget type: Two Dimensional Filter Statistics
+- JQL: `project = RISK AND issuetype = Risk AND status != Done`
+- X-axis: Risk Appetite Status
+- Y-axis: Count
+- Label: "Portfolio by appetite status"
+
+**Gadget 4 — Risks Exceeding Appetite (Filter Results)**
+- Gadget type: Filter Results
+- JQL: `project = RISK AND issuetype = Risk AND "Risk Appetite Status" in ("Exceeds Appetite", "Significantly Exceeds Appetite") AND status != Done ORDER BY "Residual Score" DESC`
+- Columns: Summary · Risk Owner · Residual Score · Treatment Plan Due
+- Label: "Action required — risks outside appetite"
+
+---
+
+### Security Engineering Dashboard
+
+**Metric 1 — Open Critical/High treatments assigned to security team**
+- Gadget type: Filter Results
+- JQL: `project = RISK AND issuetype = "Risk Treatment" AND "Business Unit" = Security AND status = Mitigating ORDER BY "Treatment Plan Due" ASC`
+- Columns: Summary · Residual Score · Treatment Plan Due · Extension Count
+
+**Metric 2 — Detection gaps (Control Gap issues)**
+- Gadget type: Issue Statistics
+- JQL: `project = RISK AND issuetype = "Control Gap" AND status != Done`
+- Statistic type: Count
+
+**Metric 3 — SLA compliance for security-owned treatments**
+- Gadget type: Two Dimensional Filter Statistics
+- JQL: `project = RISK AND issuetype = "Risk Treatment" AND "Business Unit" = Security`
+- X-axis: Status
+- Y-axis: Count
+
+---
+
+### Engineering / Product Dashboard
+
+**Metric 1 — Technology risks linked to product surface**
+- Gadget type: Filter Results
+- JQL: `project = RISK AND issuetype = Risk AND "Risk Category" = Technology AND status != Done ORDER BY "Residual Score" DESC`
+- Columns: Summary · Inherent Score · Residual Score · Risk Appetite Status · Treatment Plan Due
+
+**Metric 2 — Treatments overdue for engineering owners**
+- Gadget type: Filter Results
+- JQL: `project = RISK AND issuetype = "Risk Treatment" AND "Business Unit" = Engineering AND "Treatment Plan Due" < now() AND status = Mitigating`
+- Columns: Summary · Extension Count · Treatment Plan Due · Risk Owner
+
+**Metric 3 — Supply chain and third-party risks**
+- Gadget type: Issue Statistics
+- JQL: `project = RISK AND issuetype = Risk AND "Risk Category" in ("Third Party", Technology) AND "Threat Source" = "External attacker" AND status != Done`
+- Statistic type: Count by Risk Rating
+
+---
+
+### Legal / Compliance Dashboard
+
+**Metric 1 — Compliance risks by regulation**
+- Gadget type: Two Dimensional Filter Statistics
+- JQL: `project = RISK AND issuetype = Risk AND "Risk Category" = Compliance AND status != Done`
+- X-axis: Risk Rating
+- Y-axis: Count
+
+**Metric 2 — Acceptances pending legal review**
+- Gadget type: Filter Results
+- JQL: `project = RISK AND issuetype = "Risk Acceptance" AND "Acceptance Authority" in ("C-Suite / SVP+", "VP+") AND status = "In Review"`
+- Columns: Summary · Acceptance Authority · Acceptance Expiration Date · Risk Owner
+
+**Metric 3 — Acceptances expiring in 30 days**
+- Gadget type: Filter Results
+- JQL: `project = RISK AND issuetype = "Risk Acceptance" AND "Acceptance Expiration Date" <= now().plusDays(30) AND status = "Accepting / Monitoring"`
+- Columns: Summary · Acceptance Expiration Date · Risk Owner · Why It Matters
+
+---
+
+### HR Dashboard
+
+**Metric 1 — Insider threat and operational risks**
+- Gadget type: Filter Results
+- JQL: `project = RISK AND issuetype = Risk AND "Threat Source" in ("Insider — malicious", "Insider — accidental") AND status != Done`
+- Columns: Summary · Risk Rating · Residual Score · Risk Owner
+
+**Metric 2 — HR-owned treatments**
+- Gadget type: Issue Statistics
+- JQL: `project = RISK AND issuetype = "Risk Treatment" AND "Business Unit" = HR AND status != Done`
+- Statistic type: Count by status
+
+**Metric 3 — Risks linked to people processes (joiner/mover/leaver)**
+- Gadget type: Filter Results
+- JQL: `project = RISK AND issuetype = Risk AND "Risk Category" = Operational AND text ~ "offboarding OR onboarding OR access revocation" AND status != Done`
+- Columns: Summary · Residual Score · Risk Owner · Review Date
+
+---
+
+### Dashboard sharing sequence
+
+Build dashboards in this order to avoid sharing half-built views:
+
+1. Build all dashboards privately first
+2. Validate each with a single test record
+3. Share Executive dashboard with CISO for feedback
+4. Incorporate feedback, then share team dashboards with respective leads
+5. Set a 30-day review: "Are these the right three metrics for your decisions?"
+
+The three-metric rule is intentional. If a team lead asks for a fourth metric, ask what decision it enables. If they can name the decision, add it. If not, it is a reporting metric, not a decision metric — keep it off the dashboard.
+
+---
+
 ## MVP Build Order
 
 If you need to be up and running today rather than fully configured, build in this order and stop when you have enough:
