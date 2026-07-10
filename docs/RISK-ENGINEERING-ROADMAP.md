@@ -56,7 +56,7 @@ The register schema built in Phase 1 needs to carry this signal natively. That m
 
 Why third, not first: Chad was explicit that AI/MCP governance falls into place once the core risk program is properly stood up. This phase is where AI governance gets a technical backbone — inventorying which MCP servers are in use, classifying each by blast radius (read-only vs. write/execute capability, data scope, external connectivity), and feeding that classification into the register automatically.
 
-This is not a framework import. Prior work on AI governance from earlier roles gives me a starting vocabulary — categories like tool scope, data access, and bypass vectors — but those need to be validated against Docker's actual MCP server inventory before any of it gets applied. The inventory comes first. The framework emerges from what's actually there, not the other way around.
+The inventory comes first. Whatever framework emerges from Phase 3 should be shaped by what's actually running in Docker's environment, not imported from somewhere else.
 
 **The AI Gov program manager question is the most important unknown in this phase.** If she's already heading somewhere that overlaps with this, Phase 3 changes shape entirely — the goal is to extend her work, not duplicate it. That conversation happens before any Phase 3 work starts. If there's genuine overlap, the right output may be a technical implementation of her existing framework rather than something new. If the overlap is minimal, the two workstreams are additive. Either outcome is fine; the conversation determines which.
 
