@@ -12,54 +12,51 @@
 // The controls[] array drives the Compliance hotspot view.
 
 export const riskSeed = [
-  // ── RISK-2026-0042 ─────────────────────────────────────────────────────────
+  // ── HULL-2026-0042 ─────────────────────────────────────────────────────────
   {
-    id: 'RISK-2026-0042',
-    title: 'Docker Engine Authorization Bypass (CVE-2026-34040)',
-    signalSource: 'vulnerability',
-    category: 'Vuln Mgmt',
-    asset: 'Docker Daemon / Container Hosts',
-    owner: 'T. Williams',
+    id: 'HULL-2026-0042',
+    title: 'Ungoverned Third-Party Access (No Formal Vendor Risk Program)',
+    signalSource: 'supply_chain',
+    category: 'Third Party',
+    asset: 'Production Systems, Customer Data, Internal Infrastructure',
+    owner: 'Security GRC',
     likelihood: 4,
-    impact: 5,
-    // controlIds fed to CTRL_EFF scoring in GRCDashboard.jsx
-    controlIds: ['UCF.03.02', 'UCF.05.01'],
+    impact: 4,
+    controlIds: ['UCF.01.02', 'UCF.06.01', 'UCF.07.01'],
     treatment: 'Mitigate',
     treatmentStrategy: 'mitigate',
-    treatmentPlan: 'Upgrade Docker Engine to ≥v27.3; restrict daemon socket access; enable User Namespace Remapping; deploy socket proxy with mTLS for CI/CD',
-    status: 'In Review',
-    reviewDate: '2026-06-24',
-    slaDays: 14,
+    treatmentPlan: 'Stand up vendor inventory and tiered assessment process. Tier 1 (production/customer data access) assessed before contract. Tier 2 lightweight assessment, annual review. Tier 3 certification review only. Integrate into procurement workflow.',
+    status: 'Open',
+    reviewDate: '2026-07-15',
+    slaDays: 30,
     ai: false,
 
-    // ISO 27005 identification
-    threatAgent: 'External attacker with Docker API reachability; malicious insider; compromised CI/CD identity',
-    threatVector: 'HTTP request >1MB padded to exceed AuthZ plugin inspection threshold — daemon processes request before plugin can evaluate it',
-    vulnerability: 'Docker daemon socket exposed within prod subnet; AuthZ plugin enforcement inconsistently applied; container-to-host privilege escalation path open',
-    assetAtRisk: 'Docker daemon host OS, all container workloads, CI/CD pipeline secrets',
-    existingExposure: 'Docker API accessible within prod subnet; no socket proxy; partial network segmentation only',
-    whyItMatters: 'A single exploited container becomes a full host takeover — every container on that host is compromised.',
+    threatAgent: 'Third-party vendor with excessive or unreviewed access to production systems, customer data, or internal infrastructure',
+    threatVector: 'Vendor onboarded without security assessment, data handling terms unreviewed, access not scoped to least privilege, no offboarding process when relationship ends',
+    vulnerability: 'No formal vendor inventory, no tiered assessment process, no contractual data protection requirements enforced at onboarding',
+    assetAtRisk: 'Customer data, internal systems, production infrastructure accessible to third parties',
+    existingExposure: 'No vendor risk program exists today. Unknown number of vendors with unassessed access levels.',
+    whyItMatters: 'You cannot manage vendor risk you cannot see. Docker has no inventory of who has access to what. That is the starting point, and it is fixable with a repeatable lightweight process.',
 
-    // Framework control mappings (drives Compliance hotspot view)
     controls: [
-      { framework: 'NIST SI-2',              requirement: 'Flaw Remediation',                          gap: 'Docker Engine not patched within 14-day SLA' },
-      { framework: 'ISO 27001 A.12.6.1',     requirement: 'Management of technical vulnerabilities',   gap: 'Vulnerability SLA not enforced for container runtime' },
-      { framework: 'SOC 2 CC7.1',            requirement: 'Change and risk assessment',                 gap: 'Patch process does not cover container runtime components' },
-      { framework: 'CIS Docker Benchmark 2.1', requirement: 'Restrict network traffic',                gap: 'Docker API socket accessible from CI/CD without mTLS' },
+      { framework: 'ISO 27001 A.5.19', requirement: 'Information security in supplier relationships', gap: 'No formal supplier policy exists' },
+      { framework: 'ISO 27001 A.5.22', requirement: 'Monitoring and review of supplier services',     gap: 'No ongoing review process or cadence' },
+      { framework: 'SOC 2 CC9.2',      requirement: 'Vendor and business partner risk management',    gap: 'No assessment workflow at onboarding' },
+      { framework: 'GDPR Article 28',  requirement: 'Processor agreements',                           gap: 'DPA coverage not confirmed across active vendors' },
     ],
 
-    // Per-control scoring for the detail view
     controlEffectiveness: [
-      { control: 'UCF.03.02 Patch Management',    effectiveness: 41, note: 'Pipeline does not cover container runtime' },
-      { control: 'UCF.05.01 Network Segmentation', effectiveness: 71, note: 'Partial — Docker socket not network-isolated' },
+      { control: 'UCF.01.02 Privileged Access Management', effectiveness: 38, note: 'Applies to vendor access scoping — not yet enforced for third parties' },
+      { control: 'UCF.06.01 Supply Chain Security',        effectiveness: 63, note: 'Covers package/image supply chain but not vendor program' },
+      { control: 'UCF.07.01 Policy Review Process',        effectiveness: 74, note: 'Policy framework exists; vendor management policy overdue' },
     ],
 
     isException: false,
   },
 
-  // ── RISK-2026-0043 ─────────────────────────────────────────────────────────
+  // ── HULL-2026-0043 ─────────────────────────────────────────────────────────
   {
-    id: 'RISK-2026-0043',
+    id: 'HULL-2026-0043',
     title: 'npm / PyPI Supply Chain Worm (Shai-Hulud class)',
     signalSource: 'supply_chain',
     category: 'Third Party',
@@ -81,7 +78,7 @@ export const riskSeed = [
     vulnerability: 'No dependency hash pinning; no build provenance attestation; no package registry monitoring or allowlist; SBOM absent',
     assetAtRisk: 'Build artifacts, developer machines, production container images, secrets in CI environment',
     existingExposure: 'Direct PyPI/npm installs in CI without hash verification; no SBOM; no registry allowlist enforced',
-    whyItMatters: '"Latest" is no longer a sufficient answer — supply chain compromise is now the fastest path to code execution in production.',
+    whyItMatters: '"Latest" is no longer a sufficient answer. Supply chain compromise is now the fastest path to code execution in production.',
 
     controls: [
       { framework: 'ISO 27001 A.15.2.1',    requirement: 'Monitoring and review of supplier services',  gap: 'Package registries not treated as suppliers; no monitoring' },
@@ -98,9 +95,9 @@ export const riskSeed = [
     isException: false,
   },
 
-  // ── RISK-2026-0044 ─────────────────────────────────────────────────────────
+  // ── LEAK-2026-0044 ─────────────────────────────────────────────────────────
   {
-    id: 'RISK-2026-0044',
+    id: 'LEAK-2026-0044',
     title: 'Shadow AI: Ungoverned AI Agent Access to Production Systems',
     signalSource: 'ai_governance',
     category: 'AI Governance',
@@ -122,7 +119,7 @@ export const riskSeed = [
     vulnerability: 'No AI inventory; no AI-specific DLP; agent identities ungoverned and over-permissioned; no approval workflow for production AI access grants',
     assetAtRisk: 'Customer PII, proprietary source code, production credentials, internal communications',
     existingExposure: 'Multiple AI tools in use without IT oversight; CI/CD integrations granted broad repo access; no outbound AI API monitoring',
-    whyItMatters: 'This is a governance gap, not a hacking gap — risk materialises from approved tools used without appropriate controls.',
+    whyItMatters: 'This is a governance gap, not a hacking gap. Risk materialises from approved tools used without appropriate controls.',
 
     controls: [
       { framework: 'EU AI Act Art. 9',          requirement: 'Risk management system',              gap: 'No AI risk register or mandatory impact assessments' },
@@ -140,9 +137,9 @@ export const riskSeed = [
     isException: false,
   },
 
-  // ── RISK-2026-0045 ─────────────────────────────────────────────────────────
+  // ── LEAK-2026-0045 ─────────────────────────────────────────────────────────
   {
-    id: 'RISK-2026-0045',
+    id: 'LEAK-2026-0045',
     title: 'Ungoverned LLM Calls: No API Gateway or Outbound Control',
     signalSource: 'ai_governance',
     category: 'AI Security',
@@ -153,7 +150,7 @@ export const riskSeed = [
     controlIds: ['UCF.AI.03', 'UCF.AI.04', 'UCF.01.02'],
     treatment: 'Mitigate',
     treatmentStrategy: 'mitigate',
-    treatmentPlan: 'Deploy LLM gateway (LiteLLM / Portkey); enforce scoped service accounts for all AI calls; implement model allowlist; add prompt and output DLP; directly remediates RISK-2026-0044',
+    treatmentPlan: 'Deploy LLM gateway (LiteLLM / Portkey); enforce scoped service accounts for all AI calls; implement model allowlist; add prompt and output DLP; directly remediates LEAK-2026-0044',
     status: 'Open',
     reviewDate: '2026-07-10',
     slaDays: 30,
@@ -164,7 +161,7 @@ export const riskSeed = [
     vulnerability: 'No LLM gateway; AI calls made under individual human credentials; no approved model allowlist; no cost controls or API usage monitoring',
     assetAtRisk: 'Confidential data in prompts, corporate identity and credentials in API headers, cost exposure from uncontrolled model calls',
     existingExposure: 'Engineers calling OpenAI directly from production code; no API key rotation policy; no centralised usage dashboard',
-    whyItMatters: 'Today there is no central boundary — deploying one gateway immediately enforces every AI control across all integrations.',
+    whyItMatters: 'Today there is no central boundary. Deploying one gateway immediately enforces every AI control across all integrations.',
 
     controls: [
       { framework: 'EU AI Act Art. 13',          requirement: 'Transparency obligations',              gap: 'No logging of AI decisions or outputs; end-users not informed' },
@@ -208,7 +205,7 @@ export const riskSeed = [
     vulnerability: 'No enforced image signing (cosign/Sigstore), no provenance attestation (SLSA), no admission policy rejecting unsigned images at deploy',
     assetAtRisk: 'Production workloads, customer trust, build integrity, any host running a tampered image',
     existingExposure: 'Mixed signing coverage; Docker Content Trust not consistently enforced; pull-time verification not enforced at admission; legacy publisher exception pending (LEAK-2026-0047)',
-    whyItMatters: 'An unsigned image is a promise — signing is a proof. One tampered image in production is every container on the host.',
+    whyItMatters: 'An unsigned image is a promise; signing is a proof. One tampered image in production is every container on the host.',
 
     controls: [
       { framework: 'OWASP A03:2025',    requirement: 'Software & data integrity failures',   gap: 'No enforced signing or attestation at build or pull time' },
@@ -251,7 +248,7 @@ export const riskSeed = [
     vulnerability: 'Legacy publisher cannot produce signatures or attestations; would violate the admission policy introduced by LEAK-2026-0046 treatment without this exception',
     assetAtRisk: 'Workloads consuming this publisher\'s images; scoped and time-boxed by the exception',
     existingExposure: 'Scoped to one publisher\'s image set; bounded by expiry date and compensating controls; residual managed below appetite with governance',
-    whyItMatters: 'A mature programme doesn\'t hide the gaps it accepts — it makes them visible, owned, compensated, and time-boxed. This is what governed risk acceptance looks like.',
+    whyItMatters: 'A mature programme doesn\'t hide the gaps it accepts. It makes them visible, owned, compensated, and time-boxed. This is what governed risk acceptance looks like.',
 
     controls: [
       { framework: 'ISO 27001 A.5.1',   requirement: 'Policies for information security',  gap: 'MET — exception formally documented with owner, expiry, and CISO sign-off' },

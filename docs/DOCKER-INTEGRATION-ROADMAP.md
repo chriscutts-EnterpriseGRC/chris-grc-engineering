@@ -114,7 +114,7 @@ Each image receives a compliance score based on: signature status, SBOM presence
 
 **3. Deployment Enforcement**
 
-Images that fail compliance checks are blocked at the ECS deployment stage. The OPA policy layer (see [AWS_DEPLOYMENT.md](../deployment/AWS_DEPLOYMENT.md)) enforces signing and SBOM requirements before any image reaches production.
+Images that fail compliance checks are blocked at the ECS deployment stage. Enforcement rules (unsigned image, missing SBOM, critical CVE) are evaluated before the ECS task definition is updated. See [AWS_DEPLOYMENT.md](../deployment/AWS_DEPLOYMENT.md) for the deployment pipeline.
 
 ### Example Workflow
 
@@ -226,7 +226,7 @@ Any team requiring an exemption from a hard enforcement rule must:
 
 ## System Architecture
 
-See [AWS_DEPLOYMENT.md](../deployment/AWS_DEPLOYMENT.md) for the full infrastructure layout. The Docker integration adds the following to the existing Lambda adapter fleet:
+The current Lambda fleet has three adapters (Jira, Qualys, Splunk) - see [AWS_DEPLOYMENT.md](../deployment/AWS_DEPLOYMENT.md). The Docker integration adds four more across Phases 2-4:
 
 | Phase | Adapter | Trigger | Target |
 |-------|---------|---------|--------|

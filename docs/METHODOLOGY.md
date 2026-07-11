@@ -190,4 +190,16 @@ This trail is implemented via `AUDIT`-level structured logs as specified in [LOG
 | EU AI Act | 22% | 78% | August 2026 |
 | ISO 42001 | 18% | 82% | — |
 
-Addressing UCF.AI.03 (AI Security Controls) and UCF.AI.05 (AI Incident Response) in the next sprint would move EU AI Act coverage from 22% → approximately 43%. See [AI-GRC-ROADMAP.md](./AI-GRC-ROADMAP.md) for the full gap analysis workflow.
+Addressing UCF.AI.03 (AI Security Controls) and UCF.AI.05 (AI Incident Response) in the next sprint would move EU AI Act coverage from 22% to approximately 43%. See [AI-GRC-ROADMAP.md](./AI-GRC-ROADMAP.md) for the full gap analysis workflow.
+
+---
+
+## Related documents
+
+| Document | Purpose |
+|----------|---------|
+| [RISK-METHODOLOGY.md](RISK-METHODOLOGY.md) | Full risk scoring model, likelihood dimensions, SLAs |
+| [VULNERABILITY-MANAGEMENT-PROGRAM.md](VULNERABILITY-MANAGEMENT-PROGRAM.md) | Vulnerability program: scope, SLAs, lifecycle, container track |
+| [DOCKER-INTEGRATION-ROADMAP.md](DOCKER-INTEGRATION-ROADMAP.md) | Container supply chain risk engine - phases 2-5 |
+| [THREAT-MODEL-DOCKER-SUPPLY-CHAIN.md](THREAT-MODEL-DOCKER-SUPPLY-CHAIN.md) | STRIDE threat model underpinning the Docker roadmap |
+| [METRICS.md](METRICS.md) | KPIs, KRIs, SLA targets, and monitoring cadence |

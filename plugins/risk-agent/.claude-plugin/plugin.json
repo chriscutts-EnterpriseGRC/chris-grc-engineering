@@ -1,11 +1,11 @@
 {
   "name": "risk-agent",
-  "description": "Autonomous risk agent for chris-grc-engineering — assesses findings from connectors, scores inherent/residual risk, triages the register, and writes structured records to Supabase conforming to schemas/risk.schema.json v1.",
+  "description": "Autonomous risk agent for chris-grc-engineering — assesses findings from connectors, scores inherent/residual risk, triages the register, writes plain-English risk descriptions, and writes structured records to Supabase conforming to schemas/risk.schema.json v1.",
   "version": "0.1.0",
   "author": {
     "name": "Chris Cutts"
   },
   "repository": "https://github.com/9snxz8htcw-netizen/chris-grc-engineering",
   "license": "MIT",
-  "keywords": ["grc", "risk", "agent", "supabase", "assessment", "triage"]
+  "keywords": ["grc", "risk", "agent", "supabase", "assessment", "triage", "description-writer"]
 }
