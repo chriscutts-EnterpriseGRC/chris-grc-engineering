@@ -1,10 +1,81 @@
-# Resilience Operations Dashboard
+# GRC Engineering Portfolio
 
-A central risk reporting platform for **Risk, Vulnerabilities, Incidents, Policy, and Third Party risk** - each item tied to a UCF control with a live effectiveness score. Built to run as a demo out of the box, and go live against real data sources by adding credentials.
+A production-grade Governance, Risk, and Compliance engineering portfolio — built to demonstrate how GRC is practised as an engineering discipline: automated, measurable, and traceable from policy to control to risk register.
 
 ---
 
-## What it does
+## What's in this repo
+
+| Folder | What it contains |
+|---|---|
+| `dashboard/` | React 19 + Tailwind risk and compliance monitoring dashboard |
+| `docs/` | Policy library, risk methodology, ATT&CK coverage map, Jira build guide |
+| `plugins/` | Autonomous agents: risk-agent, connectors (14 tools), framework assessors (30+ frameworks), trust center |
+| `schemas/` | JSON schemas for risks, findings, policies, metrics, vendors, exceptions |
+| `supabase/` | PostgreSQL schema and seed data |
+| `tests/` | Fixture data for all connectors and schemas |
+| `case-study/` | End-to-end implementation case study |
+
+---
+
+## Start here
+
+### Risk methodology
+
+The risk scoring model follows **ISO 27005:2022** and **ISO 31000:2018**.
+
+- **Inherent risk** = Likelihood × Impact (5×5 matrix, 1–25)
+- **Residual risk** = Inherent × (1 − 0.5 × control effectiveness)
+- **Risk appetite thresholds**: Within (1–11) · Approaches (12–19) · Exceeds (20–24) · Significantly Exceeds (25)
+
+Full methodology: [`docs/RISK-METHODOLOGY.md`](docs/RISK-METHODOLOGY.md)  
+Risk management framework: [`docs/Risk-Management-Framework.md`](docs/Risk-Management-Framework.md)
+
+### Policy library
+
+13 security policies mapped to MITRE ATT&CK Enterprise v14. Each policy covers specific tactics and techniques — the coverage map shows which techniques remain ungoverned.
+
+Key policies:
+- [`docs/INFORMATION-SECURITY-POLICY.md`](docs/INFORMATION-SECURITY-POLICY.md) — master policy
+- [`docs/ACCESS-CONTROL-IAM-POLICY.md`](docs/ACCESS-CONTROL-IAM-POLICY.md)
+- [`docs/SECURITY-MONITORING-POLICY.md`](docs/SECURITY-MONITORING-POLICY.md)
+- [`docs/INCIDENT-RESPONSE-POLICY.md`](docs/INCIDENT-RESPONSE-POLICY.md)
+- [`docs/DATA-CLASSIFICATION-POLICY.md`](docs/DATA-CLASSIFICATION-POLICY.md)
+
+Full list: all 13 policies in [`docs/`](docs/)
+
+### ATT&CK coverage
+
+Policies mapped to 80 techniques across all 14 enterprise tactics. Two full coverage gaps (Reconnaissance, Resource Development) with recommended closures documented.
+
+- Coverage map: [`docs/ATTACK-COVERAGE.md`](docs/ATTACK-COVERAGE.md)
+- Navigator layer: [`docs/attack-coverage-layer.json`](docs/attack-coverage-layer.json) — load directly into [ATT&CK Navigator](https://mitre-attack.github.io/attack-navigator/)
+
+### Jira risk project
+
+Step-by-step build guide for a company-managed Jira project: 3 issue types, 26 custom fields, ISO 27005 threat fields, workflow with Pending Validation state, 12 JQL filters, dashboard, and 7 automation rules. Includes Notion risk register migration steps.
+
+- Field configuration: [`docs/JIRA-RISK-PROJECT-SETUP.md`](docs/JIRA-RISK-PROJECT-SETUP.md)
+- Build guide: [`docs/JIRA-BUILD-GUIDE.md`](docs/JIRA-BUILD-GUIDE.md)
+
+### Policy hierarchy
+
+Maps the OSI 7-layer policy model to actual repo artefacts — from physical layer access controls through to GRC as the translator (Layer 8). Includes 5 derivation chains and a gap register.
+
+- [`docs/POLICY-HIERARCHY.md`](docs/POLICY-HIERARCHY.md)
+
+---
+
+## Dashboard
+
+React monitoring dashboard — runs on demo data out of the box, connects to Supabase and live integrations when credentials are added.
+
+```bash
+cd dashboard
+npm install
+npm start
+# Opens at http://localhost:3000
+```
 
 | Module | What it tracks | Control layer |
 |---|---|---|
@@ -23,158 +94,54 @@ A central risk reporting platform for **Risk, Vulnerabilities, Incidents, Policy
 | **Monthly Report** | Per-leader monthly GRC report, filterable by team | Director / VP views |
 | **Architecture** | Signal pipeline, domain reviewers, integrations, live status per stage | Operational |
 
-### Key capabilities
-
-- **Deep-link navigation** — every alert, decision, and AI insight links directly to its source row (scroll + highlight)
-- **Approval workflow engine** — route any leadership decision through a configurable multi-step chain (CISO Only, P0 Escalation, EU AI Act Budget, Legal/DPA, Risk Acceptance, Resource Decision); workflows persist across sessions with auto-generated reference numbers (`WF-YYYYMM-NNN`), action notes, and optional external ticket cross-reference (ServiceNow/Jira)
+**Key capabilities:**
+- **Deep-link navigation** — every alert, decision, and AI insight links directly to its source row
+- **Approval workflow engine** — configurable multi-step chains with auto-generated reference numbers, action notes, and optional ServiceNow/Jira cross-reference
 - **CSV export** — one-click export for Risk Register and Vulnerabilities
-- **Live sync status** — each module shows relative last-synced time with a manual Refresh button
 - **localStorage persistence** — decision log, workflow state, and dismissed alerts survive page refresh
 
----
+Integrations: Jira · Qualys · Splunk · Notion · ServiceNow · AWS Security Hub · Vanta
 
-## Quick start
-
-```bash
-git clone https://github.com/9snxz8htcw-netizen/chris-grc-engineering.git
-cd chris-grc-engineering/dashboard
-npm install
-npm start
-```
-
-Opens at `http://localhost:3000` - fully functional with demo data. No database or credentials needed.
+Full dashboard docs: [`dashboard/README.md`](dashboard/README.md)
 
 ---
 
-## Go live with real data
+## Plugins
 
-### 1. Create a Supabase project
+### Risk agent (`plugins/risk-agent/`)
 
-Sign up at [supabase.com](https://supabase.com) (free tier is sufficient to start).
+Autonomous agent that assesses findings from connectors, scores inherent and residual risk, and writes structured records to Supabase.
 
-### 2. Apply the schema and seed data
+Commands: `/assess-risk` · `/score-risk` · `/triage-risks` · `/generate-report` · `/write-description`
 
-In the Supabase SQL editor, run in order:
+### Connectors (`plugins/connectors/`)
 
-```sql
--- 1. Create tables, indexes, RLS policies
--- Paste contents of: supabase/migrations/001_initial_schema.sql
+14 security tool connectors: AWS Inspector · Azure · CrowdStrike · Datadog · Drata · GCP · GitHub · Okta · POAM Automation · Slack · Snowflake · Splunk · Tenable · TestSSL · Wiz
 
--- 2. Load demo data (optional - skip to start with a clean database)
--- Paste contents of: supabase/seed.sql
-```
+Each connector exposes `/collect`, `/setup`, and `/status` commands.
 
-### 3. Add credentials
+### Framework assessors (`plugins/frameworks/`)
 
-```bash
-cp dashboard/.env.example dashboard/.env
-```
+30+ compliance frameworks including: SOC 2 · ISO 27001 · NIST CSF 2.0 · NIST 800-53 · PCI DSS · GDPR · HIPAA · FedRAMP · CMMC · DORA · EU AI Act · ISO 42001 · CIS Controls · HITRUST · and more.
 
-Edit `.env` and fill in:
+### Trust center (`plugins/trust-center/`)
 
-```
-REACT_APP_SUPABASE_URL=https://your-project.supabase.co
-REACT_APP_SUPABASE_ANON_KEY=your-anon-key
-```
-
-Restart `npm start` - the header badge changes from **○ Demo** to **● Live**.
+Deployable customer-facing trust portal with admin dashboard, policy document hosting, and AWS Lambda backend.
 
 ---
 
-## Integrations
+## Schemas
 
-Pull real data into the dashboard by adding credentials to `.env` and running the sync runner.
+JSON Schema definitions for the core data model:
 
-### Available integrations
-
-| Integration | Module | Activate by adding to `.env` |
-|---|---|---|
-| **Jira** | Incidents | `JIRA_HOST`, `JIRA_EMAIL`, `JIRA_API_TOKEN`, `JIRA_PROJECT_KEY` |
-| **Qualys VMDR** | Vulnerabilities | `QUALYS_API_URL`, `QUALYS_USERNAME`, `QUALYS_PASSWORD` |
-| **Splunk** | Incidents | `SPLUNK_HOST`, `SPLUNK_TOKEN` |
-| **Notion** | Policy | `NOTION_TOKEN`, `NOTION_POLICY_DB_ID` |
-| **ServiceNow** | Incidents + Policy | `SERVICENOW_INSTANCE`, `SERVICENOW_USER`, `SERVICENOW_PASSWORD` |
-| **AWS Security Hub** | Vulnerabilities | `AWS_REGION`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` |
-| **Vanta** | Compliance / Controls | `VANTA_API_TOKEN` |
-
-### Run a sync
-
-```bash
-cd dashboard
-
-# Run all enabled integrations (skips any with missing credentials)
-SUPABASE_SERVICE_ROLE_KEY=xxx node integrations/sync.js
-
-# Run one integration
-SUPABASE_SERVICE_ROLE_KEY=xxx node integrations/sync.js jira
-
-# Run multiple
-SUPABASE_SERVICE_ROLE_KEY=xxx node integrations/sync.js jira qualys
-```
-
-### Notion - Policy integration
-
-Notion is ideal for the Policy module. Store your policy documents as a Notion database (Title, Owner, Status, Review Date, Category columns), then the integration pulls them directly into the Policy register. To add it:
-
-1. Create a Notion integration at [notion.so/my-integrations](https://www.notion.so/my-integrations)
-2. Share your policy database with the integration
-3. Add `NOTION_TOKEN` and `NOTION_POLICY_DB_ID` to `.env`
-
----
-
-## Project structure
-
-```
-chris-grc-engineering/
-├── dashboard/                        # React application
-│   ├── src/
-│   │   ├── GRCDashboard.jsx          # All dashboard modules (single file)
-│   │   └── lib/
-│   │       ├── supabase.js           # Supabase client (null if unconfigured - demo mode)
-│   │       └── api.js                # Data layer with per-table mock fallback
-│   ├── integrations/                 # Node.js adapters - one file per source
-│   │   ├── jira.js                   # Jira → incidents
-│   │   ├── qualys.js                 # Qualys → vulnerabilities
-│   │   ├── splunk.js                 # Splunk → incidents
-│   │   ├── aws-security-hub.js       # AWS Security Hub → vulnerabilities
-│   │   ├── servicenow.js             # ServiceNow → incidents, policy
-│   │   ├── notion.js                 # Notion → policy
-│   │   ├── vanta.js                  # Vanta → controls
-│   │   └── sync.js                   # Runs all enabled adapters
-│   └── .env.example                  # Credential template
-├── supabase/
-│   ├── migrations/
-│   │   ├── 001_initial_schema.sql    # controls, vulns, incidents, policies, vendors + RLS
-│   │   └── 002_risks_table.sql       # risks table (risk.schema.json v1)
-│   └── seed.sql                      # Demo data
-├── deployment/
-│   └── AWS_DEPLOYMENT.md             # RDS + ECS + Lambda architecture
-├── docs/
-│   ├── ARCHITECTURE.md               # System design and data flow
-│   ├── METHODOLOGY.md                # GRC engineering approach and health score
-│   ├── RISK-METHODOLOGY.md           # Risk scoring, bands, SLAs, approval authority
-│   ├── Risk-Management-Framework.docx # Source risk framework document
-│   ├── VULNERABILITY-MANAGEMENT-PROGRAM.md  # Vuln program: scope, SLAs, lifecycle
-│   ├── DOCKER-INTEGRATION-ROADMAP.md # Scout, Build Cloud, Registry, runtime roadmap
-│   ├── THREAT-MODEL-DOCKER-SUPPLY-CHAIN.md  # STRIDE threat model for container pipeline
-│   ├── METRICS.md                    # KPIs, KRIs, and targets
-│   ├── QUICKSTART.md                 # Setup and key documents index
-│   └── FAQ.md                        # Common questions
-├── plugins/
-│   ├── connectors/                   # 16 tool connectors (AWS, GCP, Okta, Wiz, Tenable...)
-│   ├── frameworks/                   # 33 compliance framework plugins
-│   │   ├── soc2/  iso27001/  gdpr/   nist-800-53/  nist-csf-20/
-│   │   ├── nist-ai-rmf/  eu-ai-act/  iso42001/
-│   │   └── pci-dss/  us-hipaa-security/  cmmc/  ... (25 more)
-│   ├── risk-agent/                   # Risk assessment + Supabase integration
-│   ├── grc-tprm/                     # Third-party risk management
-│   ├── grc-reporter/                 # Report generation
-│   ├── oscal/                        # OSCAL SSP export
-│   └── trust-center/                 # Public-facing trust portal
-├── schemas/                          # JSON schemas (risk, finding, vendor, policy...)
-├── tests/fixtures/                   # Test data aligned to schemas
-└── case-study/                       # Implementation case study
-```
+| Schema | Purpose |
+|---|---|
+| `schemas/risk.schema.json` | Risk register records |
+| `schemas/finding.schema.json` | Connector findings |
+| `schemas/policy.schema.json` | Policy documents |
+| `schemas/metric.schema.json` | GRC metrics |
+| `schemas/vendor.schema.json` | Third-party risk records |
+| `schemas/exception.schema.json` | Risk exceptions and acceptances |
 
 ---
 
@@ -182,19 +149,22 @@ chris-grc-engineering/
 
 | Layer | Technology |
 |---|---|
-| **Frontend** | React 19, Tailwind CSS v3, Recharts, Lucide icons |
-| **Database** | Supabase (PostgreSQL) with Row Level Security |
-| **Integrations** | Node.js adapters - one file per source system |
-| **Auth** (planned) | Supabase Auth / Okta SSO |
-| **Deployment** (planned) | Vercel / Netlify / internal nginx |
+| Frontend | React 19, Tailwind CSS v3, Recharts, Lucide icons |
+| Database | Supabase (PostgreSQL) with Row Level Security |
+| Integrations | Node.js adapters, one file per source system |
+| Auth (planned) | Supabase Auth / Okta SSO |
+| Deployment (planned) | Vercel / Netlify / internal nginx |
+| Risk methodology | ISO 27005:2022, ISO 31000:2018 |
+| Threat coverage | MITRE ATT&CK Enterprise v14 |
+| Control framework | Unified Compliance Framework (UCF) |
 
 ---
 
 ## UCF Controls
 
-All 25 controls follow the **Unified Compliance Framework** model - one control ID maps to multiple regulatory frameworks simultaneously. This means a single remediation effort satisfies requirements across SOC 2, ISO 27001, NIST, GDPR, PCI DSS 4.0, EU AI Act, and OWASP LLM Top 10 at once.
+All 25 controls follow the **Unified Compliance Framework** model — one control ID maps to multiple regulatory frameworks simultaneously. A single remediation effort satisfies requirements across SOC 2, ISO 27001, NIST, GDPR, PCI DSS 4.0, EU AI Act, and OWASP LLM Top 10 at once.
 
-Core controls (UCF.01–09) cover access, data protection, vulnerability management, incident response, network security, vendor management, policy, detection, and BCM - each mapped to PCI DSS 4.0 requirements in addition to existing framework coverage.
+Core controls (UCF.01–09) cover access, data protection, vulnerability management, incident response, network security, vendor management, policy, detection, and BCM.
 
 AI-specific controls (UCF.AI.01–10) cover:
 - AI Model Governance (EU AI Act Art.9, ISO/IEC 42001)
@@ -212,12 +182,11 @@ AI-specific controls (UCF.AI.01–10) cover:
 
 ## Security
 
-- `.env` is git-ignored - credentials never touch version control
+- `.env` is git-ignored — credentials never touch version control
 - Supabase anon key is used in the React frontend; RLS policies control what it can access
-- `SUPABASE_SERVICE_ROLE_KEY` (write access) is used only in server-side integration scripts - never in the browser
-- **Before connecting real data**: tighten the `anon_read` RLS policy and add an auth layer - the current open policy is suitable for demo only
-- For internal deployments: run behind your org's VPN/firewall and add Supabase Auth or Okta SSO before exposing to multiple users
-- For production: store the service role key in a secrets manager (macOS Keychain, AWS Secrets Manager, HashiCorp Vault) rather than a plain `.env` file
+- `SUPABASE_SERVICE_ROLE_KEY` (write access) is used only in server-side integration scripts — never in the browser
+- **Before connecting real data:** tighten the `anon_read` RLS policy and add an auth layer — the current open policy is suitable for demo only
+- For production: store the service role key in a secrets manager (AWS Secrets Manager, HashiCorp Vault) rather than a plain `.env` file
 
 ---
 
@@ -231,44 +200,38 @@ AI-specific controls (UCF.AI.01–10) cover:
 | HIPAA | 78% |
 | PCI DSS | 83% |
 | NIST CSF | 88% |
-| EU AI Act | 22% - gap requiring immediate action |
-| ISO/IEC 42001 | 18% - gap requiring immediate action |
+| EU AI Act | 22% — gap requiring immediate action |
+| ISO/IEC 42001 | 18% — gap requiring immediate action |
 
 ---
 
-## Related repositories
+## Related work
 
 | Repository | Role |
 |---|---|
-| [GRC-Portfolio](https://github.com/ewelina-kowalska-oneill/GRC-Portfolio) | Source GRC artefacts - IR plan, playbooks, policy docs, and tabletop scenarios used to enrich demo seed data |
-| [circleci-aws-opa-lab](https://github.com/9snxz8htcw-netizen/circleci-aws-opa-lab) | Preventive control layer - OPA policies enforce encryption, versioning, access, and tagging on IaC before deployment; control mappings inform UCF framework references |
+| [circleci-aws-opa-lab](https://github.com/9snxz8htcw-netizen/circleci-aws-opa-lab) | Preventive control layer — OPA/Rego policies enforce encryption, versioning, access, and tagging on IaC before deployment |
 
 ---
 
 ## Next steps
 
 **Production hardening (P0 before connecting real data)**
-- [ ] Tighten RLS - restrict `anon_read` policy so unauthenticated users cannot read security data
-- [ ] Add authentication - Supabase Auth or Okta SSO
-- [ ] Provision Supabase and run migrations - see [QUICKSTART.md](docs/QUICKSTART.md)
+- [ ] Tighten RLS — restrict `anon_read` policy so unauthenticated users cannot read security data
+- [ ] Add authentication — Supabase Auth or Okta SSO
+- [ ] Provision Supabase and run migrations — see [QUICKSTART.md](docs/QUICKSTART.md)
 
 **Docker integration (see [DOCKER-INTEGRATION-ROADMAP.md](docs/DOCKER-INTEGRATION-ROADMAP.md))**
-- [ ] Phase 2 - Docker Scout image scanning on every ECR push
-- [ ] Phase 3 - Registry compliance scoring, deployment block for non-compliant images
-- [ ] Phase 4 - Snyk runtime scanning, Falco behavioral monitoring
+- [ ] Phase 2 — Docker Scout image scanning on every ECR push
+- [ ] Phase 3 — Registry compliance scoring, deployment block for non-compliant images
+- [ ] Phase 4 — Snyk runtime scanning, Falco behavioral monitoring
 
 **Vulnerability program (see [VULNERABILITY-MANAGEMENT-PROGRAM.md](docs/VULNERABILITY-MANAGEMENT-PROGRAM.md))**
-- [ ] Improve UCF.03.02 Patch Management (currently 41% - primary program gap)
+- [ ] Improve UCF.03.02 Patch Management (currently 41% — primary program gap)
 - [ ] Add Docker Scout credentials to activate container scanning track
 - [ ] Resolve EOL asset risks (Node.js 16, Python 3.8 in ML pipeline)
-
-**AWS deployment (see [deployment/AWS_DEPLOYMENT.md](deployment/AWS_DEPLOYMENT.md))**
-- [ ] Deploy to ECS Fargate + RDS
-- [ ] Configure Lambda adapters with EventBridge schedules
-- [ ] Set up CloudWatch alarms
 
 ---
 
 ## License
 
-MIT - see [LICENSE](LICENSE).
+MIT — see [LICENSE](LICENSE).
