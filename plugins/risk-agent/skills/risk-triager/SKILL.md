@@ -1,7 +1,7 @@
 ---
 name: risk-triager
-description: Prioritises risks from the Supabase register and produces per-risk action recommendations based on score, treatment, control effectiveness, and age.
-allowed-tools: Read, Bash
+description: Prioritises risks from the local register and produces per-risk action recommendations based on score, treatment, control effectiveness, and age.
+allowed-tools: Read
 ---
 
 # Risk Triager
@@ -11,27 +11,31 @@ Ranks and recommends actions for open risks.
 ## Prioritisation factors
 
 1. **Inherent score** (primary sort — higher = more urgent)
-2. **Days open** — `NOW() - created_at` in days (breaks ties)
+2. **Days open** — `today - created_at` in days (breaks ties)
 3. **Control effectiveness** — risks with all linked controls `ineffective` or `not_tested` are elevated one priority band
-4. **Overdue** — `target_close_at < NOW()` and status not `closed` or `accepted` → flag as overdue
+4. **Overdue** — `target_close_at < today` and status not `closed` or `accepted` → flag as overdue
 
 ## Recommendation logic
 
+Thresholds align to the ISO 27005 rating bands in the risk-scorer skill:
+
 | Condition | Recommendation |
-|-----------|---------------|
-| Score ≥ 20 AND status = open | **Escalate** — assign owner and set 7-day target |
-| Score 12–19 AND no treatment plan | **Plan** — draft treatment plan within 14 days |
-| Score 12–19 AND treatment plan exists | **Mitigate** — confirm plan is active |
-| Score 6–11 AND days open > 90 | **Review** — reassess likelihood/impact; may have drifted |
-| Score 6–11 AND days open ≤ 90 | **Monitor** — continue watching |
-| Score ≤ 5 | **Accept or close** — document acceptance rationale |
-| status = mitigating AND residual score ≤ 5 | **Close** — residual risk within appetite |
+|---|---|
+| Score = 25 (Critical) | **Escalate** — C-Suite / SVP+ decision required within 7 days |
+| Score 16–24 (Severe) AND no treatment plan | **Escalate** — VP+ decision required within 30 days |
+| Score 16–24 (Severe) AND treatment plan exists | **Mitigate** — confirm plan is active and on track |
+| Score 10–15 (High) AND no treatment plan | **Plan** — Director+ to draft treatment plan within 60 days |
+| Score 10–15 (High) AND treatment plan exists | **Monitor** — confirm plan is progressing |
+| Score 5–9 (Moderate) AND days open > 90 | **Review** — reassess likelihood/impact; score may have drifted |
+| Score 5–9 (Moderate) AND days open ≤ 90 | **Monitor** — continue watching at bi-annual cadence |
+| Score 1–4 (Low) | **Accept or close** — document acceptance rationale |
+| status = mitigating AND residual score ≤ 4 | **Close** — residual risk within appetite |
 
 ## Output per risk
 
 ```
-RISK-001 | Cloud misconfiguration | inherent: 20 | residual: 8 | status: mitigating
-→ MITIGATE: treatment plan active, residual within target. Review at next quarterly cycle.
+RSK-SE-2026-001 | Unenforced allowlists for apps, browsers, and AI tooling | inherent: 20 | residual: 16 | status: mitigating
+→ MITIGATE: treatment plan active. Confirm all six surface areas are on track. Review at next monthly cycle.
 ```
 
 ## Overdue summary

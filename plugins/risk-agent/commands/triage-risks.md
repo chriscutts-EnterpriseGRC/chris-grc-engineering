@@ -1,10 +1,10 @@
 ---
-description: Pull the live risk register from Supabase and produce a prioritised triage view
+description: Read the risk register and produce a prioritised triage view
 ---
 
 # Triage Risks
 
-Queries the Supabase `risks` table, ranks entries by inherent score descending, and produces an actionable triage report with recommended next steps for each open or watching risk.
+Reads risk records from `reports/risks/risk-register.json`, ranks entries by inherent score descending, and produces an actionable triage report with recommended next steps for each open or watching risk.
 
 ## Arguments
 
@@ -13,11 +13,11 @@ Queries the Supabase `risks` table, ranks entries by inherent score descending, 
 
 ## What the agent does
 
-1. Fetches risks from Supabase filtered by status
-2. Ranks by `inherent->>'score'` descending, breaking ties by `target_close_at` ascending
-3. For each risk, uses `risk-triager` skill to recommend: escalate | monitor | close | accept
-4. Cross-references `linked_controls` against the `controls` table to surface any ineffective controls
-5. Flags overdue risks where `target_close_at < NOW()` and status is not closed
+1. Reads risks from `reports/risks/risk-register.json` filtered by status
+2. Ranks by `inherent.score` descending, breaking ties by `target_close_at` ascending
+3. For each risk, uses the `risk-triager` skill to recommend: escalate | plan | mitigate | monitor | accept | close
+4. Cross-references `linked_controls` against the controls list to surface any ineffective controls
+5. Flags overdue risks where `target_close_at < today` and status is not closed or accepted
 
 ## Output
 
